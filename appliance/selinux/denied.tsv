@@ -1,0 +1,194 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+# Accesses the installed policy must not grant, at least one per domain. compare_rules.py policy mode fails if any is
+# granted in the policy's defaults or with a boolean the module declares at true or at false, except in the one state
+# its allowed_when names (<boolean>=true or false). Lines starting with # are comments.
+id	source	target	class	perm	allowed_when	reason
+N-PORTAL-KEY	olivares_portal_t	olivares_portal_key_t	file	read		the console measures the key by lstat and never opens it
+N-PORTAL-PORT	olivares_portal_t	pki_ca_port_t	tcp_socket	name_bind		the console binds tcp 9443 alone, not the rest of the base policy's 9443-9447
+N-RCON	olivares_repair_console_t	olivares_helper_bundle_sock_t	sock_file	write		the repair console reaches the power helper only
+N-HPWR	olivares_helper_power_t	olivares_portal_t	dir	search		the power helper attests only the repair console
+N-HBND	olivares_helper_bundle_t	olivares_helper_bundle_var_lib_t	dir	remove_name		the spool is written once and never emptied by the helper
+N-SNAP	olivares_snapshotcore_t	olivares_var_lib_t	file	read		the excluded-state guard reads subvolume ids, never the product's files
+N-FBOOT-KEY	olivares_firstboot_t	olivares_portal_key_t	file	unlink		first boot makes the console's key once, under its staged name, and never removes one: its rename cannot replace a key, and the code opens tls.key to read it only (the write grant on the type also allows an in-place write, which nothing in the code does)
+N-FBOOT-CLOUDINIT	olivares_firstboot_t	cloud_init_exec_t	file	execute		first boot stats cloud-init's program and never runs it
+N-FBOOT-EXEC	olivares_firstboot_t	bin_t	file	execute		first boot executes no generic command
+N-FBOOT-PRIVATE	olivares_firstboot_t	sshd_key_t	file	read		first boot reads the public host keys only
+N-PROD-JIT	olivares_t	olivares_t	process	execmem	olivares_operate_runtime=true	executable memory only while olivares_operate_runtime is on
+N-PROD-PORT	olivares_t	http_port_t	tcp_socket	name_bind		the engine binds tcp 8443 alone, not every http port
+N-API-PROD-CONNECT	olivares_t	olivares_portal_t	unix_stream_socket	connectto		the product engine is not an admitted caller of the local API
+N-API-PROD-SOCK	olivares_t	olivares_portal_api_sock_t	sock_file	write		the product engine does not reach local.sock
+N-API-RCON-CONNECT	olivares_repair_console_t	olivares_portal_t	unix_stream_socket	connectto		repair on tty1 does not depend on the local API
+N-PORTAL-OPS-PARENT	olivares_portal_t	olivares_portal_var_lib_t	dir	write		the operations leaf's parent is root's; the portal only searches it
+N-PORTAL-VARLIB	olivares_portal_t	var_lib_t	dir	write		no ancestor of the operations leaf is writable by the portal
+N-PORTAL-LIFECYCLE-ADD	olivares_portal_t	olivares_lifecycle_run_t	dir	add_name		the portal places nothing in the lifecycle directory, so it cannot replace the lock
+N-PORTAL-LIFECYCLE-UNLINK	olivares_portal_t	olivares_lifecycle_lock_t	file	unlink		the portal never removes or replaces lifecycle.lock
+N-PORTAL-LIFECYCLE-WRITE	olivares_portal_t	olivares_lifecycle_lock_t	file	write		the portal holds lifecycle.lock read-only and never truncates it
+N-CLI-KEY-OPEN	olivares_cli_t	olivares_portal_key_t	file	open		the CLI stats tls.key and never opens it
+N-CLI-KEY-READ	olivares_cli_t	olivares_portal_key_t	file	read		the CLI never reads the private key
+N-NET-GUARD-SYSCONN	olivares_net_guard_t	NetworkManager_etc_rw_t	file	write		the guard changes profiles only through NetworkManager
+N-NET-RESTORE-JOURNAL	olivares_helper_netrestore_t	olivares_net_guard_var_lib_t	file	write		netrestore reads the guard's journal only
+N-NET-PROBE-NMETC	olivares_helper_netprobe_t	NetworkManager_etc_rw_t	file	write		netprobe writes no NetworkManager keyfile
+N-NET-PROD-STATE	olivares_t	olivares_net_guard_var_lib_t	dir	write		the product engine never writes the guard's state
+N-NET-PORTAL-STATE	olivares_portal_t	olivares_net_guard_var_lib_t	dir	write		the portal never writes the guard's state
+N-NET-CLI-STATE	olivares_cli_t	olivares_net_guard_var_lib_t	dir	write		the CLI never writes the guard's state
+N-NET-PORTAL-LOCK	olivares_portal_t	olivares_network_run_t	file	lock		the portal has no writer authority over the network lock
+N-NET-PROBE-NMCONF	olivares_helper_netprobe_t	NetworkManager_etc_t	file	write		netprobe writes no NetworkManager configuration
+N-NET-PROBE-NMRUN	olivares_helper_netprobe_t	NetworkManager_var_run_t	file	write		netprobe writes no NetworkManager runtime file
+N-NET-GUARD-SYSCONN-ADD	olivares_net_guard_t	NetworkManager_etc_rw_t	dir	add_name		the guard adds no keyfile; netrestore alone touches keyfiles
+N-NET-GUARD-LEDGER	olivares_net_guard_t	olivares_netrestore_run_t	dir	add_name		the guard cannot write root's restore ledger
+N-FBOOT-ETC-WRITE	olivares_firstboot_t	etc_t	file	write		first boot writes no etc_t file; its drop-in has its own type
+N-FBOOT-ETC-UNLINK	olivares_firstboot_t	etc_t	file	unlink		first boot removes or replaces no etc_t file
+N-PORTAL-ENGINE-OPEN	olivares_portal_t	olivares_var_lib_t	file	open		the portal never opens private engine state
+N-PORTAL-ENGINE-READ	olivares_portal_t	olivares_var_lib_t	file	read		the portal never reads private engine state
+N-PID1-ENGINE-OPEN	init_t	olivares_var_lib_t	file	open		PID 1 opens only the public copy for the engine credential
+N-PID1-ENGINE-READ	init_t	olivares_var_lib_t	file	read		PID 1 reads no private engine file for the engine credential
+N-PORTAL-ENGINE-PUBLIC-WRITE	olivares_portal_t	olivares_engine_public_t	file	write		the portal cannot alter its engine trust copy
+N-PID1-ENGINE-PUBLIC-WRITE	init_t	olivares_engine_public_t	file	write		PID 1 cannot alter the engine public certificate
+N-PORTAL-ENGINE-HTTP	olivares_portal_t	http_port_t	tcp_socket	name_connect		the portal reaches the separately labeled console port only
+N-PORTAL-ENGINE-DNS	olivares_portal_t	dns_port_t	tcp_socket	name_connect		the engine address is fixed loopback and needs no DNS
+N-PORTAL-ENGINE-UNRESERVED	olivares_portal_t	unreserved_port_t	tcp_socket	name_connect		the portal connects to no generic unreserved port
+N-PORTAL-ENGINE-MODEL	olivares_portal_t	olivares_model_runtime_port_t	tcp_socket	name_connect		the portal never connects directly to a model runtime
+N-PAM-ENGINE-PRIVATE	olivares_portal_pam_t	olivares_var_lib_t	file	read		native PAM never reads product state
+N-PAM-PORTAL-API	olivares_portal_pam_t	olivares_portal_t	unix_stream_socket	connectto		PAM is not an admitted caller of the portal local API
+N-PAM-PORTAL-SOCK	olivares_portal_pam_t	olivares_portal_api_sock_t	sock_file	write		PAM never reaches local.sock
+N-PAM-SHADOW-WRITE	olivares_portal_pam_t	shadow_t	file	write		authentication/account only, never change native credentials
+N-PORTAL-SHADOW	olivares_portal_t	shadow_t	file	read		portal credentials pass only after native worker attestation
+N-PROD-SHADOW	olivares_t	shadow_t	file	read		engine delegates native account control to the fixed worker
+N-CLI-PAM	olivares_cli_t	olivares_portal_pam_sock_t	sock_file	write		CLI uses portal ingress, never a group-authorized PAM shortcut
+N-PAM-HTTP	olivares_portal_pam_t	http_port_t	tcp_socket	name_connect		PAM worker has no IP network
+N-PAM-CHKPWD-TRANSITION	olivares_portal_pam_t	chkpwd_t	process	transition		unix_chkpwd remains in the fixed worker domain, never chkpwd_t
+N-PAM-CHKPWD-NNP-TRANSITION	olivares_portal_pam_t	chkpwd_t	process2	nnp_transition		NoNewPrivileges receives no domain-transition exception
+N-PORTAL-CHKPWD	olivares_portal_t	chkpwd_exec_t	file	execute		portal delegates native credentials to the attested worker
+N-ENGINE-CHKPWD	olivares_t	chkpwd_exec_t	file	execute		engine delegates account control to the attested worker
+N-CLI-AUTHORITY	olivares_cli_t	olivares_authority_sock_t	sock_file	write		CLI uses the original portal ingress, never the engine broker endpoint
+N-PAM-AUTHORITY	olivares_portal_pam_t	olivares_authority_sock_t	sock_file	write		native PAM never resolves product authority
+N-FBOOT-ENGINE-WRITE	olivares_firstboot_t	olivares_var_lib_t	file	write		firstboot writes only its separate setup-token hash type, never the product database or private keys
+N-PORTAL-SETUP-READ	olivares_portal_t	olivares_setup_token_t	file	read		the portal receives no setup-token hash or plaintext
+N-PAM-SETUP-READ	olivares_portal_pam_t	olivares_setup_token_t	file	read		native PAM receives no product setup-token material
+N-HUNT-UNIT-START	olivares_helper_units_t	systemd_unit_file_t	service	start		readonly module inventory grants no service start
+N-HUNT-ENGINE-PRIVATE	olivares_helper_units_t	olivares_var_lib_t	file	read		module helpers never read private engine or portal operation/audit files
+N-HUNT-PORTAL-PRIVATE	olivares_helper_units_t	olivares_portal_ops_t	file	read		module helpers never read private engine or portal operation/audit files
+N-HSTO-FIXED-DISK-DEVICE-WRITE	olivares_helper_storage_t	fixed_disk_device_t	blk_file	write		storage inventory never writes a disk
+N-HSTO-REMOVABLE-DEVICE-WRITE	olivares_helper_storage_t	removable_device_t	blk_file	write		storage inventory never writes a disk
+N-HSTO-ENGINE-PRIVATE	olivares_helper_storage_t	olivares_var_lib_t	file	read		module helpers never read private engine or portal operation/audit files
+N-HSTO-PORTAL-PRIVATE	olivares_helper_storage_t	olivares_portal_ops_t	file	read		module helpers never read private engine or portal operation/audit files
+N-HFWR-PORTAL-STATE	olivares_portal_t	olivares_firewall_var_lib_t	file	read		clients receive checked helper answers, never private owner state
+N-HFWR-ENGINE-STATE	olivares_t	olivares_firewall_var_lib_t	file	read		clients receive checked helper answers, never private owner state
+N-HFWR-CLI-STATE	olivares_cli_t	olivares_firewall_var_lib_t	file	read		clients receive checked helper answers, never private owner state
+N-HFWR-ENGINE-PRIVATE	olivares_helper_firewall_t	olivares_var_lib_t	file	read		module helpers never read private engine or portal operation/audit files
+N-HFWR-PORTAL-PRIVATE	olivares_helper_firewall_t	olivares_portal_ops_t	file	read		module helpers never read private engine or portal operation/audit files
+N-HFWR-ROUTE-WRITE	olivares_helper_firewall_t	olivares_helper_firewall_t	netlink_route_socket	nlmsg_write		interface index lookup never changes links addresses or routes
+N-HFWR-ROUTE-XPERM	olivares_helper_firewall_t	olivares_helper_firewall_t	netlink_route_socket	nlmsg		interface index lookup does not authorize extended netlink messages
+N-HAPT-ENGINE-PRIVATE	olivares_helper_apt_t	olivares_var_lib_t	file	read		module helpers never read private engine or portal operation/audit files
+N-HAPT-PORTAL-PRIVATE	olivares_helper_apt_t	olivares_portal_ops_t	file	read		module helpers never read private engine or portal operation/audit files
+N-HAPT-RPMDB-WRITE	olivares_helper_apt_t	rpm_var_lib_t	file	write		the status read never changes the installed package database
+N-HAPT-PLAN-WRITE	olivares_helper_apt_t	olivares_helper_apt_var_lib_t	file	write		the status read never rewrites the retained plan or its RPMs
+N-HAPP-ENGINE-PRIVATE	olivares_helper_apps_t	olivares_var_lib_t	file	read		module helpers never read private engine or portal operation/audit files
+N-HAPP-PORTAL-PRIVATE	olivares_helper_apps_t	olivares_portal_ops_t	file	read		module helpers never read private engine or portal operation/audit files
+N-HAPP-RUNTIME-STATE	olivares_helper_apps_t	container_var_lib_t	file	read		the helper asks the daemon about the app; it never reads the runtime's images, volumes or secrets
+N-HAPP-NAMEBIND-SSH	olivares_helper_apps_t	ssh_port_t	tcp_socket	name_bind		the pre-flight probe binds the app's published ports, not the operator's SSH port
+N-HAPP-SHELL	olivares_helper_apps_t	shell_exec_t	file	execute_no_trans		the helper runs its fixed Docker argv and never a shell
+N-HAPP-PORTAL-APPDATA	olivares_portal_t	olivares_helper_apps_var_lib_t	file	read		the console asks the helper about the app and never reads its folders
+N-HAPP-ENGINE-APPDATA	olivares_t	olivares_helper_apps_var_lib_t	file	read		the product engine never reads the app's folders
+N-HAPP-ENGINE-CONNECT	olivares_t	olivares_helper_apps_t	unix_stream_socket	connectto		only the Appliance Console connects to the apps helper
+N-HAPP-CLI-SOCKET	olivares_cli_t	olivares_helper_apps_sock_t	sock_file	write		the command-line client reaches the helper through the console, never the socket
+N-TOOL-SETUP-TOKEN	olivares_tool_t	olivares_setup_token_t	file	read		an installed AI tool never reads the appliance's one-time setup token
+N-TOOL-DATA-LIST	olivares_tool_t	olivares_var_lib_t	dir	read		an installed AI tool never lists the engine's data directory (it only passes through it)
+N-TOOL-DATA-READ	olivares_tool_t	olivares_var_lib_t	file	read		an installed AI tool never reads the engine's own data files
+N-TOOL-HOST-TMP-EXEC	olivares_tool_t	tmp_t	file	execute		an installed AI tool executes nothing from the host's /tmp
+N-TOOL-PROGRAM-WRITE	olivares_tool_t	olivares_tool_exec_t	file	write		an installed AI tool never rewrites an installed program
+N-TOOL-DATA-WRITE	olivares_tool_t	olivares_var_lib_t	file	write		an installed AI tool never writes the engine's own data files
+N-TOOL-TMP-RUN	olivares_tool_t	olivares_tmp_t	file	execute_no_trans		an installed AI tool never runs a program it wrote to its TMPDIR
+N-ENGINE-WORKSPACE-EXEC	olivares_t	olivares_workspace_t	file	execute		the engine never executes a file from a session folder
+N-ENGINE-HOME-EXEC	olivares_t	olivares_tool_home_t	file	execute		the engine never executes a file from a tool's home
+N-ENGINE-TMP-EXEC	olivares_t	olivares_tmp_t	file	execute		the engine never executes a file from a tool's TMPDIR
+N-TOOL-VAR-LIST	olivares_tool_t	var_t	dir	read		an installed AI tool does not list /var (it only passes through it)
+N-TOOL-VARLIB-LIST	olivares_tool_t	var_lib_t	dir	read		an installed AI tool does not list /var/lib (it only passes through it)
+N-TOOL-ENGINE-SOCKET	olivares_tool_t	olivares_t	unix_stream_socket	connectto		an installed AI tool never connects to the engine's own unix sockets (it reaches the egress proxy over loopback TCP)
+N-TOOL-ENGINE-TMP-SOCK	olivares_tool_t	olivares_engine_tmp_t	sock_file	write		an installed AI tool never writes a socket in the engine's /tmp scratch
+N-TOOL-USERNS	olivares_tool_t	olivares_tool_t	user_namespace	create		an installed AI tool never creates a user namespace of its own (only the engine's helper does, before the tool runs)
+N-TOOL-ETC-READ	olivares_tool_t	olivares_etc_t	file	read		an installed AI tool never reads the engine's configuration in /etc/olivares
+N-ENGINE-VAR-LIST	olivares_t	var_t	dir	read		the engine passes through /var to its data directory without listing it
+N-ENGINE-VARLIB-LIST	olivares_t	var_lib_t	dir	read		the engine passes through /var/lib to its data directory without listing it
+N-TOOL-PROGRAM-RUN	olivares_tool_t	olivares_tool_exec_t	file	execute_no_trans		an installed tool runs no other installed program in its own domain; only the ripgrep has its own type
+N-CMD-HOME-READ	olivares_cmd_t	olivares_tool_home_t	file	read		a command a tool runs never reads the account's login files
+N-CMD-TOOL-EXEC	olivares_cmd_t	olivares_tool_exec_t	file	execute		a command a tool runs never executes an installed tool, so it never returns to the tool's domain
+N-CMD-DATA-READ	olivares_cmd_t	olivares_var_lib_t	file	read		a command a tool runs never reads the engine's data
+N-CMD-ETC-READ	olivares_cmd_t	olivares_etc_t	file	read		a command a tool runs never reads the engine's configuration
+N-CMD-SETUP-TOKEN	olivares_cmd_t	olivares_setup_token_t	file	read		a command a tool runs never reads the setup token
+N-CMD-ENGINE-SOCKET	olivares_cmd_t	olivares_t	unix_stream_socket	connectto		a command a tool runs never connects to the engine's own sockets
+N-CMD-ENGINE-TMP-SOCK	olivares_cmd_t	olivares_engine_tmp_t	sock_file	write		a command a tool runs never writes a socket in the engine's /tmp scratch
+N-CMD-USERNS	olivares_cmd_t	olivares_cmd_t	user_namespace	create		a command a tool runs never creates a user namespace
+N-CMD-SETUID	olivares_cmd_t	olivares_cmd_t	capability	setuid		a command a tool runs never changes its user
+N-CMD-SETGID	olivares_cmd_t	olivares_cmd_t	capability	setgid		a command a tool runs never changes its group
+N-ENGINE-WORKSPACE-LNK-READ	olivares_t	olivares_workspace_t	lnk_file	read		the engine never follows a link a command left in a session's folder
+N-TOOL-RG-WRITE	olivares_tool_t	olivares_tool_rg_exec_t	file	write		an installed tool never rewrites the ripgrep it may run in place
+N-CMD-ENGINE-TMP-READ	olivares_cmd_t	olivares_engine_tmp_t	file	read		a command a tool runs never reads the engine's /tmp scratch
+N-CMD-HOME-WRITE	olivares_cmd_t	olivares_tool_home_t	dir	write add_name create		a command never writes into the tool's configuration; Claude Code's shell snapshot stays refused
+N-CMD-PTRACE	olivares_cmd_t	olivares_tool_t	process	ptrace		a command a tool runs never traces the tool
+N-TOOL-PROGRAMS-LIST	olivares_tool_t	olivares_tool_exec_t	dir	read		an installed tool does not list the tools directory or its versions (it only passes through them)
+N-ENGINE-SSH-RUN	olivares_t	ssh_exec_t	file	execute_no_trans		the engine looks the ssh client up and never runs it in its own domain
+N-CMD-TOOLS-SEARCH	olivares_cmd_t	olivares_tool_exec_t	dir	search		a command a tool runs does not walk the tools' install tree
+N-TOOL-DATA-GETATTR	olivares_tool_t	olivares_var_lib_t	file	getattr		an installed tool does not stat the engine's own files
+N-TOOL-RUN-WRITE	olivares_tool_t	olivares_run_t	file	write		an installed tool reads its run's files and never changes them
+N-CMD-RUN-WRITE	olivares_cmd_t	olivares_run_t	file	write		a command a tool runs never changes a run's files
+N-TOOL-SIGNAL-ENGINE	olivares_tool_t	olivares_t	process	signal		an installed tool never signals the engine
+N-GPUB-WRITE	olivares_gitpub_t	olivares_workspace_t	file	write		gitpublish's git reads a session's repository and never writes it
+N-GPUB-HOME	olivares_gitpub_t	olivares_tool_home_t	dir	search		gitpublish's git never reaches an account's tool home and its credentials
+N-GPUB-DATA	olivares_gitpub_t	olivares_var_lib_t	file	read		gitpublish's git never reads the engine's data
+N-GIMP-WORKSPACE	olivares_git_import_t	olivares_workspace_t	dir	search		the import's git never reaches a session's folders
+N-GIMP-HTTP	olivares_git_import_t	http_port_t	tcp_socket	name_connect		the import's git reaches the remote only through the engine's relay
+N-GIMP-GITPUBLISH	olivares_git_import_t	olivares_gitpublish_t	dir	search		the import's git never reaches the publication repositories or their key files
+N-CMD-GITPUBLISH	olivares_cmd_t	olivares_gitpublish_t	dir	search		a command a tool runs never reaches the publication repositories or their key files
+N-TOOL-GITPUBLISH	olivares_tool_t	olivares_gitpublish_t	dir	search		an installed tool never reaches the publication repositories or their key files
+N-CMD-IMPORTS	olivares_cmd_t	olivares_skills_import_t	dir	search		a command a tool runs never reaches the import staging the engine reads
+N-TOOL-IMPORTS	olivares_tool_t	olivares_skills_import_t	dir	search		an installed tool never reaches the import staging the engine reads
+N-CMD-GITPUB-PTRACE	olivares_cmd_t	olivares_gitpub_t	process	ptrace		a command a tool runs never traces gitpublish's git
+N-CMD-GITPUB-KILL	olivares_cmd_t	olivares_gitpub_t	process	sigkill		a command a tool runs never kills gitpublish's git
+N-TOOL-GITPUB-PTRACE	olivares_tool_t	olivares_gitpub_t	process	ptrace		an installed tool never traces gitpublish's git
+N-TOOL-GITPUB-KILL	olivares_tool_t	olivares_gitpub_t	process	sigkill		an installed tool never kills gitpublish's git
+N-CMD-GITIMP-PTRACE	olivares_cmd_t	olivares_git_import_t	process	ptrace		a command a tool runs never traces the import's git
+N-CMD-GITIMP-KILL	olivares_cmd_t	olivares_git_import_t	process	sigkill		a command a tool runs never kills the import's git
+N-TOOL-GITIMP-PTRACE	olivares_tool_t	olivares_git_import_t	process	ptrace		an installed tool never traces the import's git
+N-TOOL-GITIMP-KILL	olivares_tool_t	olivares_git_import_t	process	sigkill		an installed tool never kills the import's git
+N-GPUB-SIGNAL-ENGINE	olivares_gitpub_t	olivares_t	process	signal		gitpublish's git never signals the engine
+N-GPUB-SHADOW	olivares_gitpub_t	shadow_t	file	read		ssh's user lookup reads /etc/passwd only, never the password hashes
+N-ENGINE-BIND-UNRESERVED	olivares_t	unreserved_port_t	tcp_socket	name_bind		the relay binds only labeled model runtime ports; a custom port is labeled with semanage port (the regression)
+N-HOOK-READ	olivares_hook_t	olivares_workspace_t	file	read		the hook resolves names and links, never reads a session's file
+N-HOOK-WRITE	olivares_hook_t	olivares_workspace_t	file	write		the hook never writes a session's files
+N-HOOK-HTTP	olivares_hook_t	http_port_t	tcp_socket	name_connect		the hook reaches only the PEP on loopback
+N-HOOK-HOME	olivares_hook_t	olivares_tool_home_t	dir	search		the hook never reaches a tool home and its credentials
+N-HOOK-DATA	olivares_hook_t	olivares_var_lib_t	file	read		the hook never reads the engine's data
+N-HOOK-SHELL	olivares_hook_t	shell_exec_t	file	execute		the hook runs no other program
+N-CMD-ENGINE-IN-PLACE	olivares_cmd_t	olivares_exec_t	file	execute_no_trans		a command never runs the engine's program in the command domain
+N-HOOK-TMP-READ	olivares_hook_t	olivares_tmp_t	file	read		the hook resolves names and links in the TMPDIR, never reads a file there
+N-HOOK-TMP-WRITE	olivares_hook_t	olivares_tmp_t	file	write		the hook writes nothing in the TMPDIR
+N-HOOK-TOOL-PROGRAM	olivares_hook_t	olivares_tool_exec_t	file	execute		the hook runs no installed tool
+N-HOOK-ENGINE-SOCKET	olivares_hook_t	olivares_t	unix_stream_socket	connectto		the hook reaches the engine only through the PEP's TCP endpoint, never one of its sockets
+N-HOOK-LISTEN	olivares_hook_t	olivares_hook_t	tcp_socket	listen		the hook connects; it never listens
+N-HOOK-HOME-ATTR	olivares_hook_t	olivares_tool_home_t	file	getattr		the hook never looks at a tool home's files, even their names
+N-HOOK-SIGNAL-ENGINE	olivares_hook_t	olivares_t	process	signal		the PEP hook never signals the engine
+N-CHOOK-READ	olivares_container_hook_t	olivares_workspace_t	file	read		the in-container hook resolves names and links, never reads a session's file
+N-CHOOK-WRITE	olivares_container_hook_t	olivares_workspace_t	file	write		the in-container hook never writes a session's files
+N-CHOOK-HTTP	olivares_container_hook_t	http_port_t	tcp_socket	name_connect		the in-container hook reaches only the PEP on loopback
+N-CHOOK-HOME	olivares_container_hook_t	olivares_tool_home_t	dir	search		the in-container hook never reaches a tool home and its credentials
+N-CHOOK-DATA	olivares_container_hook_t	olivares_var_lib_t	file	read		the in-container hook never reads the engine's data
+N-CHOOK-SHELL	olivares_container_hook_t	shell_exec_t	file	execute		the in-container hook runs no other program
+N-CHOOK-TMP-READ	olivares_container_hook_t	olivares_tmp_t	file	read		the in-container hook resolves names and links in the TMPDIR, never reads a file there
+N-CHOOK-TMP-WRITE	olivares_container_hook_t	olivares_tmp_t	file	write		the in-container hook writes nothing in the TMPDIR
+N-CHOOK-TOOL-PROGRAM	olivares_container_hook_t	olivares_tool_exec_t	file	execute		the in-container hook runs no installed tool
+N-CHOOK-ENGINE-SOCKET	olivares_container_hook_t	olivares_t	unix_stream_socket	connectto		the in-container hook reaches the engine only through the PEP's TCP endpoint, never one of its sockets
+N-CHOOK-LISTEN	olivares_container_hook_t	olivares_container_hook_t	tcp_socket	listen		the in-container hook connects; it never listens
+N-CHOOK-HOME-ATTR	olivares_container_hook_t	olivares_tool_home_t	file	getattr		the in-container hook never looks at a tool home's files, even their names
+N-CHOOK-SIGNAL-ENGINE	olivares_container_hook_t	olivares_t	process	signal		the in-container hook never signals the engine
+N-CHOOK-CONTAINER-ENTRY	container_t	olivares_container_hook_t	process	transition		a plain container never enters the in-container hook domain
+N-RELAY-SHELL	olivares_container_relay_t	shell_exec_t	file	execute		the container relay runs no shell or other generic program
+N-RELAY-DMI	olivares_container_relay_t	sysfs_t	lnk_file	read		the relay does not read the host's DMI product UUID; xid tolerates EACCES and the model call continues
+N-TOOL-CLAUDE-WRITE	olivares_tool_t	olivares_tool_claude_exec_t	file	write		an installed tool never rewrites Claude Code's installed program
+N-CMD-CLAUDE-EXEC	olivares_cmd_t	olivares_tool_claude_exec_t	file	execute		a command never executes Claude Code's installed program and never returns to the tool domain
+N-CMD-CLAUDE-SEARCH	olivares_cmd_t	olivares_tool_claude_exec_t	dir	search		a command does not walk Claude Code's install tree
+N-HOOK-CLAUDE-EXEC	olivares_hook_t	olivares_tool_claude_exec_t	file	execute		the native hook never executes Claude Code's installed program
+N-CHOOK-CLAUDE-EXEC	olivares_container_hook_t	olivares_tool_claude_exec_t	file	execute		the in-container hook never executes Claude Code's installed program
+N-CONTAINER-HOME	container_t	olivares_tool_home_t	file	read		a plain container never reads an account's files; a session's container runs as olivares_tool_t (the regression)
+N-CONTAINER-WORKSPACE	container_t	olivares_workspace_t	file	read		a plain container never reads a session's workspace (the regression)

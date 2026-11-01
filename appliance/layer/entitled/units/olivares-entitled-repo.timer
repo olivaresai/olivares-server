@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Renews the entitled package channel's credential. The service's credential lasts 24 hours, so a refresh
+# every six hours leaves four attempts before it lapses; the random delay keeps a fleet from asking at once.
+# It starts the edition service, which refreshes first, so the same tick retries an edition change whose channel
+# was not ready. The refresh starts only when a licence is installed, so this timer is harmless on an unlicensed
+# Community host: the edition step finds nothing to change and ends.
+[Unit]
+Description=Renew the entitled package channel credential
+Documentation=https://github.com/olivaresai/olivares
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=6h
+RandomizedDelaySec=15min
+AccuracySec=1min
+Unit=olivares-edition.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,163 @@
+// SPDX-FileCopyrightText: 2026 Olivares.AI
+// SPDX-License-Identifier: AGPL-3.0-only
+// Additional terms under AGPL-3.0-only section 7(a) disclaim warranty and limit liability: see DISCLAIMER.md at the repository root.
+
+package portal
+
+import (
+	"errors"
+	"fmt"
+	"net/netip"
+	"slices"
+	"strings"
+)
+
+// The socket units that expose the console on the management interfaces. The console binds nothing
+// itself, so a remote listener is a socket unit the service manager owns: one per management
+// interface, BindToDevice= that interface, one ListenStream= per address the interface holds
+// (never a wildcard) and Service=olivares-portal.service. It is never a drop-in on
+// olivares-portal.socket, where BindToDevice= would bind 127.0.0.1:9443 to the uplink as well.
+const (
+	// ManagementSocketPrefix and ManagementSocketSuffix frame the name of every generated unit. The
+	// prefix cannot name one of the package's own units, whatever an interface is called.
+	ManagementSocketPrefix = "olivares-portal-mgmt-"
+	ManagementSocketSuffix = ".socket"
+
+	consoleService    = "olivares-portal.service"
+	consoleSocketPort = 9443
+
+	// fixedListenFDs are the sockets of the package's own units that start the console:
+	// olivares-portal.socket and olivares-portal-local.socket.
+	fixedListenFDs = 2
+)
+
+// SocketUnit is one generated socket unit: its file name and its text.
+type SocketUnit struct {
+	Name string
+	Text string
+}
+
+// SocketPlan is the socket units a decision asks for.
+type SocketPlan struct {
+	// Units are sorted by name. Empty unless the decision is Remote.
+	Units []SocketUnit
+	// Waiting are the selected interfaces that hold no usable address yet, sorted.
+	Waiting []string
+	// Skipped counts the usable addresses left without a listener because the console has no room
+	// for another passed socket.
+	Skipped int
+}
+
+// ManagementSockets returns the socket units for decision d. It writes nothing and looks up no
+// address unless d is Remote, which already needs portal.enabled, portal.listen management, one
+// management interface and a firewall that holds. addresses returns the addresses an interface
+// holds now; an interface that is not there holds none.
+//
+// An interface contributes the global unicast addresses it holds: not link-local, loopback,
+// multicast or unspecified, which are never served. The console accepts MaxListenFDs passed
+// sockets and refuses to start with more, so past what its own two sockets leave the addresses
+// are not listened on, and Skipped counts them. The room is shared round-robin by the interfaces
+// that hold addresses, IPv4 first within each, so a neighbour that announces many prefixes on one
+// interface cannot take the room of another; it can only narrow the listeners, never switch remote
+// access off.
+func ManagementSockets(d Decision, addresses func(iface string) ([]netip.Addr, error)) (SocketPlan, error) {
+	var plan SocketPlan
+	if d.Mode != Remote {
+		return plan, nil
+	}
+	var holders []string
+	held := map[string][]netip.Addr{}
+	for _, iface := range d.Interfaces {
+		if !interfaceName(iface) {
+			return SocketPlan{}, errors.New("a management interface name is not an interface name")
+		}
+		all, err := addresses(iface)
+		if err != nil {
+			return SocketPlan{}, fmt.Errorf("the addresses of %s cannot be read: %w", iface, err)
+		}
+		usable := usableAddresses(all)
+		if len(usable) == 0 {
+			plan.Waiting = append(plan.Waiting, iface)
+			continue
+		}
+		holders = append(holders, iface)
+		held[iface] = usable
+	}
+	taken := map[string]int{}
+	for room, progress := MaxListenFDs-fixedListenFDs, true; progress && room > 0; {
+		progress = false
+		for _, iface := range holders {
+			if room > 0 && taken[iface] < len(held[iface]) {
+				taken[iface]++
+				room--
+				progress = true
+			}
+		}
+	}
+	for _, iface := range holders {
+		plan.Skipped += len(held[iface]) - taken[iface]
+		if taken[iface] == 0 {
+			continue
+		}
+		plan.Units = append(plan.Units, SocketUnit{
+			Name: ManagementSocketPrefix + iface + ManagementSocketSuffix,
+			Text: socketUnitText(iface, held[iface][:taken[iface]]),
+		})
+	}
+	slices.SortFunc(plan.Units, func(a, b SocketUnit) int { return strings.Compare(a.Name, b.Name) })
+	slices.Sort(plan.Waiting)
+	return plan, nil
+}
+
+// usableAddresses keeps the global unicast addresses of held, 4-in-6 forms unmapped, sorted and
+// without repeats.
+func usableAddresses(held []netip.Addr) []netip.Addr {
+	var usable []netip.Addr
+	for _, a := range held {
+		a = a.Unmap()
+		if a.IsGlobalUnicast() {
+			usable = append(usable, a)
+		}
+	}
+	slices.SortFunc(usable, netip.Addr.Compare)
+	return slices.Compact(usable)
+}
+
+// socketUnitText is the unit of one management interface. It lives under /run, so it is gone after
+// a reboot and made again when the prerequisites hold. It carries no [Install] section: the
+// generator starts it. FreeBind= lets it bind an address that is still tentative.
+func socketUnitText(iface string, addresses []netip.Addr) string {
+	var b strings.Builder
+	b.WriteString("# Generated by olivares-portal-sockets from the published selection and the firewall owner's measurement.\n")
+	b.WriteString("# Do not edit: the generator rewrites it, and removes it when a prerequisite no longer holds.\n")
+	b.WriteString("[Unit]\n")
+	b.WriteString("Description=Appliance Console socket on " + iface + "\n")
+	b.WriteString("Documentation=https://github.com/olivaresai/olivares\n")
+	b.WriteString("\n[Socket]\n")
+	for _, a := range addresses {
+		b.WriteString("ListenStream=" + netip.AddrPortFrom(a, consoleSocketPort).String() + "\n")
+	}
+	b.WriteString("BindToDevice=" + iface + "\n")
+	b.WriteString("FreeBind=yes\n")
+	b.WriteString("Service=" + consoleService + "\n")
+	// The limit envelope of olivares-portal.socket (olivares-portal.socket.d/30-host-operations.conf).
+	b.WriteString("PollLimitIntervalSec=15s\n")
+	b.WriteString("PollLimitBurst=1\n")
+	b.WriteString("TriggerLimitIntervalSec=10s\n")
+	b.WriteString("TriggerLimitBurst=5\n")
+	return b.String()
+}
+
+// DecideHost decides where the console may listen from the files an installed host publishes: the
+// selection first boot wrote and the firewall owner's measurement of this boot. It reads them as
+// the console does at start, so the units and the console cannot disagree. reason is non-empty when
+// the selection was refused and is served as none. TLS custody is the console's own judgment, made
+// where it holds the key: with the custody unverified the console serves nothing on any socket, so
+// the decision here assumes it.
+func DecideHost() (d Decision, reason string) { return productionFiles.decide() }
+
+func (h hostFiles) decide() (Decision, string) {
+	selection, reason := ReadSelection(h.selection)
+	firewall := MeasuredFirewall{Path: h.measurement, BootID: h.bootID, Selection: selection}.MeasureFirewall()
+	return Decide(selection, Custody{Verified: true}, firewall), reason
+}

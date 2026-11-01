@@ -1,0 +1,7 @@
+bin/
+dist/
+__pycache__/
+*.pyc
+*.iso
+*.qcow2
+*.ova

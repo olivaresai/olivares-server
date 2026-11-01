@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Activation and deactivation: when a licence is installed, replaced or removed, whether from the console, `olivares
+# license install` or `olivares license connect`, the entitled channel is refreshed and the installed edition is made
+# the one the licence earns. Removing the licence refreshes nothing (the refresh needs one) and returns the host to
+# Community. Neither step writes the licence file, so neither can start itself.
+# Watch the empty public notification the product replaces after each licence change. PID 1 never reads
+# license.key or any private engine file, including when systemd re-arms the watch.
+[Unit]
+Description=Refresh the entitled package channel when the licence changes
+Documentation=https://github.com/olivaresai/olivares
+
+[Path]
+PathChanged=/var/lib/olivares/public/license.changed
+Unit=olivares-edition.service
+
+[Install]
+WantedBy=multi-user.target

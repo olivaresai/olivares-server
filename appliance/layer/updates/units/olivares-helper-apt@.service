@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# One connection to the host-package helper, started by olivares-helper-apt.socket with the
+# connection as standard input and output. The helper takes no argument and no path. It works only
+# on the plan retained in its StateDirectory, root's and private: status verifies the retained RPMs
+# with rpmkeys and rpm and reads the installed version; an act replays one retained native
+# transaction (rpm -U of the signature-verified file), and is refused before it runs until the seam's guest proof
+# is accepted. It fetches no package and has no network.
+#
+# The act's confinement is what rpm needs, measured on AlmaLinux 10 (rpm 4.19.1.1) under this unit with
+# packages that have scriptlets, an account created by %pre, files owned by that account, a setgid file and
+# a file with capabilities. The status read runs in the same template, so it holds them too.
+# - The filesystem is writable (no ProtectSystem): a package installs under /usr, /etc, /var, /opt and
+#   /boot. ProtectSystem=strict made rpm see read-only filesystems with no free space and refuse the transaction.
+#   /home, /root, /tmp and /dev stay private or unreachable, and so do the kernel's interfaces.
+# - RestrictSUIDSGID is not set: a package may install a set-id file, and with it set rpm fails with "chmod failed".
+# - Five capabilities are rpm's own file operations and two are a scriptlet's change of account (the list is
+#   in the unit tests, with the failure each one's absence causes). No other is held: no network, no module,
+#   no mount, no CAP_SYS_ADMIN, no CAP_SYS_CHROOT. NoNewPrivileges keeps a child of rpm from gaining more, and
+#   because exec can then gain nothing, the same capabilities are ambient: without that a scriptlet's setuid() fails.
+# - MemoryDenyWriteExecute, PrivateDevices, PrivateNetwork and the rest are unchanged. Not measured: a package whose scriptlet
+#   needs a device, a network, a JIT or a capability above is refused as a failed transaction (P1 failed or
+#   partial), never half-hidden. The host-package path installs one non-kernel package, so those are the limits.
+[Unit]
+Description=Appliance host-package helper (one connection)
+Documentation=https://github.com/olivaresai/olivares
+
+[Service]
+ExecStart=/usr/libexec/olivares/olivares-portal-apt
+User=root
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+StateDirectory=olivares-package-plan
+StateDirectoryMode=0700
+RuntimeMaxSec=330
+NoNewPrivileges=yes
+ProtectSystem=no
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER CAP_FSETID CAP_SETFCAP CAP_SETGID CAP_SETUID
+AmbientCapabilities=CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER CAP_FSETID CAP_SETFCAP CAP_SETGID CAP_SETUID
+UMask=0077

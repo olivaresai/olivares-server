@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Licensing for the files that cannot carry an inline header: data, manifests and lockfiles.
+# Source files carry their own SPDX header and are not listed. Spec: https://reuse.software/spec-3.3/
+version = 1
+
+[[annotations]]
+path = [
+  "RELEASE-VERSION",
+  "**/*.md",
+  "**/*.txt",
+  "**/*.json",
+  "**/*.yaml",
+  "**/*.yml",
+  "**/*.toml",
+  "**/*.mod",
+  "**/*.sum",
+  "**/go.work",
+  "**/.gitignore",
+  "**/Taskfile.yml",
+  "**/LICENSE",
+  "NOTICE",
+  "DCO",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Olivares.AI"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
+# The EPEL 10 public signing key the image builder verifies EPEL packages with. Published by the Fedora Project, kept
+# byte for byte and pinned by sha256 in the recipe's lock; it is not Olivares code.
+[[annotations]]
+path = ["appliance/images/toolchain/almalinux10/RPM-GPG-KEY-EPEL-10"]
+precedence = "override"
+SPDX-FileCopyrightText = "The Fedora Project (EPEL 10 public signing key, unmodified)"
+SPDX-License-Identifier = "LicenseRef-Third-Party-Public-Key"
+
+# Docker's release key, with which the stage step checks Docker's RPMs before the image takes them. Published by Docker,
+# Inc., kept byte for byte and pinned by sha256 and fingerprint in the recipe's lock; it is not Olivares code.
+[[annotations]]
+path = ["appliance/images/kiwi/RPM-GPG-KEY-docker"]
+precedence = "override"
+SPDX-FileCopyrightText = "Docker, Inc. (Docker Release (CE rpm) public signing key, unmodified)"
+SPDX-License-Identifier = "LicenseRef-Third-Party-Public-Key"
+
+# Exact neutral image declarations: their only content is the profile name.
+[[annotations]]
+path = [
+  "appliance/images/kiwi/almalinux10-server-amd64/etc/olivares-appliance/image",
+  "appliance/images/kiwi/almalinux10-desktop-amd64/etc/olivares-appliance/image",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Olivares.AI"
+SPDX-License-Identifier = "AGPL-3.0-only"

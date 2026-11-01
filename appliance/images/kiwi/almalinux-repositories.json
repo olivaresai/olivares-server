@@ -1,0 +1,82 @@
+{
+  "schema": "olivares-appliance-almalinux-repositories/v1",
+  "purpose": "The AlmaLinux 10 repository metadata and keys the almalinux10-server-amd64 profile is built from. almalinux-repo-pinned.sh refuses a repository whose repomd.xml no longer has the sha256 recorded here, and a key file whose sha256 differs.",
+  "basis": "Each repomd.xml was read by an anonymous HTTPS GET at the recorded time; the primary metadata it names was retained and verified against its checksum and open-checksum. AlmaLinux and EPEL do not sign repomd.xml, so the sha256 is what binds the metadata; every package is checked against the key. AlmaLinux publishes its updates into the minor tree it names, so a pin holds until the next push to that tree and is then re-pinned (toolchain/almalinux10/relock-almalinux.py), never loosened.",
+  "minor": "10.2",
+  "repositories": {
+    "almalinux-baseos": {
+      "baseurl": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/",
+      "repomd_sha256": "caf34cc405ec0b63cca2520b54b13e09029647ea79ef46b974832a9fb953b8d1",
+      "repomd_bytes": 3890,
+      "primary_sha256": "78046bda1f651efbfc9268c34950f7d3aa9737fe5d620047222ded3216189f4f",
+      "recorded_at": "2026-10-23T21:46:42Z"
+    },
+    "almalinux-appstream": {
+      "baseurl": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/",
+      "repomd_sha256": "4ba3037f340eab7c94e1830dfbd5de41473945e910bf5337c86e669393459380",
+      "repomd_bytes": 3890,
+      "primary_sha256": "4bdf85c0310782b9630e9c39c3106ad2976203409c96bc9aa04d236b1f91cb63",
+      "recorded_at": "2026-10-23T21:46:42Z"
+    }
+  },
+  "builder_repositories": {
+    "epel-10": {
+      "baseurl": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/",
+      "repomd_sha256": "a5add31338be754e214ac67f34483cadbf16321a4df7751a39ba578ada74a9f4",
+      "repomd_bytes": 4066,
+      "primary_sha256": "2a9cb2654315415236bbf379d9809ba90c9e5eb0931233966693db3d2b91b1a3",
+      "recorded_at": "2026-10-23T21:46:42Z"
+    },
+    "almalinux-crb": {
+      "baseurl": "https://repo.almalinux.org/almalinux/10.2/CRB/x86_64/os/",
+      "repomd_sha256": "4a9ab6641f9297aa9534b6b93a3312b6a732f3e7a63c2929a3b4ed4f5289c9f6",
+      "repomd_bytes": 3876,
+      "primary_sha256": "a17aed3a9a4bb6e40d6bf8b91f70e32f2174564657607267158f2c8436a6b375",
+      "recorded_at": "2026-10-23T21:46:42Z"
+    }
+  },
+  "key": {
+    "basis": "The file almalinux-gpg-keys-10.2-21.el10 (BaseOS) installs, byte-equal to https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux-10; its key ID DEE5C11CC2A1E572 is the one https://almalinux.org/security/ lists for AlmaLinux OS 10 (read 2026-10-17T01:15:00Z).",
+    "bytes": 1652,
+    "fingerprint": "EE6DB7B98F5BF5EDD9DA0DE5DEE5C11CC2A1E572",
+    "path": "/etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-10",
+    "sha256": "de57c3c0a2dcde88ff5b894e74335f55a0ec074815f36d472270d937c16f077b"
+  },
+  "builder_key": {
+    "basis": "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10, kept beside bootstrap.sh as RPM-GPG-KEY-EPEL-10; its fingerprint is the one https://fedoraproject.org/security/ lists for EPEL 10 (read 2026-10-17T01:16:00Z). It signs the builder-only packages; no image package comes from EPEL.",
+    "bytes": 1656,
+    "fingerprint": "7D8D15CBFC4E62688591FB2633D98517E37ED158",
+    "path": "/etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-10",
+    "sha256": "de390fc168eae5ab2852e9e93d34a0b9ddf05cf9ce90ee28d97de26a4b1f6b93"
+  },
+  "source_repositories": {
+    "almalinux-baseos-source": {
+      "baseurl": "https://vault.almalinux.org/10.2/BaseOS/Source/",
+      "repomd_sha256": "fcd06116ebfb7c7077a000128908d56e980b4b0999c4e51731b5b9c2c40ff514",
+      "repomd_bytes": 3102,
+      "primary_sha256": "1b0001b810a2258bf1d76979d41182eadb72c9a22fa70c06b64533384dd22ba9",
+      "recorded_at": "2026-10-23T21:46:42Z"
+    },
+    "almalinux-appstream-source": {
+      "baseurl": "https://vault.almalinux.org/10.2/AppStream/Source/",
+      "repomd_sha256": "f925be027bb80f48a06c4f0d525c68419ff95b91ac280e90e4584ae29d6db278",
+      "repomd_bytes": 3103,
+      "primary_sha256": "6a2afaa902f3b2a04f28f34b755d20c451830b87d0908cd2f59e846bc4b924a6",
+      "recorded_at": "2026-10-23T21:46:42Z"
+    },
+    "almalinux-crb-source": {
+      "baseurl": "https://vault.almalinux.org/10.2/CRB/Source/",
+      "repomd_sha256": "dfd154724240a146985d0d6d2f1cc97267996a1b6018c26bb8ccb4b2da08e8ce",
+      "repomd_bytes": 3091,
+      "primary_sha256": "91400cf62f95207919f92fd5fb019aec0595d3e41b2ece264aa4fe809fef77f6",
+      "recorded_at": "2026-10-23T21:46:42Z"
+    },
+    "epel-10-source": {
+      "baseurl": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/",
+      "repomd_sha256": "d8a1f71b5ee3ef956dfac92c013a7c3940df598ffa797501dcfd80db960446d9",
+      "repomd_bytes": 3582,
+      "primary_sha256": "d42871b8d110defaf3461a5e174366007cf05786dafe4cc2af918112e066d99b",
+      "recorded_at": "2026-10-23T21:46:42Z"
+    }
+  }
+}

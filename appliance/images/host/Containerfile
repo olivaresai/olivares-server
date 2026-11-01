@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+# The host side of the appliance image build in one container, so a runner needs only docker, Go and /dev/kvm: the
+# qualification delivery, attempt.py, the formats, the boot battery and the NoCloud seed run here, and the AlmaLinux
+# builder runs on the host's docker through its socket. The package set is the one the boot battery passes with on a Debian 13
+# host. Pinned: the same Debian 13 base as appliance/images/toolchain, and one Debian snapshot.
+FROM debian:13@sha256:d5ce19d4736f0ebbacd686d1040271a5aeb0cc920f5990c1bfae1717627f0674
+ARG SNAPSHOT=20261021T000000Z
+ENV DEBIAN_FRONTEND=noninteractive
+RUN rm -f /etc/apt/sources.list.d/debian.sources \
+ && printf 'Types: deb\nURIs: http://snapshot.debian.org/archive/debian/%s\nSuites: trixie trixie-updates\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\nCheck-Valid-Until: no\n\nTypes: deb\nURIs: http://snapshot.debian.org/archive/debian-security/%s\nSuites: trixie-security\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\nCheck-Valid-Until: no\n' "$SNAPSHOT" "$SNAPSHOT" > /etc/apt/sources.list.d/snapshot.sources \
+ && apt-get -o Acquire::Retries=5 update \
+ && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+      qemu-system-x86 qemu-utils ovmf seabios ipxe-qemu xorriso rpm createrepo-c libpam0g-dev \
+      python3 python3-yaml jq gnupg openssl docker-cli docker-buildx sudo git ca-certificates zstd curl \
+      util-linux mount e2fsprogs dosfstools xz-utils file procps iproute2 openssh-client kmod cpio gcc \
+ && rm -rf /var/lib/apt/lists/* \
+ && git config --system --add safe.directory '*'

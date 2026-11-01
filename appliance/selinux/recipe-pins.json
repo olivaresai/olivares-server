@@ -1,0 +1,13 @@
+{
+ "lock": "appliance/images/toolchain/almalinux10/input-lock.json",
+ "base_image": {
+  "registry": "docker.io/library/almalinux",
+  "reference": "almalinux:10",
+  "manifest_digest_amd64": "sha256:ba31c3299856068f77bc10574cad51b0a4f6a3dafb882668656e1639bee63db6"
+ },
+ "selinux-policy-targeted": {
+  "nevra": "selinux-policy-targeted-42.1.18-4.el10_2.4.noarch",
+  "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/selinux-policy-targeted-42.1.18-4.el10_2.4.noarch.rpm",
+  "sha256": "55c9c5f2d7ed432a99e688ea7331b74dabb8411b476826c7594014ecc9d7f4f4"
+ }
+}

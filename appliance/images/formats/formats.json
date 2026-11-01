@@ -1,0 +1,97 @@
+// SPDX-FileCopyrightText: 2026 Olivares.AI
+// SPDX-License-Identifier: AGPL-3.0-only
+//
+// The formats the recipe delivers, declared once and read by the assembly scripts, by the recipe's
+// shape gate (appliance/images/formats_test.go) and by the Taskfile target. The sizes are
+// PREDICTIONS from the package set, not measurements: no image has been built yet, and the
+// first hosted build replaces expected_bytes_about with what it weighed. Payloads below
+// the R2 single-PUT bound can be assembled; publication sends every image to R2, where the licence gate serves it, and keeps the release assets below 2 GiB.
+// "base" names the distribution minor the image is built from; it is the minor of the pinned trees in
+// kiwi/almalinux-repositories.json and of the builder lock, and recipe_test.go holds the three equal.
+// Each artifact names its edition; every consumer — the
+// assemblies, the boot battery, the NoCloud probe — selects by edition (the server edition
+// when none is named) and refuses an edition the declaration does not carry, so one edition's
+// file names are never mistaken for another's.
+{
+  "product": "Olivares Server",
+  "vendor": "Olivares.AI",
+  "arch": "amd64",
+  "base": {"distribution": "AlmaLinux", "version": "10", "minor": "10.2"},
+  "release_asset_max_bytes": 2147483648,
+  "release_asset_limit": "GitHub release assets must be smaller than 2 GiB; larger payloads route to R2 below its single-PUT bound (docs.github.com About releases; developers.cloudflare.com/r2/platform/limits/)",
+// The corresponding source bundle (release_outputs.py bundle) is one file below the R2 single-PUT bound. An edition whose
+// bundle cannot fit declares "split": the bundle is written as numbered parts of at most split_part_max_bytes (below the 2 GiB
+// a GitHub release asset may weigh) and source-bundle.json lists each part's sha256 and the whole stream's.
+  "source_bundle": {
+    "server": {"split": false, "split_part_max_bytes": 0},
+    "desktop": {"split": true, "split_part_max_bytes": 2147483647}
+  },
+  "artifacts": [
+    {
+      "edition": "server",
+      "format": "iso",
+      "file": "olivares-appliance-server-amd64.iso",
+      "script": "iso.sh",
+      "manifest": "olivares-appliance-server-amd64.iso.manifest.json",
+      "max_bytes": 5363466239,
+      "split": false,
+      "split_part_max_bytes": 0,
+      "expected_bytes_about": 1288490188
+    },
+    {
+      "edition": "server",
+      "format": "qcow2",
+      "file": "olivares-appliance-server-amd64.qcow2",
+      "script": "qcow2.sh",
+      "manifest": "olivares-appliance-server-amd64.qcow2.manifest.json",
+      "max_bytes": 5363466239,
+      "split": false,
+      "split_part_max_bytes": 0,
+      "expected_bytes_about": 1610612736
+    },
+    {
+      "edition": "server",
+      "format": "ova",
+      "file": "olivares-appliance-server-amd64.ova",
+      "script": "ova.sh",
+      "manifest": "olivares-appliance-server-amd64.ova.manifest.json",
+      "max_bytes": 5363466239,
+      "split": false,
+      "split_part_max_bytes": 0,
+      "expected_bytes_about": 1610612736
+    },
+    {
+      "edition": "desktop",
+      "format": "iso",
+      "file": "olivares-appliance-desktop-amd64.iso",
+      "script": "iso.sh",
+      "manifest": "olivares-appliance-desktop-amd64.iso.manifest.json",
+      "max_bytes": 5363466239,
+      "split": false,
+      "split_part_max_bytes": 0,
+      "expected_bytes_about": 1825361100
+    },
+    {
+      "edition": "desktop",
+      "format": "qcow2",
+      "file": "olivares-appliance-desktop-amd64.qcow2",
+      "script": "qcow2.sh",
+      "manifest": "olivares-appliance-desktop-amd64.qcow2.manifest.json",
+      "max_bytes": 5363466239,
+      "split": false,
+      "split_part_max_bytes": 0,
+      "expected_bytes_about": 2040109465
+    },
+    {
+      "edition": "desktop",
+      "format": "ova",
+      "file": "olivares-appliance-desktop-amd64.ova",
+      "script": "ova.sh",
+      "manifest": "olivares-appliance-desktop-amd64.ova.manifest.json",
+      "max_bytes": 5363466239,
+      "split": false,
+      "split_part_max_bytes": 0,
+      "expected_bytes_about": 2040109465
+    }
+  ]
+}

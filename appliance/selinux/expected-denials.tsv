@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+# Denials the enforcing qualification expects: each is an access a denied.tsv row refuses on purpose, a supported
+# journey reaches, and the policy leaves audited (generate.py writes no dontaudit). The qualification counts an AVC
+# as expected only when its source type, target type, class, permission and name equal a row here, and fails on any
+# other AVC. test_manifest.py requires each row to be its deny row's access, granted by no row of access.tsv.
+# Lines starting with # are comments.
+deny	source	target	class	perm	name	reason
+N-CMD-HOME-WRITE	olivares_cmd_t	olivares_tool_home_t	dir	write	shell-snapshots	Claude Code's Bash tool has bash write its shell snapshot into the account's configuration; it stays refused and Bash runs without it

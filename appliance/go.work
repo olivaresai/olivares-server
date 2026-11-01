@@ -1,0 +1,14 @@
+// SPDX-FileCopyrightText: 2026 Olivares.AI
+// SPDX-License-Identifier: AGPL-3.0-only
+//
+// The workspace for running the appliance module on its own, from this directory: the module needs core, and core's
+// own replace directives name sdk. A composed build and the development tree's root workspace are not affected: Go
+// reads the nearest go.work from where the command runs, and they run from the repository root.
+go 1.26.10
+
+toolchain go1.26.10
+
+use (
+	.
+	../core
+)

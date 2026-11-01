@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+# One native online growth path at boot (@auto) and for a confirmed disk digest.
+# Preparation matches every existing GPT slot; no unmatched partition is created.
+[Unit]
+Description=Grow the appliance data filesystem
+Wants=udisks2.service
+After=udisks2.service local-fs.target
+Before=olivares.service
+
+[Service]
+Type=oneshot
+Slice=system.slice
+User=root
+RuntimeDirectory=olivares-storage-grow-%i
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=no
+ExecCondition=/usr/libexec/olivares/olivares-portal-storage --grow-condition %i
+ExecStartPre=/usr/libexec/olivares/olivares-portal-storage --prepare-grow %i
+ExecStart=/usr/bin/systemd-repart --dry-run=no --empty=refuse --discard=no --definitions=/run/olivares-storage-grow-%i
+# systemd resolves this fixed native tool on its compiled distribution path
+# (AlmaLinux installs it in /usr/sbin; the retained Debian profile may differ).
+ExecStartPost=btrfs filesystem resize max /
+TimeoutStartSec=120
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=CAP_SYS_ADMIN
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

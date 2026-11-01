@@ -1,0 +1,2864 @@
+{
+  "architecture": {
+    "rpm": "x86_64",
+    "uname_machine": "x86_64"
+  },
+  "base_image": {
+    "digest_basis": "Read by an anonymous GET of https://registry-1.docker.io/v2/library/almalinux/manifests/10 at 2026-10-17T01:14:46Z: an OCI image index whose Docker-Content-Digest is the sha256 of its body, and whose linux/amd64 manifest is the digest the Containerfile names.",
+    "index_digest": "sha256:838c2fafefb1a8a0d7f8cdbc3b0551c2a2b1eb0cd87aad6d62aecadb18311f1b",
+    "manifest_digest_amd64": "sha256:ba31c3299856068f77bc10574cad51b0a4f6a3dafb882668656e1639bee63db6",
+    "reference": "almalinux:10",
+    "registry": "docker.io/library/almalinux"
+  },
+  "budget": {
+    "basis": "Declared, not measured. KIWI documents a minimum of 15 GB recommended free space for the build root, caches and resulting images; the minutes are a declared ceiling below the documented job ceiling. The peak disk and elapsed time of a real build stay unmeasured until the first recipe attempt records them, and this figure must be replaced by that measurement.",
+    "declared_build_bytes": 15000000000,
+    "declared_build_minutes": 90,
+    "measured": false
+  },
+  "container_runtime": {
+    "basis": "The container runtime the optional apps need (appliance/layer/optionalapps): Docker Engine with its CLI and the Compose plugin, and containerd. The image's repositories stay AlmaLinux's two trees and the product's own, so these four RPMs are not a third repository: the stage step downloads exactly these files by sha256 into the per-build repository, after checking each header signature against the vendor key below. Each sha256 is the one the repository's primary metadata names (read 2026-10-23T11:35:17Z, repomd.xml sha256 and primary sha256 in repository) and the one of the downloaded file. Docker publishes no source RPM for rhel/10 at these versions (its source trees stop at 28.4.0), and all four are Apache-2.0, so each entry names the upstream release its version number names, with the commit that release's tag points at (git ls-remote, peeled).",
+    "key": {
+      "basis": "https://download.docker.com/linux/rhel/gpg, read 2026-10-19T11:47:48Z. It is the key whose ID C52FEB6B621E9F35 signs the four RPMs below: rpmkeys -K with only this key imported answers 'digests signatures OK' for each of them (measured in an AlmaLinux 10 container, 2026-10-19T11:47:48Z).",
+      "bytes": 1627,
+      "fingerprint": "060A61C51B558A7F742B77AAC52FEB6B621E9F35",
+      "path": "appliance/images/kiwi/RPM-GPG-KEY-docker",
+      "sha256": "e6c650e0700b1bf4868b693b30761b926844befc8a0acb7ac0dd9b1faf1b7423",
+      "url": "https://download.docker.com/linux/rhel/gpg"
+    },
+    "packages": {
+      "containerd.io": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "homepage": "https://containerd.io",
+        "href": "Packages/containerd.io-2.4.2-2.el10.x86_64.rpm",
+        "license": "Apache-2.0",
+        "nevra": "containerd.io-2.4.2-2.el10.x86_64",
+        "release": "2.el10",
+        "sha256": "c5346936df34b57013cd239f35e15bbd8bfa79193903604005426847dcea8ec4",
+        "size": 36650554,
+        "upstream": {
+          "commit": "b7a25261e029d68978bbf290df0a62fc819b3c51",
+          "repository": "https://github.com/containerd/containerd",
+          "tag": "v2.4.2"
+        },
+        "url": "https://download.docker.com/linux/rhel/10/x86_64/stable/Packages/containerd.io-2.4.2-2.el10.x86_64.rpm",
+        "version": "2.4.2"
+      },
+      "docker-ce": {
+        "arch": "x86_64",
+        "epoch": "3",
+        "homepage": "https://www.docker.com",
+        "href": "Packages/docker-ce-29.9.2-1.el10.x86_64.rpm",
+        "license": "Apache-2.0",
+        "nevra": "docker-ce-3:29.9.2-1.el10.x86_64",
+        "release": "1.el10",
+        "sha256": "1ca31e4eaed4ff670c9c52a4fad3139a71dfbf6befc46539e49b62a38e22d689",
+        "size": 27086161,
+        "upstream": {
+          "commit": "0367cbeb49b9d98cb0b4f51e95f7b54b4803e76c",
+          "repository": "https://github.com/moby/moby",
+          "tag": "docker-v29.9.2"
+        },
+        "url": "https://download.docker.com/linux/rhel/10/x86_64/stable/Packages/docker-ce-29.9.2-1.el10.x86_64.rpm",
+        "version": "29.9.2"
+      },
+      "docker-ce-cli": {
+        "arch": "x86_64",
+        "epoch": "1",
+        "homepage": "https://www.docker.com",
+        "href": "Packages/docker-ce-cli-29.9.2-1.el10.x86_64.rpm",
+        "license": "Apache-2.0",
+        "nevra": "docker-ce-cli-1:29.9.2-1.el10.x86_64",
+        "release": "1.el10",
+        "sha256": "90db263b8f9268c73e8fc5d4c0e11bc9cf29815791f5f922d66438151ebb7ebe",
+        "size": 9316995,
+        "upstream": {
+          "commit": "a82e528901260c8df6073311379eac65f92db204",
+          "repository": "https://github.com/docker/cli",
+          "tag": "v29.9.2"
+        },
+        "url": "https://download.docker.com/linux/rhel/10/x86_64/stable/Packages/docker-ce-cli-29.9.2-1.el10.x86_64.rpm",
+        "version": "29.9.2"
+      },
+      "docker-compose-plugin": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "homepage": "https://github.com/docker/compose",
+        "href": "Packages/docker-compose-plugin-5.6.1-1.el10.x86_64.rpm",
+        "license": "Apache-2.0",
+        "nevra": "docker-compose-plugin-5.6.1-1.el10.x86_64",
+        "release": "1.el10",
+        "sha256": "4be20751bfdeafaf1ee495715a2bb9e8e43434c696570395177b3c9eab71c8f0",
+        "size": 8845864,
+        "upstream": {
+          "commit": "6cbc19a3fd59e305fb814dca4d854a4fb67d2941",
+          "repository": "https://github.com/docker/compose",
+          "tag": "v5.6.1"
+        },
+        "url": "https://download.docker.com/linux/rhel/10/x86_64/stable/Packages/docker-compose-plugin-5.6.1-1.el10.x86_64.rpm",
+        "version": "5.6.1"
+      }
+    },
+    "repository": {
+      "baseurl": "https://download.docker.com/linux/rhel/10/x86_64/stable/",
+      "primary_sha256": "631adb8409a4b9068042c7d8adc98224aab1e1397f2156015efbf9829d27273c",
+      "recorded_at": "2026-10-23T11:35:17Z",
+      "repomd_sha256": "ef1a523caa7800b6b6a422e39ebb55f6d024008c157250bdba83957ee40d4618"
+    }
+  },
+  "distribution": {
+    "basis_note": "Every OS root below takes its NEVRA and sha256 from the pinned primary metadata of the repository named; transitive candidates come only from the same four trees, whose repomd.xml bootstrap.sh checks in dnf's cache before it installs offline. The image's own roots come from the two AlmaLinux trees only; EPEL 10 and CRB serve the builder alone. No other repository is configured.",
+    "builder_key": {
+      "basis": "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10, kept beside bootstrap.sh as RPM-GPG-KEY-EPEL-10; its fingerprint is the one https://fedoraproject.org/security/ lists for EPEL 10 (read 2026-10-17T01:16:00Z). It signs the builder-only packages; no image package comes from EPEL.",
+      "bytes": 1656,
+      "fingerprint": "7D8D15CBFC4E62688591FB2633D98517E37ED158",
+      "path": "/etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-10",
+      "sha256": "de390fc168eae5ab2852e9e93d34a0b9ddf05cf9ce90ee28d97de26a4b1f6b93"
+    },
+    "edition_basis": "the conventional RPM/DNF package base of the RHEL 10 family; the image profile is server/minimal",
+    "id": "almalinux",
+    "key": {
+      "basis": "The file almalinux-gpg-keys-10.2-21.el10 (BaseOS) installs, byte-equal to https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux-10; its key ID DEE5C11CC2A1E572 is the one https://almalinux.org/security/ lists for AlmaLinux OS 10 (read 2026-10-17T01:15:00Z).",
+      "bytes": 1652,
+      "fingerprint": "EE6DB7B98F5BF5EDD9DA0DE5DEE5C11CC2A1E572",
+      "path": "/etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-10",
+      "sha256": "de57c3c0a2dcde88ff5b894e74335f55a0ec074815f36d472270d937c16f077b"
+    },
+    "minor": "10.2",
+    "repositories": {
+      "almalinux-appstream": {
+        "baseurl": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/",
+        "primary_sha256": "4bdf85c0310782b9630e9c39c3106ad2976203409c96bc9aa04d236b1f91cb63",
+        "recorded_at": "2026-10-23T21:46:42Z",
+        "repomd_bytes": 3890,
+        "repomd_sha256": "4ba3037f340eab7c94e1830dfbd5de41473945e910bf5337c86e669393459380"
+      },
+      "almalinux-baseos": {
+        "baseurl": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/",
+        "primary_sha256": "78046bda1f651efbfc9268c34950f7d3aa9737fe5d620047222ded3216189f4f",
+        "recorded_at": "2026-10-23T21:46:42Z",
+        "repomd_bytes": 3890,
+        "repomd_sha256": "caf34cc405ec0b63cca2520b54b13e09029647ea79ef46b974832a9fb953b8d1"
+      },
+      "almalinux-crb": {
+        "baseurl": "https://repo.almalinux.org/almalinux/10.2/CRB/x86_64/os/",
+        "primary_sha256": "a17aed3a9a4bb6e40d6bf8b91f70e32f2174564657607267158f2c8436a6b375",
+        "recorded_at": "2026-10-23T21:46:42Z",
+        "repomd_bytes": 3876,
+        "repomd_sha256": "4a9ab6641f9297aa9534b6b93a3312b6a732f3e7a63c2929a3b4ed4f5289c9f6"
+      },
+      "epel-10": {
+        "baseurl": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/",
+        "primary_sha256": "2a9cb2654315415236bbf379d9809ba90c9e5eb0931233966693db3d2b91b1a3",
+        "recorded_at": "2026-10-23T21:46:42Z",
+        "repomd_bytes": 4066,
+        "repomd_sha256": "a5add31338be754e214ac67f34483cadbf16321a4df7751a39ba578ada74a9f4"
+      }
+    },
+    "source_repositories": {
+      "almalinux-appstream-source": {
+        "baseurl": "https://vault.almalinux.org/10.2/AppStream/Source/",
+        "primary_sha256": "6a2afaa902f3b2a04f28f34b755d20c451830b87d0908cd2f59e846bc4b924a6",
+        "recorded_at": "2026-10-23T21:46:42Z",
+        "repomd_bytes": 3103,
+        "repomd_sha256": "f925be027bb80f48a06c4f0d525c68419ff95b91ac280e90e4584ae29d6db278"
+      },
+      "almalinux-baseos-source": {
+        "baseurl": "https://vault.almalinux.org/10.2/BaseOS/Source/",
+        "primary_sha256": "1b0001b810a2258bf1d76979d41182eadb72c9a22fa70c06b64533384dd22ba9",
+        "recorded_at": "2026-10-23T21:46:42Z",
+        "repomd_bytes": 3102,
+        "repomd_sha256": "fcd06116ebfb7c7077a000128908d56e980b4b0999c4e51731b5b9c2c40ff514"
+      },
+      "almalinux-crb-source": {
+        "baseurl": "https://vault.almalinux.org/10.2/CRB/Source/",
+        "primary_sha256": "91400cf62f95207919f92fd5fb019aec0595d3e41b2ece264aa4fe809fef77f6",
+        "recorded_at": "2026-10-23T21:46:42Z",
+        "repomd_bytes": 3091,
+        "repomd_sha256": "dfd154724240a146985d0d6d2f1cc97267996a1b6018c26bb8ccb4b2da08e8ce"
+      },
+      "epel-10-source": {
+        "baseurl": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/",
+        "primary_sha256": "d42871b8d110defaf3461a5e174366007cf05786dafe4cc2af918112e066d99b",
+        "recorded_at": "2026-10-23T21:46:42Z",
+        "repomd_bytes": 3582,
+        "repomd_sha256": "d8a1f71b5ee3ef956dfac92c013a7c3940df598ffa797501dcfd80db960446d9"
+      }
+    },
+    "system_packages": {
+      "almalinux-gpg-keys": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/almalinux-gpg-keys-10.2-21.el10.x86_64.rpm",
+        "nevra": "almalinux-gpg-keys-10.2-21.el10.x86_64",
+        "release": "21.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "1e1bd8aa96422b5ff41cbaed345a065213fa0bf589002ee4cb05c3f490cf3a74",
+        "sourcerpm": "almalinux-release-10.2-21.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/almalinux-release-10.2-21.el10.src.rpm",
+          "nevra": "almalinux-release-10.2-21.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "7efeb88f54dd3a80767c49e7c77a8c2523274842370d82e5a6f601a63f08aa66",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/almalinux-release-10.2-21.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/almalinux-gpg-keys-10.2-21.el10.x86_64.rpm",
+        "version": "10.2"
+      },
+      "bash": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/bash-5.2.26-6.el10.x86_64.rpm",
+        "nevra": "bash-5.2.26-6.el10.x86_64",
+        "release": "6.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "a598cb9f8f4eade9798ebbeb4d23d9e3f2964fdfc0ceaa1e91ad927cd0ea415a",
+        "sourcerpm": "bash-5.2.26-6.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/bash-5.2.26-6.el10.src.rpm",
+          "nevra": "bash-5.2.26-6.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "b8bdbc70bc9a03158c9475057371317096df355a734106612f8d1585f6e24941",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/bash-5.2.26-6.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/bash-5.2.26-6.el10.x86_64.rpm",
+        "version": "5.2.26"
+      },
+      "btrfs-progs": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/btrfs-progs-6.12-3.el10.x86_64.rpm",
+        "nevra": "btrfs-progs-6.12-3.el10.x86_64",
+        "release": "3.el10",
+        "repo": "almalinux-appstream",
+        "sha256": "bdef8603f697b253f6682d6311b31d91ddf531864b7e1f3e3f727813252ea2e0",
+        "sourcerpm": "btrfs-progs-6.12-3.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/btrfs-progs-6.12-3.el10.src.rpm",
+          "nevra": "btrfs-progs-6.12-3.el10.src",
+          "repo": "almalinux-appstream-source",
+          "sha256": "b5286e792d21acfec3034e825dbe772ca47bc29559bc5a39a2396f86a60ce240",
+          "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/btrfs-progs-6.12-3.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/btrfs-progs-6.12-3.el10.x86_64.rpm",
+        "version": "6.12"
+      },
+      "bzip2": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/bzip2-1.0.8-25.el10.x86_64.rpm",
+        "nevra": "bzip2-1.0.8-25.el10.x86_64",
+        "release": "25.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "02933bbadb018a6c799340d6e4e0e82765a34b333bd61692ae6fc3b03e0dcfa0",
+        "sourcerpm": "bzip2-1.0.8-25.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/bzip2-1.0.8-25.el10.src.rpm",
+          "nevra": "bzip2-1.0.8-25.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "b1e562378f9f7202184fb62c19174a0eee83777391f6d78166ed20a759682972",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/bzip2-1.0.8-25.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/bzip2-1.0.8-25.el10.x86_64.rpm",
+        "version": "1.0.8"
+      },
+      "ca-certificates": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.noarch.rpm",
+        "nevra": "ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.noarch",
+        "release": "100.3.el10_2",
+        "repo": "almalinux-baseos",
+        "sha256": "5826da756d4b5843290093de22c6e85167399af60fb3a0b31be0fd99358d929a",
+        "sourcerpm": "ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.src.rpm",
+        "srpm": {
+          "href": "Packages/ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.src.rpm",
+          "nevra": "ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "36d3011c6ee6878e4862a04cbbdc33e48a6b81ff87c00fdc06ad7b9c15a0210c",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.noarch.rpm",
+        "version": "2026.2.92_v9.0.319"
+      },
+      "cpio": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/cpio-2.15-3.el10.x86_64.rpm",
+        "nevra": "cpio-2.15-3.el10.x86_64",
+        "release": "3.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "8e54d37255b3d67fc6ffb7cd2ca4f1be4eff3cfd8aaed963a6a7aa5a9c80d49e",
+        "sourcerpm": "cpio-2.15-3.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/cpio-2.15-3.el10.src.rpm",
+          "nevra": "cpio-2.15-3.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "f6b9e143f13312a5a24715253d418b51eb0a380d4ea26085de943e9fe6622985",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/cpio-2.15-3.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/cpio-2.15-3.el10.x86_64.rpm",
+        "version": "2.15"
+      },
+      "createrepo_c": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/createrepo_c-1.1.2-4.el10.x86_64.rpm",
+        "nevra": "createrepo_c-1.1.2-4.el10.x86_64",
+        "release": "4.el10",
+        "repo": "almalinux-appstream",
+        "sha256": "6ba0598d342d91af9b350db3349797960b248e01bdafea045f65b66acaf509c5",
+        "sourcerpm": "createrepo_c-1.1.2-4.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/createrepo_c-1.1.2-4.el10.src.rpm",
+          "nevra": "createrepo_c-1.1.2-4.el10.src",
+          "repo": "almalinux-appstream-source",
+          "sha256": "d5d9c587eeb6baf22b93c9ecb8ee91b263a2e7136f215b6082ef15df0fff539b",
+          "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/createrepo_c-1.1.2-4.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/createrepo_c-1.1.2-4.el10.x86_64.rpm",
+        "version": "1.1.2"
+      },
+      "cryptsetup": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/cryptsetup-2.8.1-2.el10.x86_64.rpm",
+        "nevra": "cryptsetup-2.8.1-2.el10.x86_64",
+        "release": "2.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "019291a9ba73bd95b8b3d5d26031cd91943a4580b991ad4c0ee52910a5fa1e6e",
+        "sourcerpm": "cryptsetup-2.8.1-2.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/cryptsetup-2.8.1-2.el10.src.rpm",
+          "nevra": "cryptsetup-2.8.1-2.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "3a1939af4327e9c416c7d59ebec80077e6e8955774678191eaaf105d56cfb8a6",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/cryptsetup-2.8.1-2.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/cryptsetup-2.8.1-2.el10.x86_64.rpm",
+        "version": "2.8.1"
+      },
+      "curl": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/curl-8.12.1-4.el10_2.7.x86_64.rpm",
+        "nevra": "curl-8.12.1-4.el10_2.7.x86_64",
+        "release": "4.el10_2.7",
+        "repo": "almalinux-baseos",
+        "sha256": "d5d49bf28afc392c3b756093fe30a0dd02b5b2c8a39f4328ba8732a022d80dc8",
+        "sourcerpm": "curl-8.12.1-4.el10_2.7.src.rpm",
+        "srpm": {
+          "href": "Packages/curl-8.12.1-4.el10_2.7.src.rpm",
+          "nevra": "curl-8.12.1-4.el10_2.7.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "1b404beb2695f29e1baf67f2749a318a841cb1eb113f116c5430294842c41a8f",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/curl-8.12.1-4.el10_2.7.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/curl-8.12.1-4.el10_2.7.x86_64.rpm",
+        "version": "8.12.1"
+      },
+      "dnf": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/dnf-4.20.0-22.el10_2.alma.1.noarch.rpm",
+        "nevra": "dnf-4.20.0-22.el10_2.alma.1.noarch",
+        "release": "22.el10_2.alma.1",
+        "repo": "almalinux-baseos",
+        "sha256": "84c937f87390c6275c39a8f0a6b7c4b3f754f5179b80c5e1f053f3eb462eefee",
+        "sourcerpm": "dnf-4.20.0-22.el10_2.alma.1.src.rpm",
+        "srpm": {
+          "href": "Packages/dnf-4.20.0-22.el10_2.alma.1.src.rpm",
+          "nevra": "dnf-4.20.0-22.el10_2.alma.1.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "f5ceed1cdf12ace3a5835382a4d369ebad3ba26c71a7930c4fd6e1ac961b19b1",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dnf-4.20.0-22.el10_2.alma.1.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/dnf-4.20.0-22.el10_2.alma.1.noarch.rpm",
+        "version": "4.20.0"
+      },
+      "dosfstools": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/dosfstools-4.2-12.el10.x86_64.rpm",
+        "nevra": "dosfstools-4.2-12.el10.x86_64",
+        "release": "12.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "2beced4c5016f1ce11f1d09c50745759d7f98b6e6a55da27c660a8556f42846e",
+        "sourcerpm": "dosfstools-4.2-12.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/dosfstools-4.2-12.el10.src.rpm",
+          "nevra": "dosfstools-4.2-12.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "94fce5a3eea9d7302198f7e81d9c332e532f4ce51a7d82877ec09a682f63bd10",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dosfstools-4.2-12.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/dosfstools-4.2-12.el10.x86_64.rpm",
+        "version": "4.2"
+      },
+      "e2fsprogs": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/e2fsprogs-1.47.1-5.el10.x86_64.rpm",
+        "nevra": "e2fsprogs-1.47.1-5.el10.x86_64",
+        "release": "5.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "a7e3d3d61937ebd982f05198846e355b6618c799f85a702f57f7d13952d2dd89",
+        "sourcerpm": "e2fsprogs-1.47.1-5.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/e2fsprogs-1.47.1-5.el10.src.rpm",
+          "nevra": "e2fsprogs-1.47.1-5.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "45f91e9c273cadbae50de4527854215788ed6615964e42bd870568aace97c7ac",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/e2fsprogs-1.47.1-5.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/e2fsprogs-1.47.1-5.el10.x86_64.rpm",
+        "version": "1.47.1"
+      },
+      "erofs-utils": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/erofs-utils-1.8.10-1.el10.x86_64.rpm",
+        "nevra": "erofs-utils-1.8.10-1.el10.x86_64",
+        "release": "1.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "4c162cd423b0d31f24a3b1f59ac1b90832eb71034bbf5b35ccf1bae395759e0b",
+        "sourcerpm": "erofs-utils-1.8.10-1.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/erofs-utils-1.8.10-1.el10.src.rpm",
+          "nevra": "erofs-utils-1.8.10-1.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "701e19d151e1dd9077ac6b10ca29351700c868ffa022291db5f3de79026d5406",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/erofs-utils-1.8.10-1.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/erofs-utils-1.8.10-1.el10.x86_64.rpm",
+        "version": "1.8.10"
+      },
+      "file": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/file-5.45-9.el10.x86_64.rpm",
+        "nevra": "file-5.45-9.el10.x86_64",
+        "release": "9.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "4faaa351265699c2f0751855597d5fa7264136f12af5a2f79e86f68d9c81c007",
+        "sourcerpm": "file-5.45-9.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/file-5.45-9.el10.src.rpm",
+          "nevra": "file-5.45-9.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "9eb2c427fc67d33337ca8a7b696a0eef776b4244961c9e58555daece9d19c72f",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/file-5.45-9.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/file-5.45-9.el10.x86_64.rpm",
+        "version": "5.45"
+      },
+      "gdisk": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/g/gdisk-1.0.10-2.el10_0.x86_64.rpm",
+        "nevra": "gdisk-1.0.10-2.el10_0.x86_64",
+        "release": "2.el10_0",
+        "repo": "epel-10",
+        "sha256": "3c60dcc6ca5d1acbfca26ece36b6299790067e25d38f479d7c157ad53be89207",
+        "sourcerpm": "gdisk-1.0.10-2.el10_0.src.rpm",
+        "srpm": {
+          "href": "Packages/g/gdisk-1.0.10-2.el10_0.src.rpm",
+          "nevra": "gdisk-1.0.10-2.el10_0.src",
+          "repo": "epel-10-source",
+          "sha256": "c59a16f0c04ae229bce06cd8f033b51e6d600c35eba46265672d016f14c169a4",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/g/gdisk-1.0.10-2.el10_0.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/g/gdisk-1.0.10-2.el10_0.x86_64.rpm",
+        "version": "1.0.10"
+      },
+      "gnupg2": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/gnupg2-2.4.5-4.el10_1.x86_64.rpm",
+        "nevra": "gnupg2-2.4.5-4.el10_1.x86_64",
+        "release": "4.el10_1",
+        "repo": "almalinux-baseos",
+        "sha256": "8b20ad2dd0f833a1eb3971df37a0f7aacf3c9a6613f0ccdd9ccfc96afd6b1778",
+        "sourcerpm": "gnupg2-2.4.5-4.el10_1.src.rpm",
+        "srpm": {
+          "href": "Packages/gnupg2-2.4.5-4.el10_1.src.rpm",
+          "nevra": "gnupg2-2.4.5-4.el10_1.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "bc8e634fdc58ec638b8efc33519a5d3e3145c58a048b0c79913fbfbc81147c6a",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/gnupg2-2.4.5-4.el10_1.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/gnupg2-2.4.5-4.el10_1.x86_64.rpm",
+        "version": "2.4.5"
+      },
+      "grub2-efi-x64-modules": {
+        "arch": "noarch",
+        "epoch": "1",
+        "href": "Packages/grub2-efi-x64-modules-2.12-46.el10_2.alma.1.noarch.rpm",
+        "nevra": "grub2-efi-x64-modules-1:2.12-46.el10_2.alma.1.noarch",
+        "release": "46.el10_2.alma.1",
+        "repo": "almalinux-baseos",
+        "sha256": "dda8d4e24424ce063805155d2e7286f012d1f732ce4ce75133762a2e334125ad",
+        "sourcerpm": "grub2-2.12-46.el10_2.alma.1.src.rpm",
+        "srpm": {
+          "href": "Packages/grub2-2.12-46.el10_2.alma.1.src.rpm",
+          "nevra": "grub2-1:2.12-46.el10_2.alma.1.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "e5eb452d5d9b33557f1fd6fbdef2bc7c2dfb9413eae3c056891519c735bc12f9",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/grub2-2.12-46.el10_2.alma.1.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/grub2-efi-x64-modules-2.12-46.el10_2.alma.1.noarch.rpm",
+        "version": "2.12"
+      },
+      "grub2-pc-modules": {
+        "arch": "noarch",
+        "epoch": "1",
+        "href": "Packages/grub2-pc-modules-2.12-46.el10_2.alma.1.noarch.rpm",
+        "nevra": "grub2-pc-modules-1:2.12-46.el10_2.alma.1.noarch",
+        "release": "46.el10_2.alma.1",
+        "repo": "almalinux-baseos",
+        "sha256": "b0e2cd48d65484d19b03112b805960f7946157cc7f3e93e772be46a9fe0a53a0",
+        "sourcerpm": "grub2-2.12-46.el10_2.alma.1.src.rpm",
+        "srpm": {
+          "href": "Packages/grub2-2.12-46.el10_2.alma.1.src.rpm",
+          "nevra": "grub2-1:2.12-46.el10_2.alma.1.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "e5eb452d5d9b33557f1fd6fbdef2bc7c2dfb9413eae3c056891519c735bc12f9",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/grub2-2.12-46.el10_2.alma.1.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/grub2-pc-modules-2.12-46.el10_2.alma.1.noarch.rpm",
+        "version": "2.12"
+      },
+      "grub2-tools": {
+        "arch": "x86_64",
+        "epoch": "1",
+        "href": "Packages/grub2-tools-2.12-46.el10_2.alma.1.x86_64.rpm",
+        "nevra": "grub2-tools-1:2.12-46.el10_2.alma.1.x86_64",
+        "release": "46.el10_2.alma.1",
+        "repo": "almalinux-baseos",
+        "sha256": "7f5fd00c1c51e049a9dd8505d76d82ea53b6caec10ddf952638d88af813adf2c",
+        "sourcerpm": "grub2-2.12-46.el10_2.alma.1.src.rpm",
+        "srpm": {
+          "href": "Packages/grub2-2.12-46.el10_2.alma.1.src.rpm",
+          "nevra": "grub2-1:2.12-46.el10_2.alma.1.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "e5eb452d5d9b33557f1fd6fbdef2bc7c2dfb9413eae3c056891519c735bc12f9",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/grub2-2.12-46.el10_2.alma.1.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/grub2-tools-2.12-46.el10_2.alma.1.x86_64.rpm",
+        "version": "2.12"
+      },
+      "gzip": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/gzip-1.13-4.el10_2.x86_64.rpm",
+        "nevra": "gzip-1.13-4.el10_2.x86_64",
+        "release": "4.el10_2",
+        "repo": "almalinux-baseos",
+        "sha256": "fd94635fd0a4c487efe8a1a35c8acc8dd0f7956a420aff9f1fe08b8749cf2c24",
+        "sourcerpm": "gzip-1.13-4.el10_2.src.rpm",
+        "srpm": {
+          "href": "Packages/gzip-1.13-4.el10_2.src.rpm",
+          "nevra": "gzip-1.13-4.el10_2.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "03c4fcfffe341fdce17be483b04d3bb1997976ab12a07b7b08a88edbcea16902",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/gzip-1.13-4.el10_2.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/gzip-1.13-4.el10_2.x86_64.rpm",
+        "version": "1.13"
+      },
+      "isomd5sum": {
+        "arch": "x86_64",
+        "epoch": "1",
+        "href": "Packages/isomd5sum-1.2.5-3.el10.x86_64.rpm",
+        "nevra": "isomd5sum-1:1.2.5-3.el10.x86_64",
+        "release": "3.el10",
+        "repo": "almalinux-appstream",
+        "sha256": "16f1cb71a3b0cca01e53ccdfb75e103c4991430946ad38b35d373edf620af6d2",
+        "sourcerpm": "isomd5sum-1.2.5-3.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/isomd5sum-1.2.5-3.el10.src.rpm",
+          "nevra": "isomd5sum-1:1.2.5-3.el10.src",
+          "repo": "almalinux-appstream-source",
+          "sha256": "17f0481fa302f5f70b2d32ae9ece90bb5e9863f516efb6e9ed3cdb4adc70960d",
+          "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/isomd5sum-1.2.5-3.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/isomd5sum-1.2.5-3.el10.x86_64.rpm",
+        "version": "1.2.5"
+      },
+      "kpartx": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/kpartx-0.9.9-18.el10.x86_64.rpm",
+        "nevra": "kpartx-0.9.9-18.el10.x86_64",
+        "release": "18.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "1fc6b9ad9ea14a11339355956553307dc6c843984293ec6d47ac0a671232d90e",
+        "sourcerpm": "device-mapper-multipath-0.9.9-18.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/device-mapper-multipath-0.9.9-18.el10.src.rpm",
+          "nevra": "device-mapper-multipath-0.9.9-18.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "9a40ae720b6624e68f661c7710067ee779864793f46555ad293d2f9335282e29",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/device-mapper-multipath-0.9.9-18.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/kpartx-0.9.9-18.el10.x86_64.rpm",
+        "version": "0.9.9"
+      },
+      "lsof": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/lsof-4.98.0-7.el10.x86_64.rpm",
+        "nevra": "lsof-4.98.0-7.el10.x86_64",
+        "release": "7.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "888e9f73f9c87fc1cccbcd2c9e5f10a2bd4c64e689d6cc4f5e517fd4509c0ad7",
+        "sourcerpm": "lsof-4.98.0-7.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/lsof-4.98.0-7.el10.src.rpm",
+          "nevra": "lsof-4.98.0-7.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "023dbe535c276b494f96a39f5fa3aee27475f356f7c458492ceebe97c1c877c5",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/lsof-4.98.0-7.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/lsof-4.98.0-7.el10.x86_64.rpm",
+        "version": "4.98.0"
+      },
+      "lvm2": {
+        "arch": "x86_64",
+        "epoch": "10",
+        "href": "Packages/lvm2-2.03.36-2.el10.x86_64.rpm",
+        "nevra": "lvm2-10:2.03.36-2.el10.x86_64",
+        "release": "2.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "3dcaaabf2c9e4975f7a8909ad35e4a4cf23a69d90d52c2e6d0fd57f99b944181",
+        "sourcerpm": "lvm2-2.03.36-2.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/lvm2-2.03.36-2.el10.src.rpm",
+          "nevra": "lvm2-10:2.03.36-2.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "86d8bd2276934eb958d8d8f8009f7a135db6ea8fc1336be42644bba53931f9e6",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/lvm2-2.03.36-2.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/lvm2-2.03.36-2.el10.x86_64.rpm",
+        "version": "2.03.36"
+      },
+      "make": {
+        "arch": "x86_64",
+        "epoch": "1",
+        "href": "Packages/make-4.4.1-9.el10.x86_64.rpm",
+        "nevra": "make-1:4.4.1-9.el10.x86_64",
+        "release": "9.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "ac4ef0ec3add180db4a827647709fc3ffadf8a585fc97e54529887917c1b9c3d",
+        "sourcerpm": "make-4.4.1-9.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/make-4.4.1-9.el10.src.rpm",
+          "nevra": "make-1:4.4.1-9.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "50df7869980464ca91c642ad37ec57eb0c36401066fbed344cf4d3666a8a061a",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/make-4.4.1-9.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/make-4.4.1-9.el10.x86_64.rpm",
+        "version": "4.4.1"
+      },
+      "mdadm": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/mdadm-4.4-3.el10_2.2.x86_64.rpm",
+        "nevra": "mdadm-4.4-3.el10_2.2.x86_64",
+        "release": "3.el10_2.2",
+        "repo": "almalinux-baseos",
+        "sha256": "03dcd2f3d34ee1aa47d95eb398f66828a75d8dc07072cf025d61d4924877de44",
+        "sourcerpm": "mdadm-4.4-3.el10_2.2.src.rpm",
+        "srpm": {
+          "href": "Packages/mdadm-4.4-3.el10_2.2.src.rpm",
+          "nevra": "mdadm-4.4-3.el10_2.2.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "845c308d4fa04d103ad44734d1967d8c28b5d85311b2f557609365b956af0618",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/mdadm-4.4-3.el10_2.2.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/mdadm-4.4-3.el10_2.2.x86_64.rpm",
+        "version": "4.4"
+      },
+      "mtools": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/mtools-4.0.43-7.el10.x86_64.rpm",
+        "nevra": "mtools-4.0.43-7.el10.x86_64",
+        "release": "7.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "193137f8de7a2396b6244cec2942a8801e2faeb8bde77cfcb87d3e136c32aaf4",
+        "sourcerpm": "mtools-4.0.43-7.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/mtools-4.0.43-7.el10.src.rpm",
+          "nevra": "mtools-4.0.43-7.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "8a32960e9a08ee4b209eb9b13f9dd9eec5176740ae72120c366673bc2e8bca68",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/mtools-4.0.43-7.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/mtools-4.0.43-7.el10.x86_64.rpm",
+        "version": "4.0.43"
+      },
+      "openssl": {
+        "arch": "x86_64",
+        "epoch": "1",
+        "href": "Packages/openssl-3.5.8-2.el10_2.alma.1.x86_64.rpm",
+        "nevra": "openssl-1:3.5.8-2.el10_2.alma.1.x86_64",
+        "release": "2.el10_2.alma.1",
+        "repo": "almalinux-baseos",
+        "sha256": "a73c4b6755f8b1c93d36e112826d4379da509f840dc4659e9df253f6cc9bc225",
+        "sourcerpm": "openssl-3.5.8-2.el10_2.alma.1.src.rpm",
+        "srpm": {
+          "href": "Packages/openssl-3.5.8-2.el10_2.alma.1.src.rpm",
+          "nevra": "openssl-1:3.5.8-2.el10_2.alma.1.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "1becadefc4748d09a05b4aabb333fca080430d54f33ca8b94dab4c1c609afd79",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/openssl-3.5.8-2.el10_2.alma.1.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/openssl-3.5.8-2.el10_2.alma.1.x86_64.rpm",
+        "version": "3.5.8"
+      },
+      "python3": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/python3-3.12.15-1.el10_2.x86_64.rpm",
+        "nevra": "python3-3.12.15-1.el10_2.x86_64",
+        "release": "1.el10_2",
+        "repo": "almalinux-baseos",
+        "sha256": "252758bc00528bc4e208b240dfc3f86911173d3acc40bedd83e75e7182718d23",
+        "sourcerpm": "python3.12-3.12.15-1.el10_2.src.rpm",
+        "srpm": {
+          "href": "Packages/python3.12-3.12.15-1.el10_2.src.rpm",
+          "nevra": "python3.12-3.12.15-1.el10_2.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "307248ac7ddc7d7a5653ac1698a93982257378531cf285f87025790286fb622b",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/python3.12-3.12.15-1.el10_2.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/python3-3.12.15-1.el10_2.x86_64.rpm",
+        "version": "3.12.15"
+      },
+      "python3-click": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/p/python3-click-8.1.7-7.el10_3.noarch.rpm",
+        "nevra": "python3-click-8.1.7-7.el10_3.noarch",
+        "release": "7.el10_3",
+        "repo": "epel-10",
+        "sha256": "59b66f0a07c5dab0a031e083dd2eddf980014c27724355cc861f6876d372b057",
+        "sourcerpm": "python-click-8.1.7-7.el10_3.src.rpm",
+        "srpm": {
+          "href": "Packages/p/python-click-8.1.7-7.el10_3.src.rpm",
+          "nevra": "python-click-8.1.7-7.el10_3.src",
+          "repo": "epel-10-source",
+          "sha256": "0143e3cd0cf4fb1ee98e2b91f9148e2ce743a797af06aca038acff87624c57b4",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/p/python-click-8.1.7-7.el10_3.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/p/python3-click-8.1.7-7.el10_3.noarch.rpm",
+        "version": "8.1.7"
+      },
+      "python3-dnf-plugins-core": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/python3-dnf-plugins-core-4.7.0-10.el10.noarch.rpm",
+        "nevra": "python3-dnf-plugins-core-4.7.0-10.el10.noarch",
+        "release": "10.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "3e9a81c73c438c444d1459eec704ff8a321d42cdade6a96d19138e9c83d901cb",
+        "sourcerpm": "dnf-plugins-core-4.7.0-10.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/dnf-plugins-core-4.7.0-10.el10.src.rpm",
+          "nevra": "dnf-plugins-core-4.7.0-10.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "459c476d200b02cef15fba7209f95d4e18d87b8e5e22b3fc6f99843e4943d529",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dnf-plugins-core-4.7.0-10.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/python3-dnf-plugins-core-4.7.0-10.el10.noarch.rpm",
+        "version": "4.7.0"
+      },
+      "python3-lxml": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/python3-lxml-5.2.1-4.el10.x86_64.rpm",
+        "nevra": "python3-lxml-5.2.1-4.el10.x86_64",
+        "release": "4.el10",
+        "repo": "almalinux-appstream",
+        "sha256": "5f9440aa439f07049769ff360aabb46313240fe49f4f3894ac102ace85b733c3",
+        "sourcerpm": "python-lxml-5.2.1-4.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/python-lxml-5.2.1-4.el10.src.rpm",
+          "nevra": "python-lxml-5.2.1-4.el10.src",
+          "repo": "almalinux-appstream-source",
+          "sha256": "50bba3421768fec5515cc18b0b9f5e59c3cd33d390c5b86ca66929da7620ff6e",
+          "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/python-lxml-5.2.1-4.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/python3-lxml-5.2.1-4.el10.x86_64.rpm",
+        "version": "5.2.1"
+      },
+      "python3-markdown-it-py": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/p/python3-markdown-it-py-3.0.0-7.el10_0.noarch.rpm",
+        "nevra": "python3-markdown-it-py-3.0.0-7.el10_0.noarch",
+        "release": "7.el10_0",
+        "repo": "epel-10",
+        "sha256": "c00a88a2fa27a861f502c2e82946c738d38cfbea8b74a49bf3459a7f611961c8",
+        "sourcerpm": "python-markdown-it-py-3.0.0-7.el10_0.src.rpm",
+        "srpm": {
+          "href": "Packages/p/python-markdown-it-py-3.0.0-7.el10_0.src.rpm",
+          "nevra": "python-markdown-it-py-3.0.0-7.el10_0.src",
+          "repo": "epel-10-source",
+          "sha256": "27fd2c25633ec3b7f21fceefad1b5a80b547f11f50e39d661e40f125fd21e111",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/p/python-markdown-it-py-3.0.0-7.el10_0.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/p/python3-markdown-it-py-3.0.0-7.el10_0.noarch.rpm",
+        "version": "3.0.0"
+      },
+      "python3-mdurl": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/p/python3-mdurl-0.1.2-8.el10_0.noarch.rpm",
+        "nevra": "python3-mdurl-0.1.2-8.el10_0.noarch",
+        "release": "8.el10_0",
+        "repo": "epel-10",
+        "sha256": "4c0e5c6994f8d7ff247047c72a0b45aeb71c8bbc2bfdd18f0165cfbae9791485",
+        "sourcerpm": "python-mdurl-0.1.2-8.el10_0.src.rpm",
+        "srpm": {
+          "href": "Packages/p/python-mdurl-0.1.2-8.el10_0.src.rpm",
+          "nevra": "python-mdurl-0.1.2-8.el10_0.src",
+          "repo": "epel-10-source",
+          "sha256": "9f59f557ab483c19beb2b839350df720f76cf364747fec98764db099f020b982",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/p/python-mdurl-0.1.2-8.el10_0.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/p/python3-mdurl-0.1.2-8.el10_0.noarch.rpm",
+        "version": "0.1.2"
+      },
+      "python3-packaging": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/python3-packaging-24.2-2.el10.noarch.rpm",
+        "nevra": "python3-packaging-24.2-2.el10.noarch",
+        "release": "2.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "34f09b71d61ef37a3c1aa1c59f09d68c14f9f92b36d842d408b8da7b6061b1f0",
+        "sourcerpm": "python-packaging-24.2-2.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/python-packaging-24.2-2.el10.src.rpm",
+          "nevra": "python-packaging-24.2-2.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "404e60a1f2aad480af8b74219fb6f4e1234989e3e84342126697fc542fb6c9c8",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/python-packaging-24.2-2.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/python3-packaging-24.2-2.el10.noarch.rpm",
+        "version": "24.2"
+      },
+      "python3-pip": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/python3-pip-23.3.2-11.el10_2.noarch.rpm",
+        "nevra": "python3-pip-23.3.2-11.el10_2.noarch",
+        "release": "11.el10_2",
+        "repo": "almalinux-appstream",
+        "sha256": "da926fa0fa1a2ca6a4c4f00a5ff3eebc88d4f785589a68d280036ebf0a994263",
+        "sourcerpm": "python-pip-23.3.2-11.el10_2.src.rpm",
+        "srpm": {
+          "href": "Packages/python-pip-23.3.2-11.el10_2.src.rpm",
+          "nevra": "python-pip-23.3.2-11.el10_2.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "9eeca4f420a516f599650f0122d4d8824da2c8154b9c2453fbae693d119ba7bb",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/python-pip-23.3.2-11.el10_2.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/python3-pip-23.3.2-11.el10_2.noarch.rpm",
+        "version": "23.3.2"
+      },
+      "python3-poetry-core": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/p/python3-poetry-core-1.9.0-1.el10_0.noarch.rpm",
+        "nevra": "python3-poetry-core-1.9.0-1.el10_0.noarch",
+        "release": "1.el10_0",
+        "repo": "epel-10",
+        "sha256": "67877e93a3e4a6e0d0fac95481047b98b18ee16227902f37ba4acbb5443eab0c",
+        "sourcerpm": "python-poetry-core-1.9.0-1.el10_0.src.rpm",
+        "srpm": {
+          "href": "Packages/p/python-poetry-core-1.9.0-1.el10_0.src.rpm",
+          "nevra": "python-poetry-core-1.9.0-1.el10_0.src",
+          "repo": "epel-10-source",
+          "sha256": "1314d960487426bec08c88077bcd0550ecba3ca20a1de3dff66628fd63da97e3",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/p/python-poetry-core-1.9.0-1.el10_0.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/p/python3-poetry-core-1.9.0-1.el10_0.noarch.rpm",
+        "version": "1.9.0"
+      },
+      "python3-pygments": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/python3-pygments-2.18.0-1.el10.noarch.rpm",
+        "nevra": "python3-pygments-2.18.0-1.el10.noarch",
+        "release": "1.el10",
+        "repo": "almalinux-crb",
+        "sha256": "0aa5135cbcd64ca51b1db4c3a093720490c54e5ce0f02ef249356855f1b9133a",
+        "sourcerpm": "python-pygments-2.18.0-1.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/python-pygments-2.18.0-1.el10.src.rpm",
+          "nevra": "python-pygments-2.18.0-1.el10.src",
+          "repo": "almalinux-crb-source",
+          "sha256": "3e19ad2c946257227c2f803e8c079e679507ae727ae7ff4d91ee24566ebd4ba1",
+          "url": "https://vault.almalinux.org/10.2/CRB/Source/Packages/python-pygments-2.18.0-1.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/CRB/x86_64/os/Packages/python3-pygments-2.18.0-1.el10.noarch.rpm",
+        "version": "2.18.0"
+      },
+      "python3-pyyaml": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/python3-pyyaml-6.0.1-19.el10.x86_64.rpm",
+        "nevra": "python3-pyyaml-6.0.1-19.el10.x86_64",
+        "release": "19.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "e217f3028f4de29c34aeffd39623dceb015399b46b018d9d5eeb0bfe2aa1f3a4",
+        "sourcerpm": "PyYAML-6.0.1-19.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/PyYAML-6.0.1-19.el10.src.rpm",
+          "nevra": "PyYAML-6.0.1-19.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "f73a743e1085d23e5aa2f4fda90e296679b23dd300e7baab29ffca127011fb09",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/PyYAML-6.0.1-19.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/python3-pyyaml-6.0.1-19.el10.x86_64.rpm",
+        "version": "6.0.1"
+      },
+      "python3-requests": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/python3-requests-2.32.4-1.el10_0.noarch.rpm",
+        "nevra": "python3-requests-2.32.4-1.el10_0.noarch",
+        "release": "1.el10_0",
+        "repo": "almalinux-baseos",
+        "sha256": "253070a37db5b8ff613e84511cdf80fb0d04910edb7bcfcec2c4b24125c1fa1a",
+        "sourcerpm": "python-requests-2.32.4-1.el10_0.src.rpm",
+        "srpm": {
+          "href": "Packages/python-requests-2.32.4-1.el10_0.src.rpm",
+          "nevra": "python-requests-2.32.4-1.el10_0.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "c2338ec996fb61940f60e57c212942e66f731ff8bc408f618a5957e7ba5027da",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/python-requests-2.32.4-1.el10_0.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/python3-requests-2.32.4-1.el10_0.noarch.rpm",
+        "version": "2.32.4"
+      },
+      "python3-rich": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/p/python3-rich-14.3.0-1.el10_3.noarch.rpm",
+        "nevra": "python3-rich-14.3.0-1.el10_3.noarch",
+        "release": "1.el10_3",
+        "repo": "epel-10",
+        "sha256": "3df28a7b986be0610c51216a839f840fcf82189d8e386b4611397d5022782315",
+        "sourcerpm": "python-rich-14.3.0-1.el10_3.src.rpm",
+        "srpm": {
+          "href": "Packages/p/python-rich-14.3.0-1.el10_3.src.rpm",
+          "nevra": "python-rich-14.3.0-1.el10_3.src",
+          "repo": "epel-10-source",
+          "sha256": "3dfcc6a4b45ead30260d0542097d183a9ca393242becdf41e5a0cf623587ccdd",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/p/python-rich-14.3.0-1.el10_3.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/p/python3-rich-14.3.0-1.el10_3.noarch.rpm",
+        "version": "14.3.0"
+      },
+      "python3-shellingham": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/p/python3-shellingham-1.5.4-7.el10_0.noarch.rpm",
+        "nevra": "python3-shellingham-1.5.4-7.el10_0.noarch",
+        "release": "7.el10_0",
+        "repo": "epel-10",
+        "sha256": "b1f10cd6e7a9f4a0f767f46cd168571ee985ba3a0f49f8931c461e94916ae5fb",
+        "sourcerpm": "python-shellingham-1.5.4-7.el10_0.src.rpm",
+        "srpm": {
+          "href": "Packages/p/python-shellingham-1.5.4-7.el10_0.src.rpm",
+          "nevra": "python-shellingham-1.5.4-7.el10_0.src",
+          "repo": "epel-10-source",
+          "sha256": "967655f966fbaa8c3835d3d857fb5b2125cea8bec90a1992c6d260129faba9d4",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/p/python-shellingham-1.5.4-7.el10_0.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/p/python3-shellingham-1.5.4-7.el10_0.noarch.rpm",
+        "version": "1.5.4"
+      },
+      "python3-simplejson": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/p/python3-simplejson-3.20.2-1.el10_3.x86_64.rpm",
+        "nevra": "python3-simplejson-3.20.2-1.el10_3.x86_64",
+        "release": "1.el10_3",
+        "repo": "epel-10",
+        "sha256": "659d15a1204d58f37786eac930510db2215bc71da9668a043ea21cadad9d9b9c",
+        "sourcerpm": "python-simplejson-3.20.2-1.el10_3.src.rpm",
+        "srpm": {
+          "href": "Packages/p/python-simplejson-3.20.2-1.el10_3.src.rpm",
+          "nevra": "python-simplejson-3.20.2-1.el10_3.src",
+          "repo": "epel-10-source",
+          "sha256": "bb136b1d61de97ef419e9e6c3342d126f43f26865914355795905a2a527f49cc",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/p/python-simplejson-3.20.2-1.el10_3.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/p/python3-simplejson-3.20.2-1.el10_3.x86_64.rpm",
+        "version": "3.20.2"
+      },
+      "python3-typer": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/p/python3-typer-0.20.0-1.el10_2.noarch.rpm",
+        "nevra": "python3-typer-0.20.0-1.el10_2.noarch",
+        "release": "1.el10_2",
+        "repo": "epel-10",
+        "sha256": "00f2796bfcfa14b2dd0ec34ca1d5f442ad612dc4f4d3eb9a2cf407e7df284474",
+        "sourcerpm": "python-typer-0.20.0-1.el10_2.src.rpm",
+        "srpm": {
+          "href": "Packages/p/python-typer-0.20.0-1.el10_2.src.rpm",
+          "nevra": "python-typer-0.20.0-1.el10_2.src",
+          "repo": "epel-10-source",
+          "sha256": "fae6a2b31ddbb420d02146b2bc230eb0675b09d4f856b6df64b5d847c1416bc0",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/p/python-typer-0.20.0-1.el10_2.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/p/python3-typer-0.20.0-1.el10_2.noarch.rpm",
+        "version": "0.20.0"
+      },
+      "python3-typer-cli": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/p/python3-typer-cli-0.20.0-1.el10_2.noarch.rpm",
+        "nevra": "python3-typer-cli-0.20.0-1.el10_2.noarch",
+        "release": "1.el10_2",
+        "repo": "epel-10",
+        "sha256": "f995a1f88d5e727bdb8476598f1d436836d89f7027c634a31eca833d725d8bd6",
+        "sourcerpm": "python-typer-0.20.0-1.el10_2.src.rpm",
+        "srpm": {
+          "href": "Packages/p/python-typer-0.20.0-1.el10_2.src.rpm",
+          "nevra": "python-typer-0.20.0-1.el10_2.src",
+          "repo": "epel-10-source",
+          "sha256": "fae6a2b31ddbb420d02146b2bc230eb0675b09d4f856b6df64b5d847c1416bc0",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/p/python-typer-0.20.0-1.el10_2.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/p/python3-typer-cli-0.20.0-1.el10_2.noarch.rpm",
+        "version": "0.20.0"
+      },
+      "python3-typer-slim": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/p/python3-typer-slim-0.20.0-1.el10_2.noarch.rpm",
+        "nevra": "python3-typer-slim-0.20.0-1.el10_2.noarch",
+        "release": "1.el10_2",
+        "repo": "epel-10",
+        "sha256": "b83ba51a42d03711f0b8d5cdf7972f6959513b4c83fb89dceae81c36f25192b4",
+        "sourcerpm": "python-typer-0.20.0-1.el10_2.src.rpm",
+        "srpm": {
+          "href": "Packages/p/python-typer-0.20.0-1.el10_2.src.rpm",
+          "nevra": "python-typer-0.20.0-1.el10_2.src",
+          "repo": "epel-10-source",
+          "sha256": "fae6a2b31ddbb420d02146b2bc230eb0675b09d4f856b6df64b5d847c1416bc0",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/p/python-typer-0.20.0-1.el10_2.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/p/python3-typer-slim-0.20.0-1.el10_2.noarch.rpm",
+        "version": "0.20.0"
+      },
+      "python3-typing-extensions": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/python3-typing-extensions-4.9.0-6.el10.noarch.rpm",
+        "nevra": "python3-typing-extensions-4.9.0-6.el10.noarch",
+        "release": "6.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "b323e7e183cda698488c44cd91f8fafffc78a910bc313d2d0de1a6ea5e21e040",
+        "sourcerpm": "python-typing-extensions-4.9.0-6.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/python-typing-extensions-4.9.0-6.el10.src.rpm",
+          "nevra": "python-typing-extensions-4.9.0-6.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "1faecb08dfe02fd5735886cd84547d1a069cfdefe0b4e040816ac80cb654a199",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/python-typing-extensions-4.9.0-6.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/python3-typing-extensions-4.9.0-6.el10.noarch.rpm",
+        "version": "4.9.0"
+      },
+      "qemu-img": {
+        "arch": "x86_64",
+        "epoch": "18",
+        "href": "Packages/qemu-img-10.1.0-16.el10_2.5.alma.1.x86_64.rpm",
+        "nevra": "qemu-img-18:10.1.0-16.el10_2.5.alma.1.x86_64",
+        "release": "16.el10_2.5.alma.1",
+        "repo": "almalinux-appstream",
+        "sha256": "df4c83874215552d1e730bf992361e688a56385a60b77483b22da87bfbfde18f",
+        "sourcerpm": "qemu-kvm-10.1.0-16.el10_2.5.alma.1.src.rpm",
+        "srpm": {
+          "href": "Packages/qemu-kvm-10.1.0-16.el10_2.5.alma.1.src.rpm",
+          "nevra": "qemu-kvm-18:10.1.0-16.el10_2.5.alma.1.src",
+          "repo": "almalinux-appstream-source",
+          "sha256": "e68d41b4bf09703fcbf2ab9976743ad74c8b7d1df21dbfdaa9c1cdb1c263aab8",
+          "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/qemu-kvm-10.1.0-16.el10_2.5.alma.1.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/qemu-img-10.1.0-16.el10_2.5.alma.1.x86_64.rpm",
+        "version": "10.1.0"
+      },
+      "rpm": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/rpm-4.19.1.1-23.el10.alma.1.x86_64.rpm",
+        "nevra": "rpm-4.19.1.1-23.el10.alma.1.x86_64",
+        "release": "23.el10.alma.1",
+        "repo": "almalinux-baseos",
+        "sha256": "4a92b67b9ba8bca0ac07210e4b7513d5b44ea4fc832abac4bbbfd271cca25f3b",
+        "sourcerpm": "rpm-4.19.1.1-23.el10.alma.1.src.rpm",
+        "srpm": {
+          "href": "Packages/rpm-4.19.1.1-23.el10.alma.1.src.rpm",
+          "nevra": "rpm-4.19.1.1-23.el10.alma.1.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "f97b7e98fcd3ba1604f4b6179e784bc5d71937da7caa2b28a556a98d75bb33c4",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/rpm-4.19.1.1-23.el10.alma.1.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/rpm-4.19.1.1-23.el10.alma.1.x86_64.rpm",
+        "version": "4.19.1.1"
+      },
+      "rpm-build": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/rpm-build-4.19.1.1-23.el10.alma.1.x86_64.rpm",
+        "nevra": "rpm-build-4.19.1.1-23.el10.alma.1.x86_64",
+        "release": "23.el10.alma.1",
+        "repo": "almalinux-appstream",
+        "sha256": "11c45711206c0cb50f96d0aa2044b2490587045e36331857995c6bca5a24976e",
+        "sourcerpm": "rpm-4.19.1.1-23.el10.alma.1.src.rpm",
+        "srpm": {
+          "href": "Packages/rpm-4.19.1.1-23.el10.alma.1.src.rpm",
+          "nevra": "rpm-4.19.1.1-23.el10.alma.1.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "f97b7e98fcd3ba1604f4b6179e784bc5d71937da7caa2b28a556a98d75bb33c4",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/rpm-4.19.1.1-23.el10.alma.1.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/rpm-build-4.19.1.1-23.el10.alma.1.x86_64.rpm",
+        "version": "4.19.1.1"
+      },
+      "rpm-sign": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/rpm-sign-4.19.1.1-23.el10.alma.1.x86_64.rpm",
+        "nevra": "rpm-sign-4.19.1.1-23.el10.alma.1.x86_64",
+        "release": "23.el10.alma.1",
+        "repo": "almalinux-baseos",
+        "sha256": "2a1c46f17223f3f7d02c7c5e0f70213ed264a8b66eee98f6c1d1ee29e7abbe73",
+        "sourcerpm": "rpm-4.19.1.1-23.el10.alma.1.src.rpm",
+        "srpm": {
+          "href": "Packages/rpm-4.19.1.1-23.el10.alma.1.src.rpm",
+          "nevra": "rpm-4.19.1.1-23.el10.alma.1.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "f97b7e98fcd3ba1604f4b6179e784bc5d71937da7caa2b28a556a98d75bb33c4",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/rpm-4.19.1.1-23.el10.alma.1.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/rpm-sign-4.19.1.1-23.el10.alma.1.x86_64.rpm",
+        "version": "4.19.1.1"
+      },
+      "rsync": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/rsync-3.5.0-3.el10_2.x86_64.rpm",
+        "nevra": "rsync-3.5.0-3.el10_2.x86_64",
+        "release": "3.el10_2",
+        "repo": "almalinux-baseos",
+        "sha256": "8864f24ffcc60c5004508e69d03535a21b2298996b82f06914f212576acada0d",
+        "sourcerpm": "rsync-3.5.0-3.el10_2.src.rpm",
+        "srpm": {
+          "href": "Packages/rsync-3.5.0-3.el10_2.src.rpm",
+          "nevra": "rsync-3.5.0-3.el10_2.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "a09a33f4a692514027ddbf307cbebf1f5a901b76570fcce42c6322255f6ff456",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/rsync-3.5.0-3.el10_2.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/rsync-3.5.0-3.el10_2.x86_64.rpm",
+        "version": "3.5.0"
+      },
+      "screen": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/s/screen-5.0.1-6.el10_2.x86_64.rpm",
+        "nevra": "screen-5.0.1-6.el10_2.x86_64",
+        "release": "6.el10_2",
+        "repo": "epel-10",
+        "sha256": "e29bb3c708f4a82222a5d17c5c075f77e6cf9ea75cbbeaf5761287f239b15a40",
+        "sourcerpm": "screen-5.0.1-6.el10_2.src.rpm",
+        "srpm": {
+          "href": "Packages/s/screen-5.0.1-6.el10_2.src.rpm",
+          "nevra": "screen-5.0.1-6.el10_2.src",
+          "repo": "epel-10-source",
+          "sha256": "b41e8dbdde000cff22b86f9a289972ac96e85dbbade85bc0bb87ccd29e0711f0",
+          "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/Packages/s/screen-5.0.1-6.el10_2.src.rpm"
+        },
+        "url": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/Packages/s/screen-5.0.1-6.el10_2.x86_64.rpm",
+        "version": "5.0.1"
+      },
+      "sed": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/sed-4.9-5.el10.x86_64.rpm",
+        "nevra": "sed-4.9-5.el10.x86_64",
+        "release": "5.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "31ac6bc9ce122a053e4bfc130efb2e229b9ee3057a849ba11de66cbeeea629dd",
+        "sourcerpm": "sed-4.9-5.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/sed-4.9-5.el10.src.rpm",
+          "nevra": "sed-4.9-5.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "27aace64083b0f1de1f2d461a119378f650cdef4255de998c66c837fdfb38967",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/sed-4.9-5.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/sed-4.9-5.el10.x86_64.rpm",
+        "version": "4.9"
+      },
+      "selinux-policy": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/selinux-policy-42.1.18-4.el10_2.4.noarch.rpm",
+        "nevra": "selinux-policy-42.1.18-4.el10_2.4.noarch",
+        "release": "4.el10_2.4",
+        "repo": "almalinux-baseos",
+        "sha256": "704421fb936b81fe323cd448c2ea60d86af48ebae4a0f8fab2e6c26da88f2466",
+        "sourcerpm": "selinux-policy-42.1.18-4.el10_2.4.src.rpm",
+        "srpm": {
+          "href": "Packages/selinux-policy-42.1.18-4.el10_2.4.src.rpm",
+          "nevra": "selinux-policy-42.1.18-4.el10_2.4.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "5ae454b1022536a80bf972171239f854829a6bcf7f1a2ff9e14324c91193d5fc",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/selinux-policy-42.1.18-4.el10_2.4.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/selinux-policy-42.1.18-4.el10_2.4.noarch.rpm",
+        "version": "42.1.18"
+      },
+      "selinux-policy-devel": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/selinux-policy-devel-42.1.18-4.el10_2.4.noarch.rpm",
+        "nevra": "selinux-policy-devel-42.1.18-4.el10_2.4.noarch",
+        "release": "4.el10_2.4",
+        "repo": "almalinux-appstream",
+        "sha256": "36936c92ebd1c9488e3748e705260e5939ca2f5803116579e1a22d3c2ed9916d",
+        "sourcerpm": "selinux-policy-42.1.18-4.el10_2.4.src.rpm",
+        "srpm": {
+          "href": "Packages/selinux-policy-42.1.18-4.el10_2.4.src.rpm",
+          "nevra": "selinux-policy-42.1.18-4.el10_2.4.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "5ae454b1022536a80bf972171239f854829a6bcf7f1a2ff9e14324c91193d5fc",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/selinux-policy-42.1.18-4.el10_2.4.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/selinux-policy-devel-42.1.18-4.el10_2.4.noarch.rpm",
+        "version": "42.1.18"
+      },
+      "squashfs-tools": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/squashfs-tools-4.6.1-6.el10.x86_64.rpm",
+        "nevra": "squashfs-tools-4.6.1-6.el10.x86_64",
+        "release": "6.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "151a1e71de97b90312bdc527bcae403b3fc827c729678c2d7d07a4f036a66312",
+        "sourcerpm": "squashfs-tools-4.6.1-6.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/squashfs-tools-4.6.1-6.el10.src.rpm",
+          "nevra": "squashfs-tools-4.6.1-6.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "1fc684ec2445edd4d02d584917d060967739141fb825229a79266fc70e37d19d",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/squashfs-tools-4.6.1-6.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/squashfs-tools-4.6.1-6.el10.x86_64.rpm",
+        "version": "4.6.1"
+      },
+      "syslinux": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/syslinux-6.04-0.34.el10.alma.2.x86_64.rpm",
+        "nevra": "syslinux-6.04-0.34.el10.alma.2.x86_64",
+        "release": "0.34.el10.alma.2",
+        "repo": "almalinux-baseos",
+        "sha256": "99c5566380a869212e4c691a309b446f81d38520de6799b0837e8a49e5cde4c8",
+        "sourcerpm": "syslinux-6.04-0.34.el10.alma.2.src.rpm",
+        "srpm": {
+          "href": "Packages/syslinux-6.04-0.34.el10.alma.2.src.rpm",
+          "nevra": "syslinux-6.04-0.34.el10.alma.2.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "5d1224516d52e87554c72d4a07826ed3002b822615ff98c1ded9a36e6cc12f46",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/syslinux-6.04-0.34.el10.alma.2.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/syslinux-6.04-0.34.el10.alma.2.x86_64.rpm",
+        "version": "6.04"
+      },
+      "syslinux-nonlinux": {
+        "arch": "noarch",
+        "epoch": "0",
+        "href": "Packages/syslinux-nonlinux-6.04-0.34.el10.alma.2.noarch.rpm",
+        "nevra": "syslinux-nonlinux-6.04-0.34.el10.alma.2.noarch",
+        "release": "0.34.el10.alma.2",
+        "repo": "almalinux-baseos",
+        "sha256": "b9f8651cb0411892cd4347497e6ecc0b22fbe96151dac0c32dd6cbce95b53c5a",
+        "sourcerpm": "syslinux-6.04-0.34.el10.alma.2.src.rpm",
+        "srpm": {
+          "href": "Packages/syslinux-6.04-0.34.el10.alma.2.src.rpm",
+          "nevra": "syslinux-6.04-0.34.el10.alma.2.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "5d1224516d52e87554c72d4a07826ed3002b822615ff98c1ded9a36e6cc12f46",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/syslinux-6.04-0.34.el10.alma.2.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/syslinux-nonlinux-6.04-0.34.el10.alma.2.noarch.rpm",
+        "version": "6.04"
+      },
+      "tar": {
+        "arch": "x86_64",
+        "epoch": "2",
+        "href": "Packages/tar-1.35-13.el10_2.x86_64.rpm",
+        "nevra": "tar-2:1.35-13.el10_2.x86_64",
+        "release": "13.el10_2",
+        "repo": "almalinux-baseos",
+        "sha256": "b1b33a3f5d03c270f2e79f452b4384955faaabb697df52c2885d1247b02c0c65",
+        "sourcerpm": "tar-1.35-13.el10_2.src.rpm",
+        "srpm": {
+          "href": "Packages/tar-1.35-13.el10_2.src.rpm",
+          "nevra": "tar-2:1.35-13.el10_2.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "388b1779117e9f1ca801dcd0de9ca0f3627450bb7e5a46cfefaee74a98443b6d",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/tar-1.35-13.el10_2.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/tar-1.35-13.el10_2.x86_64.rpm",
+        "version": "1.35"
+      },
+      "util-linux": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/util-linux-2.40.2-18.el10.x86_64.rpm",
+        "nevra": "util-linux-2.40.2-18.el10.x86_64",
+        "release": "18.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "d2eda1a9e5ba0c6c3e7eb69e4af24a37b24787cfbf3efc047bba83b5796dd1e3",
+        "sourcerpm": "util-linux-2.40.2-18.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/util-linux-2.40.2-18.el10.src.rpm",
+          "nevra": "util-linux-2.40.2-18.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "4ded38e92ea0c75ab68f54c152002b784c429c134c985922f1e740c51d37c4bd",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/util-linux-2.40.2-18.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/util-linux-2.40.2-18.el10.x86_64.rpm",
+        "version": "2.40.2"
+      },
+      "xfsprogs": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/xfsprogs-6.16.0-1.el10.x86_64.rpm",
+        "nevra": "xfsprogs-6.16.0-1.el10.x86_64",
+        "release": "1.el10",
+        "repo": "almalinux-baseos",
+        "sha256": "f179890bd83f241454b31336942b620e0c3262c79aead566581166e24f5374eb",
+        "sourcerpm": "xfsprogs-6.16.0-1.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/xfsprogs-6.16.0-1.el10.src.rpm",
+          "nevra": "xfsprogs-6.16.0-1.el10.src",
+          "repo": "almalinux-baseos-source",
+          "sha256": "e9758490c4b49b9f50d6c359bab44dcfdfc8552e267754f8405c3847b8324cd4",
+          "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/xfsprogs-6.16.0-1.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/xfsprogs-6.16.0-1.el10.x86_64.rpm",
+        "version": "6.16.0"
+      },
+      "xorriso": {
+        "arch": "x86_64",
+        "epoch": "0",
+        "href": "Packages/xorriso-1.5.6-6.el10.x86_64.rpm",
+        "nevra": "xorriso-1.5.6-6.el10.x86_64",
+        "release": "6.el10",
+        "repo": "almalinux-appstream",
+        "sha256": "9c706a6246c45451fa231e275b16acf991265c2239751d4d79fb82098f7c229b",
+        "sourcerpm": "libisoburn-1.5.6-6.el10.src.rpm",
+        "srpm": {
+          "href": "Packages/libisoburn-1.5.6-6.el10.src.rpm",
+          "nevra": "libisoburn-1.5.6-6.el10.src",
+          "repo": "almalinux-appstream-source",
+          "sha256": "44930516024b61ad2f3c7bd855006343099a395e149a55019ba23e180698ce69",
+          "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/libisoburn-1.5.6-6.el10.src.rpm"
+        },
+        "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/xorriso-1.5.6-6.el10.x86_64.rpm",
+        "version": "1.5.6"
+      }
+    },
+    "version": "10"
+  },
+  "id": "appliance-image-toolchain-almalinux10-amd64",
+  "image_packages": {
+    "NetworkManager": {
+      "arch": "x86_64",
+      "epoch": "1",
+      "href": "Packages/NetworkManager-1.56.0-3.el10_2.x86_64.rpm",
+      "nevra": "NetworkManager-1:1.56.0-3.el10_2.x86_64",
+      "release": "3.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "341637c273b55cbf27f099a73bfd6e65c6371b70756932fd88f32ec5695c578b",
+      "sourcerpm": "NetworkManager-1.56.0-3.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/NetworkManager-1.56.0-3.el10_2.src.rpm",
+        "nevra": "NetworkManager-1:1.56.0-3.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "6eb701254bf93f713a493511132d318c4a31c92a8f6c2934318248c7e6cd1d65",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/NetworkManager-1.56.0-3.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/NetworkManager-1.56.0-3.el10_2.x86_64.rpm",
+      "version": "1.56.0"
+    },
+    "almalinux-gpg-keys": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/almalinux-gpg-keys-10.2-21.el10.x86_64.rpm",
+      "nevra": "almalinux-gpg-keys-10.2-21.el10.x86_64",
+      "release": "21.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "1e1bd8aa96422b5ff41cbaed345a065213fa0bf589002ee4cb05c3f490cf3a74",
+      "sourcerpm": "almalinux-release-10.2-21.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/almalinux-release-10.2-21.el10.src.rpm",
+        "nevra": "almalinux-release-10.2-21.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "7efeb88f54dd3a80767c49e7c77a8c2523274842370d82e5a6f601a63f08aa66",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/almalinux-release-10.2-21.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/almalinux-gpg-keys-10.2-21.el10.x86_64.rpm",
+      "version": "10.2"
+    },
+    "almalinux-release": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/almalinux-release-10.2-21.el10.x86_64.rpm",
+      "nevra": "almalinux-release-10.2-21.el10.x86_64",
+      "release": "21.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "a008d99b906e6c183ce5a785448367964487ce311c0afafae1905060ad4e8f1c",
+      "sourcerpm": "almalinux-release-10.2-21.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/almalinux-release-10.2-21.el10.src.rpm",
+        "nevra": "almalinux-release-10.2-21.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "7efeb88f54dd3a80767c49e7c77a8c2523274842370d82e5a6f601a63f08aa66",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/almalinux-release-10.2-21.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/almalinux-release-10.2-21.el10.x86_64.rpm",
+      "version": "10.2"
+    },
+    "almalinux-repos": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/almalinux-repos-10.2-21.el10.x86_64.rpm",
+      "nevra": "almalinux-repos-10.2-21.el10.x86_64",
+      "release": "21.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "78df4d1a48e0de33c39622f9883c9b0c1ef16b9c77c4a99f6186075d8e416df0",
+      "sourcerpm": "almalinux-release-10.2-21.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/almalinux-release-10.2-21.el10.src.rpm",
+        "nevra": "almalinux-release-10.2-21.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "7efeb88f54dd3a80767c49e7c77a8c2523274842370d82e5a6f601a63f08aa66",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/almalinux-release-10.2-21.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/almalinux-repos-10.2-21.el10.x86_64.rpm",
+      "version": "10.2"
+    },
+    "bash-completion": {
+      "arch": "noarch",
+      "epoch": "1",
+      "href": "Packages/bash-completion-2.11-16.el10.noarch.rpm",
+      "nevra": "bash-completion-1:2.11-16.el10.noarch",
+      "release": "16.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "8f72586cb581dd5dffa1117cedc7adac41f97a3aa9211c3f101fc8ef7058209d",
+      "sourcerpm": "bash-completion-2.11-16.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/bash-completion-2.11-16.el10.src.rpm",
+        "nevra": "bash-completion-1:2.11-16.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "1447cedc46abc1774682de98986ca42ccba0afc2a099db1b2ebab3517f08e417",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/bash-completion-2.11-16.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/bash-completion-2.11-16.el10.noarch.rpm",
+      "version": "2.11"
+    },
+    "btrfs-progs": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/btrfs-progs-6.12-3.el10.x86_64.rpm",
+      "nevra": "btrfs-progs-6.12-3.el10.x86_64",
+      "release": "3.el10",
+      "repo": "almalinux-appstream",
+      "sha256": "bdef8603f697b253f6682d6311b31d91ddf531864b7e1f3e3f727813252ea2e0",
+      "sourcerpm": "btrfs-progs-6.12-3.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/btrfs-progs-6.12-3.el10.src.rpm",
+        "nevra": "btrfs-progs-6.12-3.el10.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "b5286e792d21acfec3034e825dbe772ca47bc29559bc5a39a2396f86a60ce240",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/btrfs-progs-6.12-3.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/btrfs-progs-6.12-3.el10.x86_64.rpm",
+      "version": "6.12"
+    },
+    "ca-certificates": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.noarch.rpm",
+      "nevra": "ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.noarch",
+      "release": "100.3.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "5826da756d4b5843290093de22c6e85167399af60fb3a0b31be0fd99358d929a",
+      "sourcerpm": "ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.src.rpm",
+        "nevra": "ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "36d3011c6ee6878e4862a04cbbdc33e48a6b81ff87c00fdc06ad7b9c15a0210c",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/ca-certificates-2026.2.92_v9.0.319-100.3.el10_2.noarch.rpm",
+      "version": "2026.2.92_v9.0.319"
+    },
+    "chrony": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/chrony-4.8-2.el10.x86_64.rpm",
+      "nevra": "chrony-4.8-2.el10.x86_64",
+      "release": "2.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "e99050a2915515f0e7469c94f2be6f2b30da4dd222142e84d4d9bdb3e2e5124b",
+      "sourcerpm": "chrony-4.8-2.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/chrony-4.8-2.el10.src.rpm",
+        "nevra": "chrony-4.8-2.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "9433890e4e00c70f8d597df9772b299cfe14f1dab2c688ad1b62373e7bde65e9",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/chrony-4.8-2.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/chrony-4.8-2.el10.x86_64.rpm",
+      "version": "4.8"
+    },
+    "cloud-init": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/cloud-init-24.4-7.el10_2.1.alma.1.noarch.rpm",
+      "nevra": "cloud-init-24.4-7.el10_2.1.alma.1.noarch",
+      "release": "7.el10_2.1.alma.1",
+      "repo": "almalinux-appstream",
+      "sha256": "7b1d3d3ebcbe7385cf3aabc48314de0f070b7c8c24d9a9a6a78c47c544d7b2b0",
+      "sourcerpm": "cloud-init-24.4-7.el10_2.1.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/cloud-init-24.4-7.el10_2.1.alma.1.src.rpm",
+        "nevra": "cloud-init-24.4-7.el10_2.1.alma.1.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "d99ae62eda948af12a6ea8ffdcc2c176f9fd23514605c299aef53f225864c245",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/cloud-init-24.4-7.el10_2.1.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/cloud-init-24.4-7.el10_2.1.alma.1.noarch.rpm",
+      "version": "24.4"
+    },
+    "container-selinux": {
+      "arch": "noarch",
+      "epoch": "4",
+      "href": "Packages/container-selinux-2.248.0-1.el10_2.noarch.rpm",
+      "nevra": "container-selinux-4:2.248.0-1.el10_2.noarch",
+      "release": "1.el10_2",
+      "repo": "almalinux-appstream",
+      "sha256": "b89b4e2d1438d98ba0ec3c460b273d2321338c8a18dca8e2c1395f819ad4d8da",
+      "sourcerpm": "container-selinux-2.248.0-1.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/container-selinux-2.248.0-1.el10_2.src.rpm",
+        "nevra": "container-selinux-4:2.248.0-1.el10_2.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "6cd2e669ece4e92db5b0e696ccc392c72353c97e148b577d222ae95ac1a6fa80",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/container-selinux-2.248.0-1.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/container-selinux-2.248.0-1.el10_2.noarch.rpm",
+      "version": "2.248.0"
+    },
+    "cryptsetup": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/cryptsetup-2.8.1-2.el10.x86_64.rpm",
+      "nevra": "cryptsetup-2.8.1-2.el10.x86_64",
+      "release": "2.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "019291a9ba73bd95b8b3d5d26031cd91943a4580b991ad4c0ee52910a5fa1e6e",
+      "sourcerpm": "cryptsetup-2.8.1-2.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/cryptsetup-2.8.1-2.el10.src.rpm",
+        "nevra": "cryptsetup-2.8.1-2.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "3a1939af4327e9c416c7d59ebec80077e6e8955774678191eaaf105d56cfb8a6",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/cryptsetup-2.8.1-2.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/cryptsetup-2.8.1-2.el10.x86_64.rpm",
+      "version": "2.8.1"
+    },
+    "dbus-broker": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/dbus-broker-36-5.el10_2.x86_64.rpm",
+      "nevra": "dbus-broker-36-5.el10_2.x86_64",
+      "release": "5.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "7fb5fe73e06ddd5a83e65333ee88afbf3e48f0e33e32b4dfe41aef952acc0c89",
+      "sourcerpm": "dbus-broker-36-5.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/dbus-broker-36-5.el10_2.src.rpm",
+        "nevra": "dbus-broker-36-5.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "5c1c6107be7d9e40ea697bd21fee34a9d857626c97660082114f585906420a64",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dbus-broker-36-5.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/dbus-broker-36-5.el10_2.x86_64.rpm",
+      "version": "36"
+    },
+    "default-fonts-core": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/default-fonts-core-4.1-3.el10.noarch.rpm",
+      "nevra": "default-fonts-core-4.1-3.el10.noarch",
+      "release": "3.el10",
+      "repo": "almalinux-appstream",
+      "sha256": "1b74810e7cca61acfd7de8d5e3a139ed77d3e3cc7950d0f9399a907c92eefee8",
+      "sourcerpm": "langpacks-4.1-3.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/langpacks-4.1-3.el10.src.rpm",
+        "nevra": "langpacks-4.1-3.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "bfcb944405e3e84f69213b0e78691665500069b9429e5d4ea90019ef5127145b",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/langpacks-4.1-3.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/default-fonts-core-4.1-3.el10.noarch.rpm",
+      "version": "4.1"
+    },
+    "dialog": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/dialog-1.3-52.20240101.el10.x86_64.rpm",
+      "nevra": "dialog-1.3-52.20240101.el10.x86_64",
+      "release": "52.20240101.el10",
+      "repo": "almalinux-appstream",
+      "sha256": "86efe19a5388be4099e305f57931cff7606b5789d3d7c7e998eafb370320bec0",
+      "sourcerpm": "dialog-1.3-52.20240101.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/dialog-1.3-52.20240101.el10.src.rpm",
+        "nevra": "dialog-1.3-52.20240101.el10.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "5189e27db2d730e78bc346428e6c3aae9f23705c5b1ba080b863552c1e36f072",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/dialog-1.3-52.20240101.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/dialog-1.3-52.20240101.el10.x86_64.rpm",
+      "version": "1.3"
+    },
+    "dnf": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/dnf-4.20.0-22.el10_2.alma.1.noarch.rpm",
+      "nevra": "dnf-4.20.0-22.el10_2.alma.1.noarch",
+      "release": "22.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "84c937f87390c6275c39a8f0a6b7c4b3f754f5179b80c5e1f053f3eb462eefee",
+      "sourcerpm": "dnf-4.20.0-22.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/dnf-4.20.0-22.el10_2.alma.1.src.rpm",
+        "nevra": "dnf-4.20.0-22.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "f5ceed1cdf12ace3a5835382a4d369ebad3ba26c71a7930c4fd6e1ac961b19b1",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dnf-4.20.0-22.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/dnf-4.20.0-22.el10_2.alma.1.noarch.rpm",
+      "version": "4.20.0"
+    },
+    "dnf-automatic": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/dnf-automatic-4.20.0-22.el10_2.alma.1.noarch.rpm",
+      "nevra": "dnf-automatic-4.20.0-22.el10_2.alma.1.noarch",
+      "release": "22.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "c4e4ea5cf02d6131961ac7e74ec375bea75dd85a33389080bd0083d4906c387f",
+      "sourcerpm": "dnf-4.20.0-22.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/dnf-4.20.0-22.el10_2.alma.1.src.rpm",
+        "nevra": "dnf-4.20.0-22.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "f5ceed1cdf12ace3a5835382a4d369ebad3ba26c71a7930c4fd6e1ac961b19b1",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dnf-4.20.0-22.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/dnf-automatic-4.20.0-22.el10_2.alma.1.noarch.rpm",
+      "version": "4.20.0"
+    },
+    "dosfstools": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/dosfstools-4.2-12.el10.x86_64.rpm",
+      "nevra": "dosfstools-4.2-12.el10.x86_64",
+      "release": "12.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "2beced4c5016f1ce11f1d09c50745759d7f98b6e6a55da27c660a8556f42846e",
+      "sourcerpm": "dosfstools-4.2-12.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/dosfstools-4.2-12.el10.src.rpm",
+        "nevra": "dosfstools-4.2-12.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "94fce5a3eea9d7302198f7e81d9c332e532f4ce51a7d82877ec09a682f63bd10",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dosfstools-4.2-12.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/dosfstools-4.2-12.el10.x86_64.rpm",
+      "version": "4.2"
+    },
+    "dracut": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/dracut-107-9.el10_2.x86_64.rpm",
+      "nevra": "dracut-107-9.el10_2.x86_64",
+      "release": "9.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "85017a58cfb6bc7cc70009d2096385f91b940731454318e2c36fb0230a87e8da",
+      "sourcerpm": "dracut-107-9.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/dracut-107-9.el10_2.src.rpm",
+        "nevra": "dracut-107-9.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "3b09f72025c64ce9209cffcd202c5547b06f290daabecd1be5397d5b9ed4e7db",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dracut-107-9.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/dracut-107-9.el10_2.x86_64.rpm",
+      "version": "107"
+    },
+    "dracut-network": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/dracut-network-107-9.el10_2.x86_64.rpm",
+      "nevra": "dracut-network-107-9.el10_2.x86_64",
+      "release": "9.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "cdc1a2102eacca68eb15fe4d2dfbb17c3c6432c801d177d4a9d706df8f0e4e74",
+      "sourcerpm": "dracut-107-9.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/dracut-107-9.el10_2.src.rpm",
+        "nevra": "dracut-107-9.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "3b09f72025c64ce9209cffcd202c5547b06f290daabecd1be5397d5b9ed4e7db",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dracut-107-9.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/dracut-network-107-9.el10_2.x86_64.rpm",
+      "version": "107"
+    },
+    "e2fsprogs": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/e2fsprogs-1.47.1-5.el10.x86_64.rpm",
+      "nevra": "e2fsprogs-1.47.1-5.el10.x86_64",
+      "release": "5.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "a7e3d3d61937ebd982f05198846e355b6618c799f85a702f57f7d13952d2dd89",
+      "sourcerpm": "e2fsprogs-1.47.1-5.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/e2fsprogs-1.47.1-5.el10.src.rpm",
+        "nevra": "e2fsprogs-1.47.1-5.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "45f91e9c273cadbae50de4527854215788ed6615964e42bd870568aace97c7ac",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/e2fsprogs-1.47.1-5.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/e2fsprogs-1.47.1-5.el10.x86_64.rpm",
+      "version": "1.47.1"
+    },
+    "efibootmgr": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/efibootmgr-18-8.el10.x86_64.rpm",
+      "nevra": "efibootmgr-18-8.el10.x86_64",
+      "release": "8.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "4ee319f72340a03bf6b54164ffe4c8f1997ef46a5ae9401d0970199b149a1f85",
+      "sourcerpm": "efibootmgr-18-8.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/efibootmgr-18-8.el10.src.rpm",
+        "nevra": "efibootmgr-18-8.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "750701488a7da37e18909c1f4bd37fa97d9e515f6293b403406eeca5aa089ccb",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/efibootmgr-18-8.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/efibootmgr-18-8.el10.x86_64.rpm",
+      "version": "18"
+    },
+    "filesystem": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/filesystem-3.18-17.el10.x86_64.rpm",
+      "nevra": "filesystem-3.18-17.el10.x86_64",
+      "release": "17.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "a8b49522e60109967ad5d99dc740461ab18e93681857fd995a9a5c797352299f",
+      "sourcerpm": "filesystem-3.18-17.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/filesystem-3.18-17.el10.src.rpm",
+        "nevra": "filesystem-3.18-17.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "9e913100f5e5c7bff9c0e5290dc898c40c4b8cca122c61b161498258cbb8d4c6",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/filesystem-3.18-17.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/filesystem-3.18-17.el10.x86_64.rpm",
+      "version": "3.18"
+    },
+    "firefox": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/firefox-140.17.0-1.el10_2.x86_64.rpm",
+      "nevra": "firefox-140.17.0-1.el10_2.x86_64",
+      "release": "1.el10_2",
+      "repo": "almalinux-appstream",
+      "sha256": "63daffd4e444e54ceb0dfb1888a631d1d10b3c0e284778b7d1a07eba4ba63a87",
+      "sourcerpm": "firefox-140.17.0-1.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/firefox-140.17.0-1.el10_2.src.rpm",
+        "nevra": "firefox-140.17.0-1.el10_2.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "5ae197aee5aaf80b584d3d88df4ffc95d181eaea8533fa71c0cb1585abc1ab5e",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/firefox-140.17.0-1.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/firefox-140.17.0-1.el10_2.x86_64.rpm",
+      "version": "140.17.0"
+    },
+    "gdm": {
+      "arch": "x86_64",
+      "epoch": "1",
+      "href": "Packages/gdm-47.0-24.el10_2.x86_64.rpm",
+      "nevra": "gdm-1:47.0-24.el10_2.x86_64",
+      "release": "24.el10_2",
+      "repo": "almalinux-appstream",
+      "sha256": "3693d75266dd2e8a8ef94d84de97b9b5a552838f99e01101d2dc1a8249921aca",
+      "sourcerpm": "gdm-47.0-24.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/gdm-47.0-24.el10_2.src.rpm",
+        "nevra": "gdm-1:47.0-24.el10_2.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "b08e0be73924f199cc5d277870e85334949828296bded3e15fdf3b85ee274541",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/gdm-47.0-24.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/gdm-47.0-24.el10_2.x86_64.rpm",
+      "version": "47.0"
+    },
+    "git-core": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/git-core-2.52.0-1.el10.x86_64.rpm",
+      "nevra": "git-core-2.52.0-1.el10.x86_64",
+      "release": "1.el10",
+      "repo": "almalinux-appstream",
+      "sha256": "af8bf13bd5ea54beb19cd600c9d9cab8d55eb4798cbafc6b073c597c3dcd3c78",
+      "sourcerpm": "git-2.52.0-1.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/git-2.52.0-1.el10.src.rpm",
+        "nevra": "git-2.52.0-1.el10.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "b83697d96803986f2edf02cbed599bd1029ca326bce9ff6cbfcf22dda118816c",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/git-2.52.0-1.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/git-core-2.52.0-1.el10.x86_64.rpm",
+      "version": "2.52.0"
+    },
+    "glibc-langpack-en": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/glibc-langpack-en-2.39-145.el10_2.alma.1.x86_64.rpm",
+      "nevra": "glibc-langpack-en-2.39-145.el10_2.alma.1.x86_64",
+      "release": "145.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "44560fa1810e328deb2dd06d7cee0e9f892e1b5616665b81ab4075eb7bd7bb37",
+      "sourcerpm": "glibc-2.39-145.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/glibc-2.39-145.el10_2.alma.1.src.rpm",
+        "nevra": "glibc-2.39-145.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "7760580fd0ae738cc7d2415a00f6e740c3d6ec1af164a9f4d35ae5ed645fbf42",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/glibc-2.39-145.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/glibc-langpack-en-2.39-145.el10_2.alma.1.x86_64.rpm",
+      "version": "2.39"
+    },
+    "gnome-shell": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/gnome-shell-49.4-9.el10_2.alma.1.x86_64.rpm",
+      "nevra": "gnome-shell-49.4-9.el10_2.alma.1.x86_64",
+      "release": "9.el10_2.alma.1",
+      "repo": "almalinux-appstream",
+      "sha256": "76aa0175956c86d02e674c8353448dff92897bb6ae03e05e15a278aff9c8ad74",
+      "sourcerpm": "gnome-shell-49.4-9.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/gnome-shell-49.4-9.el10_2.alma.1.src.rpm",
+        "nevra": "gnome-shell-49.4-9.el10_2.alma.1.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "30183a63c174499ed267b8f0d9e93e3e9e1ecaa7d58679a0cb2b780fe607e55a",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/gnome-shell-49.4-9.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/gnome-shell-49.4-9.el10_2.alma.1.x86_64.rpm",
+      "version": "49.4"
+    },
+    "grub2-common": {
+      "arch": "noarch",
+      "epoch": "1",
+      "href": "Packages/grub2-common-2.12-46.el10_2.alma.1.noarch.rpm",
+      "nevra": "grub2-common-1:2.12-46.el10_2.alma.1.noarch",
+      "release": "46.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "808cae3f3be1989408ef502a5146b32fff0bb8c14651fedab1cfdb5575dca768",
+      "sourcerpm": "grub2-2.12-46.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/grub2-2.12-46.el10_2.alma.1.src.rpm",
+        "nevra": "grub2-1:2.12-46.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "e5eb452d5d9b33557f1fd6fbdef2bc7c2dfb9413eae3c056891519c735bc12f9",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/grub2-2.12-46.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/grub2-common-2.12-46.el10_2.alma.1.noarch.rpm",
+      "version": "2.12"
+    },
+    "grub2-efi-x64": {
+      "arch": "x86_64",
+      "epoch": "1",
+      "href": "Packages/grub2-efi-x64-2.12-46.el10_2.alma.1.x86_64.rpm",
+      "nevra": "grub2-efi-x64-1:2.12-46.el10_2.alma.1.x86_64",
+      "release": "46.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "acc61974f6892ec441cc583ded08cf432abf185aea156ab6df8b6401e5fc6789",
+      "sourcerpm": "grub2-2.12-46.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/grub2-2.12-46.el10_2.alma.1.src.rpm",
+        "nevra": "grub2-1:2.12-46.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "e5eb452d5d9b33557f1fd6fbdef2bc7c2dfb9413eae3c056891519c735bc12f9",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/grub2-2.12-46.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/grub2-efi-x64-2.12-46.el10_2.alma.1.x86_64.rpm",
+      "version": "2.12"
+    },
+    "grub2-efi-x64-modules": {
+      "arch": "noarch",
+      "epoch": "1",
+      "href": "Packages/grub2-efi-x64-modules-2.12-46.el10_2.alma.1.noarch.rpm",
+      "nevra": "grub2-efi-x64-modules-1:2.12-46.el10_2.alma.1.noarch",
+      "release": "46.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "dda8d4e24424ce063805155d2e7286f012d1f732ce4ce75133762a2e334125ad",
+      "sourcerpm": "grub2-2.12-46.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/grub2-2.12-46.el10_2.alma.1.src.rpm",
+        "nevra": "grub2-1:2.12-46.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "e5eb452d5d9b33557f1fd6fbdef2bc7c2dfb9413eae3c056891519c735bc12f9",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/grub2-2.12-46.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/grub2-efi-x64-modules-2.12-46.el10_2.alma.1.noarch.rpm",
+      "version": "2.12"
+    },
+    "grub2-pc": {
+      "arch": "x86_64",
+      "epoch": "1",
+      "href": "Packages/grub2-pc-2.12-46.el10_2.alma.1.x86_64.rpm",
+      "nevra": "grub2-pc-1:2.12-46.el10_2.alma.1.x86_64",
+      "release": "46.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "1f7634210324ace1288532276926d6ef5ae03592d7a501361eeeea10b4763eab",
+      "sourcerpm": "grub2-2.12-46.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/grub2-2.12-46.el10_2.alma.1.src.rpm",
+        "nevra": "grub2-1:2.12-46.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "e5eb452d5d9b33557f1fd6fbdef2bc7c2dfb9413eae3c056891519c735bc12f9",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/grub2-2.12-46.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/grub2-pc-2.12-46.el10_2.alma.1.x86_64.rpm",
+      "version": "2.12"
+    },
+    "grub2-pc-modules": {
+      "arch": "noarch",
+      "epoch": "1",
+      "href": "Packages/grub2-pc-modules-2.12-46.el10_2.alma.1.noarch.rpm",
+      "nevra": "grub2-pc-modules-1:2.12-46.el10_2.alma.1.noarch",
+      "release": "46.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "b0e2cd48d65484d19b03112b805960f7946157cc7f3e93e772be46a9fe0a53a0",
+      "sourcerpm": "grub2-2.12-46.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/grub2-2.12-46.el10_2.alma.1.src.rpm",
+        "nevra": "grub2-1:2.12-46.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "e5eb452d5d9b33557f1fd6fbdef2bc7c2dfb9413eae3c056891519c735bc12f9",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/grub2-2.12-46.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/grub2-pc-modules-2.12-46.el10_2.alma.1.noarch.rpm",
+      "version": "2.12"
+    },
+    "grub2-tools": {
+      "arch": "x86_64",
+      "epoch": "1",
+      "href": "Packages/grub2-tools-2.12-46.el10_2.alma.1.x86_64.rpm",
+      "nevra": "grub2-tools-1:2.12-46.el10_2.alma.1.x86_64",
+      "release": "46.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "7f5fd00c1c51e049a9dd8505d76d82ea53b6caec10ddf952638d88af813adf2c",
+      "sourcerpm": "grub2-2.12-46.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/grub2-2.12-46.el10_2.alma.1.src.rpm",
+        "nevra": "grub2-1:2.12-46.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "e5eb452d5d9b33557f1fd6fbdef2bc7c2dfb9413eae3c056891519c735bc12f9",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/grub2-2.12-46.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/grub2-tools-2.12-46.el10_2.alma.1.x86_64.rpm",
+      "version": "2.12"
+    },
+    "iproute": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/iproute-6.17.0-2.el10.x86_64.rpm",
+      "nevra": "iproute-6.17.0-2.el10.x86_64",
+      "release": "2.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "4ee2b40efea2b21a666ad0d696290c4dd0b37bdfd6256e5c95e691214984017f",
+      "sourcerpm": "iproute-6.17.0-2.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/iproute-6.17.0-2.el10.src.rpm",
+        "nevra": "iproute-6.17.0-2.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "7852d31251238dc9dfb337598f6ab0b562777b8252dea571d550cc674c3611e9",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/iproute-6.17.0-2.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/iproute-6.17.0-2.el10.x86_64.rpm",
+      "version": "6.17.0"
+    },
+    "iptables-nft": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/iptables-nft-1.8.11-16.el10_2.x86_64.rpm",
+      "nevra": "iptables-nft-1.8.11-16.el10_2.x86_64",
+      "release": "16.el10_2",
+      "repo": "almalinux-appstream",
+      "sha256": "ba752e667ac4779fe14e1c65911f673db0cb7ac0badafa1e8f86929160a0d458",
+      "sourcerpm": "iptables-1.8.11-16.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/iptables-1.8.11-16.el10_2.src.rpm",
+        "nevra": "iptables-1.8.11-16.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "e2b4216b4fa8865bc97d0c1fde3bebec325b569591341dedca857fbc01c934a6",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/iptables-1.8.11-16.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/iptables-nft-1.8.11-16.el10_2.x86_64.rpm",
+      "version": "1.8.11"
+    },
+    "kernel": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/kernel-6.12.0-211.67.1.el10_2.x86_64.rpm",
+      "nevra": "kernel-6.12.0-211.67.1.el10_2.x86_64",
+      "release": "211.67.1.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "91391706494aec5526830e91d1ae5bad5ab264bedb08e605156791485e277a8f",
+      "sourcerpm": "kernel-6.12.0-211.67.1.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/kernel-6.12.0-211.67.1.el10_2.src.rpm",
+        "nevra": "kernel-6.12.0-211.67.1.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "7826b0626a964570e605c5dbc9e283edc194c2182edd7b6fbb09e5f82ceb2499",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/kernel-6.12.0-211.67.1.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/kernel-6.12.0-211.67.1.el10_2.x86_64.rpm",
+      "version": "6.12.0"
+    },
+    "kernel-modules-extra": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/kernel-modules-extra-6.12.0-211.67.1.el10_2.x86_64.rpm",
+      "nevra": "kernel-modules-extra-6.12.0-211.67.1.el10_2.x86_64",
+      "release": "211.67.1.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "24631443de4e121d7ed2143751c619fb6609a8afed3af315fc4d715d65dc38bb",
+      "sourcerpm": "kernel-6.12.0-211.67.1.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/kernel-6.12.0-211.67.1.el10_2.src.rpm",
+        "nevra": "kernel-6.12.0-211.67.1.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "7826b0626a964570e605c5dbc9e283edc194c2182edd7b6fbb09e5f82ceb2499",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/kernel-6.12.0-211.67.1.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/kernel-modules-extra-6.12.0-211.67.1.el10_2.x86_64.rpm",
+      "version": "6.12.0"
+    },
+    "kexec-tools": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/kexec-tools-2.0.32-3.el10.x86_64.rpm",
+      "nevra": "kexec-tools-2.0.32-3.el10.x86_64",
+      "release": "3.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "0c483e32988ae69767f82bed7f203e63b80f33b10dd7c394111df117df165660",
+      "sourcerpm": "kexec-tools-2.0.32-3.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/kexec-tools-2.0.32-3.el10.src.rpm",
+        "nevra": "kexec-tools-2.0.32-3.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "2e94d3b100eff7733f1f7dc81396471b3bb01dd48d9c3d02ffa2ba2122add6f3",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/kexec-tools-2.0.32-3.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/kexec-tools-2.0.32-3.el10.x86_64.rpm",
+      "version": "2.0.32"
+    },
+    "kpartx": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/kpartx-0.9.9-18.el10.x86_64.rpm",
+      "nevra": "kpartx-0.9.9-18.el10.x86_64",
+      "release": "18.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "1fc6b9ad9ea14a11339355956553307dc6c843984293ec6d47ac0a671232d90e",
+      "sourcerpm": "device-mapper-multipath-0.9.9-18.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/device-mapper-multipath-0.9.9-18.el10.src.rpm",
+        "nevra": "device-mapper-multipath-0.9.9-18.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "9a40ae720b6624e68f661c7710067ee779864793f46555ad293d2f9335282e29",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/device-mapper-multipath-0.9.9-18.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/kpartx-0.9.9-18.el10.x86_64.rpm",
+      "version": "0.9.9"
+    },
+    "less": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/less-661-3.el10.x86_64.rpm",
+      "nevra": "less-661-3.el10.x86_64",
+      "release": "3.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "ed7deaece60227ad8c1ccca65ce2e02b04bcaf2e6538de56623f4f6056dd8b85",
+      "sourcerpm": "less-661-3.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/less-661-3.el10.src.rpm",
+        "nevra": "less-661-3.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "4ab1f54197add456b588044fbe40b1922c9e22466d9a6a1d2abc1912d6e19321",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/less-661-3.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/less-661-3.el10.x86_64.rpm",
+      "version": "661"
+    },
+    "linux-firmware": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/linux-firmware-20260827-23.3.el10_2.noarch.rpm",
+      "nevra": "linux-firmware-20260827-23.3.el10_2.noarch",
+      "release": "23.3.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "887029994dc1c5f79068d8788e8a7b3a614b3d8db3b088ebe163859d9b0a4a6b",
+      "sourcerpm": "linux-firmware-20260827-23.3.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/linux-firmware-20260827-23.3.el10_2.src.rpm",
+        "nevra": "linux-firmware-20260827-23.3.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "7b9499edc0677ddb3b24ebcd8895e480570229cd651a0c198b03fe65be882334",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/linux-firmware-20260827-23.3.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/linux-firmware-20260827-23.3.el10_2.noarch.rpm",
+      "version": "20260827"
+    },
+    "lsof": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/lsof-4.98.0-7.el10.x86_64.rpm",
+      "nevra": "lsof-4.98.0-7.el10.x86_64",
+      "release": "7.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "888e9f73f9c87fc1cccbcd2c9e5f10a2bd4c64e689d6cc4f5e517fd4509c0ad7",
+      "sourcerpm": "lsof-4.98.0-7.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/lsof-4.98.0-7.el10.src.rpm",
+        "nevra": "lsof-4.98.0-7.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "023dbe535c276b494f96a39f5fa3aee27475f356f7c458492ceebe97c1c877c5",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/lsof-4.98.0-7.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/lsof-4.98.0-7.el10.x86_64.rpm",
+      "version": "4.98.0"
+    },
+    "man-db": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/man-db-2.12.0-10.el10.x86_64.rpm",
+      "nevra": "man-db-2.12.0-10.el10.x86_64",
+      "release": "10.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "b27dbe701b9a099809871b580263845eaf61396d0960c65f04b144c52f445a11",
+      "sourcerpm": "man-db-2.12.0-10.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/man-db-2.12.0-10.el10.src.rpm",
+        "nevra": "man-db-2.12.0-10.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "7d913b2bb7e0e09caa4644a9264cfb86ccab4825701e0bd332a7e9e1938a46da",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/man-db-2.12.0-10.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/man-db-2.12.0-10.el10.x86_64.rpm",
+      "version": "2.12.0"
+    },
+    "man-pages": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/man-pages-6.06-13.el10_2.noarch.rpm",
+      "nevra": "man-pages-6.06-13.el10_2.noarch",
+      "release": "13.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "cea91657ee2618c1e3790ffda2533d3d943f838f14cc54ab0d14b4071663d4c3",
+      "sourcerpm": "man-pages-6.06-13.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/man-pages-6.06-13.el10_2.src.rpm",
+        "nevra": "man-pages-6.06-13.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "a29ec4e7e167b8f1d358eb6eca451115f30a8535a64894b04075005e7f216195",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/man-pages-6.06-13.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/man-pages-6.06-13.el10_2.noarch.rpm",
+      "version": "6.06"
+    },
+    "mokutil": {
+      "arch": "x86_64",
+      "epoch": "2",
+      "href": "Packages/mokutil-0.7.2-4.el10.alma.1.x86_64.rpm",
+      "nevra": "mokutil-2:0.7.2-4.el10.alma.1.x86_64",
+      "release": "4.el10.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "5bea734e4c20a4702ecb56aac60e0b008764dfbf3fb3ee7d60327fbf4dda9492",
+      "sourcerpm": "mokutil-0.7.2-4.el10.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/mokutil-0.7.2-4.el10.alma.1.src.rpm",
+        "nevra": "mokutil-2:0.7.2-4.el10.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "67fc0ee550b09e1cd718c0f217616090c25ff44c0b92691f50b6802266b99a2e",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/mokutil-0.7.2-4.el10.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/mokutil-0.7.2-4.el10.alma.1.x86_64.rpm",
+      "version": "0.7.2"
+    },
+    "nautilus": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/nautilus-47.6-2.el10.x86_64.rpm",
+      "nevra": "nautilus-47.6-2.el10.x86_64",
+      "release": "2.el10",
+      "repo": "almalinux-appstream",
+      "sha256": "918234d56521f46635f3d1ed354f736f9dd09c83a482622d515452fe41860399",
+      "sourcerpm": "nautilus-47.6-2.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/nautilus-47.6-2.el10.src.rpm",
+        "nevra": "nautilus-47.6-2.el10.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "ee6fc475a9da87bcdc8e11b947dd681392a24b7bd5f91ff1e9e9b291c2f97a50",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/nautilus-47.6-2.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/nautilus-47.6-2.el10.x86_64.rpm",
+      "version": "47.6"
+    },
+    "net-tools": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/net-tools-2.0-0.73.20160912git.el10.x86_64.rpm",
+      "nevra": "net-tools-2.0-0.73.20160912git.el10.x86_64",
+      "release": "0.73.20160912git.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "62c6bd863c789dd204a65a9e7c90efabcc44a018917502fd948a818ee41c1ad5",
+      "sourcerpm": "net-tools-2.0-0.73.20160912git.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/net-tools-2.0-0.73.20160912git.el10.src.rpm",
+        "nevra": "net-tools-2.0-0.73.20160912git.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "91da6eb23ffc2ca2d10d6b9b31fa825883cefc5c6c3cd51bbb63ed7fa777d038",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/net-tools-2.0-0.73.20160912git.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/net-tools-2.0-0.73.20160912git.el10.x86_64.rpm",
+      "version": "2.0"
+    },
+    "nftables": {
+      "arch": "x86_64",
+      "epoch": "1",
+      "href": "Packages/nftables-1.1.5-6.el10_2.x86_64.rpm",
+      "nevra": "nftables-1:1.1.5-6.el10_2.x86_64",
+      "release": "6.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "0d9db44ee3e3d0f74a04e97cf9cef2dd12ed26e9afd2be91b28b928763f6ed65",
+      "sourcerpm": "nftables-1.1.5-6.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/nftables-1.1.5-6.el10_2.src.rpm",
+        "nevra": "nftables-1:1.1.5-6.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "513c414e1b517656420c6f92a4d4c98c6f029b5ddec40120cc1d6750923c879c",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/nftables-1.1.5-6.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/nftables-1.1.5-6.el10_2.x86_64.rpm",
+      "version": "1.1.5"
+    },
+    "openssh-server": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/openssh-server-9.9p1-29.el10_2.alma.1.x86_64.rpm",
+      "nevra": "openssh-server-9.9p1-29.el10_2.alma.1.x86_64",
+      "release": "29.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "3330030bafc40876b7afa3c8a47e4b888b664e5d64e566b42621a67f844fc462",
+      "sourcerpm": "openssh-9.9p1-29.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/openssh-9.9p1-29.el10_2.alma.1.src.rpm",
+        "nevra": "openssh-9.9p1-29.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "f776a209f261cf69c798eaec92262fdc7aa6c9e010967c5e6516774fda84437e",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/openssh-9.9p1-29.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/openssh-server-9.9p1-29.el10_2.alma.1.x86_64.rpm",
+      "version": "9.9p1"
+    },
+    "parted": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/parted-3.6-7.el10.x86_64.rpm",
+      "nevra": "parted-3.6-7.el10.x86_64",
+      "release": "7.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "b86a9e2b41c3106f4a5063302f95cac668ffb56191330f55c68321b61c0117bb",
+      "sourcerpm": "parted-3.6-7.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/parted-3.6-7.el10.src.rpm",
+        "nevra": "parted-3.6-7.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "3917da0c69ed921c2a0b74d2ab6919bc6854982dd6fd1ae1a15c91841674ef10",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/parted-3.6-7.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/parted-3.6-7.el10.x86_64.rpm",
+      "version": "3.6"
+    },
+    "policycoreutils": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/policycoreutils-3.10-2.el10_2.x86_64.rpm",
+      "nevra": "policycoreutils-3.10-2.el10_2.x86_64",
+      "release": "2.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "7178849eb90aec1ab42d8b44899daedfa2aaa199b3a1c4147919657d23b5171f",
+      "sourcerpm": "policycoreutils-3.10-2.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/policycoreutils-3.10-2.el10_2.src.rpm",
+        "nevra": "policycoreutils-3.10-2.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "b219c924de8affe193d2cd065f80a692878eb8f59ce35f1a76a7f5e2acffcafe",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/policycoreutils-3.10-2.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/policycoreutils-3.10-2.el10_2.x86_64.rpm",
+      "version": "3.10"
+    },
+    "policycoreutils-python-utils": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/policycoreutils-python-utils-3.10-2.el10_2.noarch.rpm",
+      "nevra": "policycoreutils-python-utils-3.10-2.el10_2.noarch",
+      "release": "2.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "3f60bbb1fb4b09b33481dc531302fc5d334c297b379b7c96a28aeb9a8f33cf5d",
+      "sourcerpm": "policycoreutils-3.10-2.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/policycoreutils-3.10-2.el10_2.src.rpm",
+        "nevra": "policycoreutils-3.10-2.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "b219c924de8affe193d2cd065f80a692878eb8f59ce35f1a76a7f5e2acffcafe",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/policycoreutils-3.10-2.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/policycoreutils-python-utils-3.10-2.el10_2.noarch.rpm",
+      "version": "3.10"
+    },
+    "procps-ng": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/procps-ng-4.0.4-11.el10.x86_64.rpm",
+      "nevra": "procps-ng-4.0.4-11.el10.x86_64",
+      "release": "11.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "a6aaec878f09560bba64d0a9d1392b284f09912a3f04d4876388bf8bbf024baf",
+      "sourcerpm": "procps-ng-4.0.4-11.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/procps-ng-4.0.4-11.el10.src.rpm",
+        "nevra": "procps-ng-4.0.4-11.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "168829cba4d6ef51db6fbfa7571365499dc8c2f19fbeefd996294c00c7f6122e",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/procps-ng-4.0.4-11.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/procps-ng-4.0.4-11.el10.x86_64.rpm",
+      "version": "4.0.4"
+    },
+    "ptyxis": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/ptyxis-47.13-1.el10.x86_64.rpm",
+      "nevra": "ptyxis-47.13-1.el10.x86_64",
+      "release": "1.el10",
+      "repo": "almalinux-appstream",
+      "sha256": "3abdb126ff0066b49005030fe06af350a844e1bd0248bbe4c6f3aa48f948c9aa",
+      "sourcerpm": "ptyxis-47.13-1.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/ptyxis-47.13-1.el10.src.rpm",
+        "nevra": "ptyxis-47.13-1.el10.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "3db7f57cd2274859410ff458e7d5f20e3dbd2ce57453c5aa3ec40367885ef348",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/ptyxis-47.13-1.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/ptyxis-47.13-1.el10.x86_64.rpm",
+      "version": "47.13"
+    },
+    "python3-dnf-plugin-post-transaction-actions": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/python3-dnf-plugin-post-transaction-actions-4.7.0-10.el10.noarch.rpm",
+      "nevra": "python3-dnf-plugin-post-transaction-actions-4.7.0-10.el10.noarch",
+      "release": "10.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "5249c1760cebb46c0268f70d8ddbad8a007902b76f583b6c40f0d7a38b37029b",
+      "sourcerpm": "dnf-plugins-core-4.7.0-10.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/dnf-plugins-core-4.7.0-10.el10.src.rpm",
+        "nevra": "dnf-plugins-core-4.7.0-10.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "459c476d200b02cef15fba7209f95d4e18d87b8e5e22b3fc6f99843e4943d529",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dnf-plugins-core-4.7.0-10.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/python3-dnf-plugin-post-transaction-actions-4.7.0-10.el10.noarch.rpm",
+      "version": "4.7.0"
+    },
+    "python3-dnf-plugin-pre-transaction-actions": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/python3-dnf-plugin-pre-transaction-actions-4.7.0-10.el10.noarch.rpm",
+      "nevra": "python3-dnf-plugin-pre-transaction-actions-4.7.0-10.el10.noarch",
+      "release": "10.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "33a3517e7dd8ffdfa78840e10afd5ee3d1cf5c0fb7695329f21f0ff9f6d92496",
+      "sourcerpm": "dnf-plugins-core-4.7.0-10.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/dnf-plugins-core-4.7.0-10.el10.src.rpm",
+        "nevra": "dnf-plugins-core-4.7.0-10.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "459c476d200b02cef15fba7209f95d4e18d87b8e5e22b3fc6f99843e4943d529",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/dnf-plugins-core-4.7.0-10.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/python3-dnf-plugin-pre-transaction-actions-4.7.0-10.el10.noarch.rpm",
+      "version": "4.7.0"
+    },
+    "rpm": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/rpm-4.19.1.1-23.el10.alma.1.x86_64.rpm",
+      "nevra": "rpm-4.19.1.1-23.el10.alma.1.x86_64",
+      "release": "23.el10.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "4a92b67b9ba8bca0ac07210e4b7513d5b44ea4fc832abac4bbbfd271cca25f3b",
+      "sourcerpm": "rpm-4.19.1.1-23.el10.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/rpm-4.19.1.1-23.el10.alma.1.src.rpm",
+        "nevra": "rpm-4.19.1.1-23.el10.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "f97b7e98fcd3ba1604f4b6179e784bc5d71937da7caa2b28a556a98d75bb33c4",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/rpm-4.19.1.1-23.el10.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/rpm-4.19.1.1-23.el10.alma.1.x86_64.rpm",
+      "version": "4.19.1.1"
+    },
+    "rsync": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/rsync-3.5.0-3.el10_2.x86_64.rpm",
+      "nevra": "rsync-3.5.0-3.el10_2.x86_64",
+      "release": "3.el10_2",
+      "repo": "almalinux-baseos",
+      "sha256": "8864f24ffcc60c5004508e69d03535a21b2298996b82f06914f212576acada0d",
+      "sourcerpm": "rsync-3.5.0-3.el10_2.src.rpm",
+      "srpm": {
+        "href": "Packages/rsync-3.5.0-3.el10_2.src.rpm",
+        "nevra": "rsync-3.5.0-3.el10_2.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "a09a33f4a692514027ddbf307cbebf1f5a901b76570fcce42c6322255f6ff456",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/rsync-3.5.0-3.el10_2.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/rsync-3.5.0-3.el10_2.x86_64.rpm",
+      "version": "3.5.0"
+    },
+    "selinux-policy-targeted": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/selinux-policy-targeted-42.1.18-4.el10_2.4.noarch.rpm",
+      "nevra": "selinux-policy-targeted-42.1.18-4.el10_2.4.noarch",
+      "release": "4.el10_2.4",
+      "repo": "almalinux-baseos",
+      "sha256": "55c9c5f2d7ed432a99e688ea7331b74dabb8411b476826c7594014ecc9d7f4f4",
+      "sourcerpm": "selinux-policy-42.1.18-4.el10_2.4.src.rpm",
+      "srpm": {
+        "href": "Packages/selinux-policy-42.1.18-4.el10_2.4.src.rpm",
+        "nevra": "selinux-policy-42.1.18-4.el10_2.4.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "5ae454b1022536a80bf972171239f854829a6bcf7f1a2ff9e14324c91193d5fc",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/selinux-policy-42.1.18-4.el10_2.4.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/selinux-policy-targeted-42.1.18-4.el10_2.4.noarch.rpm",
+      "version": "42.1.18"
+    },
+    "shim-x64": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/shim-x64-16.1-4.el10.alma.1.x86_64.rpm",
+      "nevra": "shim-x64-16.1-4.el10.alma.1.x86_64",
+      "release": "4.el10.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "01d90ad9c1773adc19b647a29b955185bf897ff48787ab972f1df1216cba8ff2",
+      "sourcerpm": "shim-16.1-4.el10.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/shim-16.1-4.el10.alma.1.src.rpm",
+        "nevra": "shim-16.1-4.el10.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "5536669b9e97885b3f4c9778c31068544164e599780bb1c8b7375cd6ef9f4e29",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/shim-16.1-4.el10.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/shim-x64-16.1-4.el10.alma.1.x86_64.rpm",
+      "version": "16.1"
+    },
+    "sudo": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/sudo-1.9.17-10.p2.el10_2.7.x86_64.rpm",
+      "nevra": "sudo-1.9.17-10.p2.el10_2.7.x86_64",
+      "release": "10.p2.el10_2.7",
+      "repo": "almalinux-baseos",
+      "sha256": "62c4bc8faf31801c8d1df0540690202b5e6b675bc67d171e7e75b4a6b4a58f39",
+      "sourcerpm": "sudo-1.9.17-10.p2.el10_2.7.src.rpm",
+      "srpm": {
+        "href": "Packages/sudo-1.9.17-10.p2.el10_2.7.src.rpm",
+        "nevra": "sudo-1.9.17-10.p2.el10_2.7.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "8e8fd704267c47021b3a99a4f758a7711d09ca11c50161ca840f42eef560e218",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/sudo-1.9.17-10.p2.el10_2.7.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/sudo-1.9.17-10.p2.el10_2.7.x86_64.rpm",
+      "version": "1.9.17"
+    },
+    "systemd": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/systemd-257-23.el10_2.2.alma.1.x86_64.rpm",
+      "nevra": "systemd-257-23.el10_2.2.alma.1.x86_64",
+      "release": "23.el10_2.2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "7cb48c2e9ce015d70f2c001720da67895bce8ae7d98f256f6cea0b1db3306d8a",
+      "sourcerpm": "systemd-257-23.el10_2.2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/systemd-257-23.el10_2.2.alma.1.src.rpm",
+        "nevra": "systemd-257-23.el10_2.2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "4c25f0deee804b5a7e6e34da9a99ee828a1fb4845963649eaed2347ece70025a",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/systemd-257-23.el10_2.2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/systemd-257-23.el10_2.2.alma.1.x86_64.rpm",
+      "version": "257"
+    },
+    "systemd-udev": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/systemd-udev-257-23.el10_2.2.alma.1.x86_64.rpm",
+      "nevra": "systemd-udev-257-23.el10_2.2.alma.1.x86_64",
+      "release": "23.el10_2.2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "698effa95716950a2b234baf72c7439506ed505186aac80bba66854bac8b1433",
+      "sourcerpm": "systemd-257-23.el10_2.2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/systemd-257-23.el10_2.2.alma.1.src.rpm",
+        "nevra": "systemd-257-23.el10_2.2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "4c25f0deee804b5a7e6e34da9a99ee828a1fb4845963649eaed2347ece70025a",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/systemd-257-23.el10_2.2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/systemd-udev-257-23.el10_2.2.alma.1.x86_64.rpm",
+      "version": "257"
+    },
+    "tcpdump": {
+      "arch": "x86_64",
+      "epoch": "14",
+      "href": "Packages/tcpdump-4.99.4-10.el10.x86_64.rpm",
+      "nevra": "tcpdump-14:4.99.4-10.el10.x86_64",
+      "release": "10.el10",
+      "repo": "almalinux-appstream",
+      "sha256": "e8fe9686c3043284eb9ae794cc1d89e46c701c64dd010f17f322e689ec5ea4ba",
+      "sourcerpm": "tcpdump-4.99.4-10.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/tcpdump-4.99.4-10.el10.src.rpm",
+        "nevra": "tcpdump-14:4.99.4-10.el10.src",
+        "repo": "almalinux-appstream-source",
+        "sha256": "e289048eaad62cad7b8c4ab6f56de3133e83d1f0fdc9e158ab7ac39fedbb2e60",
+        "url": "https://vault.almalinux.org/10.2/AppStream/Source/Packages/tcpdump-4.99.4-10.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/tcpdump-4.99.4-10.el10.x86_64.rpm",
+      "version": "4.99.4"
+    },
+    "tree": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/tree-2.1.0-8.el10.x86_64.rpm",
+      "nevra": "tree-2.1.0-8.el10.x86_64",
+      "release": "8.el10",
+      "repo": "almalinux-baseos",
+      "sha256": "2588ff2f5e03d5baba7eae1281cd1af54fa3400d3dadf1692abb96982c87e603",
+      "sourcerpm": "tree-pkg-2.1.0-8.el10.src.rpm",
+      "srpm": {
+        "href": "Packages/tree-pkg-2.1.0-8.el10.src.rpm",
+        "nevra": "tree-pkg-2.1.0-8.el10.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "74bd1881014b961ab7bcf76904571b9071bc63c01863b9052f424c9cae9513df",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/tree-pkg-2.1.0-8.el10.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/tree-2.1.0-8.el10.x86_64.rpm",
+      "version": "2.1.0"
+    },
+    "tzdata": {
+      "arch": "noarch",
+      "epoch": "0",
+      "href": "Packages/tzdata-2026e-1.el10_2.alma.1.noarch.rpm",
+      "nevra": "tzdata-2026e-1.el10_2.alma.1.noarch",
+      "release": "1.el10_2.alma.1",
+      "repo": "almalinux-baseos",
+      "sha256": "cd8f4ea4dc6eb7938fd4a8e86a998c133731749cd7706f12ebd4c479f7ab659e",
+      "sourcerpm": "tzdata-2026e-1.el10_2.alma.1.src.rpm",
+      "srpm": {
+        "href": "Packages/tzdata-2026e-1.el10_2.alma.1.src.rpm",
+        "nevra": "tzdata-2026e-1.el10_2.alma.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "ed1004d9b8c6da6f224b51e52a44ef4564435a2b77fa79352c66f9556e9d948b",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/tzdata-2026e-1.el10_2.alma.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/tzdata-2026e-1.el10_2.alma.1.noarch.rpm",
+      "version": "2026e"
+    },
+    "vim-enhanced": {
+      "arch": "x86_64",
+      "epoch": "2",
+      "href": "Packages/vim-enhanced-9.1.083-9.el10_2.22.x86_64.rpm",
+      "nevra": "vim-enhanced-2:9.1.083-9.el10_2.22.x86_64",
+      "release": "9.el10_2.22",
+      "repo": "almalinux-appstream",
+      "sha256": "abc76d8128bc261434cf86de28b210960356b4a28913a3d7b52c3f68151d7055",
+      "sourcerpm": "vim-9.1.083-9.el10_2.22.src.rpm",
+      "srpm": {
+        "href": "Packages/vim-9.1.083-9.el10_2.22.src.rpm",
+        "nevra": "vim-2:9.1.083-9.el10_2.22.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "f0513648062a24e5f242b683675fd0b9ff0fa595ec11322458fad95ac17c1161",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/vim-9.1.083-9.el10_2.22.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/Packages/vim-enhanced-9.1.083-9.el10_2.22.x86_64.rpm",
+      "version": "9.1.083"
+    },
+    "vim-minimal": {
+      "arch": "x86_64",
+      "epoch": "2",
+      "href": "Packages/vim-minimal-9.1.083-9.el10_2.22.x86_64.rpm",
+      "nevra": "vim-minimal-2:9.1.083-9.el10_2.22.x86_64",
+      "release": "9.el10_2.22",
+      "repo": "almalinux-baseos",
+      "sha256": "c33b507d28b1f841083ce4cb8c732a7b6b9be79cee53267f6360fdf424138c94",
+      "sourcerpm": "vim-9.1.083-9.el10_2.22.src.rpm",
+      "srpm": {
+        "href": "Packages/vim-9.1.083-9.el10_2.22.src.rpm",
+        "nevra": "vim-2:9.1.083-9.el10_2.22.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "f0513648062a24e5f242b683675fd0b9ff0fa595ec11322458fad95ac17c1161",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/vim-9.1.083-9.el10_2.22.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/vim-minimal-9.1.083-9.el10_2.22.x86_64.rpm",
+      "version": "9.1.083"
+    },
+    "which": {
+      "arch": "x86_64",
+      "epoch": "0",
+      "href": "Packages/which-2.21-44.el10_0.x86_64.rpm",
+      "nevra": "which-2.21-44.el10_0.x86_64",
+      "release": "44.el10_0",
+      "repo": "almalinux-baseos",
+      "sha256": "30fdf937b2be7b971862b9694fa3294fee1af9c24071a47588dbcda10956aa44",
+      "sourcerpm": "which-2.21-44.el10_0.src.rpm",
+      "srpm": {
+        "href": "Packages/which-2.21-44.el10_0.src.rpm",
+        "nevra": "which-2.21-44.el10_0.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "93885f47269e48f3c5377d36a3cc21d6e307c11cb46830f755d0169f0ae834c2",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/which-2.21-44.el10_0.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/which-2.21-44.el10_0.x86_64.rpm",
+      "version": "2.21"
+    },
+    "xz": {
+      "arch": "x86_64",
+      "epoch": "1",
+      "href": "Packages/xz-5.6.2-4.el10_2.1.x86_64.rpm",
+      "nevra": "xz-1:5.6.2-4.el10_2.1.x86_64",
+      "release": "4.el10_2.1",
+      "repo": "almalinux-baseos",
+      "sha256": "8861ccb7d83dc60eb9999c0bd82f4839fcc4f3e0dc8a736ee86d8cf1fc838ac7",
+      "sourcerpm": "xz-5.6.2-4.el10_2.1.src.rpm",
+      "srpm": {
+        "href": "Packages/xz-5.6.2-4.el10_2.1.src.rpm",
+        "nevra": "xz-1:5.6.2-4.el10_2.1.src",
+        "repo": "almalinux-baseos-source",
+        "sha256": "e6f1f45ea0970c9eb3f9ba4d9d1d9ff8e6a63b54cdbe5a093be08a609a5f7818",
+        "url": "https://vault.almalinux.org/10.2/BaseOS/Source/Packages/xz-5.6.2-4.el10_2.1.src.rpm"
+      },
+      "url": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/Packages/xz-5.6.2-4.el10_2.1.x86_64.rpm",
+      "version": "5.6.2"
+    }
+  },
+  "invocation": {
+    "container_runtime": "docker",
+    "containerfile": "appliance/images/toolchain/almalinux10/Containerfile",
+    "image_tag": "olivares-appliance-image-toolchain:almalinux10-kiwi-11.0.4",
+    "invocation_note": "A container build of a disk image is privileged: the documented route starts the runtime through sudo, shares host device nodes for loop devices and adds the capabilities above. Non-privileged builds are not possible in container mode, so this toolchain runs only on a disposable runner that shares no host with another build.",
+    "required_capabilities": [
+      "SYS_ADMIN",
+      "MKNOD",
+      "AUDIT_WRITE",
+      "AUDIT_CONTROL"
+    ],
+    "shares_host_dev": true,
+    "version_command": [
+      "kiwi-ng",
+      "--version"
+    ]
+  },
+  "probe": {
+    "accelerator_preference": [
+      "kvm",
+      "tcg"
+    ],
+    "container_timeout_seconds": 300,
+    "loop_image_bytes": 67108864,
+    "probe_note": "The probe allocates only the small image above and starts one machine that never leaves prelaunch. It proves accelerator initialization, a toolchain that starts and reports its version, and loop and mount privilege. It proves no guest boot and no image output.",
+    "qemu_binary": "qemu-system-x86_64",
+    "qemu_machine": "q35",
+    "qemu_timeout_seconds": 30,
+    "required_qmp_status": "prelaunch"
+  },
+  "purpose": "The exact build toolchain the AlmaLinux 10 appliance image recipe runs, and the prerequisite it proves on a disposable hosted runner before a recipe attempt. This lock builds no image and boots no guest.",
+  "recorded_at": "2026-10-23T21:46:42Z",
+  "resolution": {
+    "qualification": "Source metadata closure only; the hosted builder build, ABI, CLI and required data files must pass before eligibility.",
+    "rejected_route": "AlmaLinux 10's python3-kiwi comes from EPEL at 11.1.1, not the locked 11.0.4; it is never installed.",
+    "unresolved": []
+  },
+  "runner": {
+    "documented_memory_bytes": 16000000000,
+    "documented_note": "Published runner figures are decimal GB. Actual free bytes, processor and memory values are measured; no capacity conclusion follows from the label.",
+    "documented_ssd_bytes": 14000000000,
+    "documented_vcpu": 4,
+    "job_ceiling_minutes": 360,
+    "labels": [
+      "ubuntu-latest"
+    ]
+  },
+  "schema": "olivares-appliance-image-toolchain-lock/v1",
+  "toolchain": {
+    "boxed_plugin": {
+      "reason": "The boxed plugin fetches and updates its box images from the Virtualization:Appliances:SelfContained project at run time, which is an implicit latest this lock refuses, and its default mode requires KVM, which a standard hosted runner does not document. This lock uses the documented container route instead: the build host is the same distribution as the target image, which the build host constraints describe as the most compatible case.",
+      "used": false,
+      "version": null
+    },
+    "dracut_modules_dir": "/usr/share/kiwi/dracut/modules.d",
+    "kiwi": {
+      "filename": "kiwi-11.0.4.tar.gz",
+      "package": "kiwi",
+      "package_version": "11.0.4",
+      "sha256": "e217c3d11f73e24ac4a8759fa17b5d13faaf935d527ca7a07374d6a84793926d",
+      "upstream_version": "11.0.4"
+    },
+    "python": {
+      "extras": [],
+      "implementation": "CPython",
+      "packages": [
+        {
+          "metadata_sha256": "2350d441079da7694bbd9dcaa13cc96ce3b0f76c9ce21811be607a88a4258040",
+          "name": "kiwi",
+          "purpose": "runtime",
+          "release_metadata_url": "https://pypi.org/pypi/kiwi/11.0.4/json",
+          "requires_dist": [
+            "PyYAML>=5.4.0",
+            "anymarkup-core>=0.8.0; extra == \"markup\"",
+            "lxml>=4.6.0",
+            "requests>=2.25.0",
+            "simplejson>=3.17.0",
+            "solv; extra == \"libsolv\"",
+            "toml; extra == \"markup\"",
+            "typer>=0.19.0",
+            "xmltodict>=0.12.0; extra == \"markup\""
+          ],
+          "requires_python": "<4.0,>=3.9",
+          "retained_metadata_file": "kiwi-11.0.4.txt",
+          "selected_artifact": {
+            "filename": "kiwi-11.0.4.tar.gz",
+            "requires_python": "<4.0,>=3.9",
+            "sha256": "e217c3d11f73e24ac4a8759fa17b5d13faaf935d527ca7a07374d6a84793926d",
+            "url": "https://files.pythonhosted.org/packages/8f/32/d8db72c71b2e8da8bb1b4b6b57052a8c63fe4e605e131a7be192392eb436/kiwi-11.0.4.tar.gz",
+            "yanked": false
+          },
+          "version": "11.0.4"
+        }
+      ],
+      "rpm_dependencies": [
+        "python3-typer",
+        "python3-lxml",
+        "python3-requests",
+        "python3-pyyaml",
+        "python3-simplejson",
+        "python3-poetry-core"
+      ],
+      "version": "3.12"
+    },
+    "required_files": [
+      "/usr/lib/grub/x86_64-efi/modinfo.sh",
+      "/usr/lib/grub/i386-pc/modinfo.sh",
+      "/usr/share/syslinux/isolinux.bin",
+      "/usr/share/kiwi/dracut/modules.d/55kiwi-dump/module-setup.sh",
+      "/usr/share/kiwi/dracut/modules.d/59kiwi-dump-reboot/module-setup.sh",
+      "/usr/share/kiwi/dracut/modules.d/59kiwi-lib/module-setup.sh"
+    ],
+    "required_programs": [
+      "kiwi-ng",
+      "dnf4",
+      "rpm",
+      "rpmbuild",
+      "createrepo_c",
+      "qemu-img",
+      "mkfs.ext4",
+      "mkfs.vfat",
+      "xorriso",
+      "grub2-mkimage",
+      "kpartx",
+      "losetup",
+      "rsync",
+      "cpio",
+      "mksquashfs",
+      "bash",
+      "python3",
+      "mkdir",
+      "cp",
+      "tar",
+      "gzip",
+      "gpg",
+      "gpgconf",
+      "rpmsign",
+      "rpmkeys"
+    ],
+    "route": "venv-over-almalinux-python-rpms-verified-kiwi-sdist"
+  }
+}

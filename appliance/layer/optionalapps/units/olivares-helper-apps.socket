@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The optional apps helper's socket. Each connection starts one instance of
+# olivares-helper-apps@.service (Accept=yes), which reads one document, {"op": "status"} or
+# a lifecycle act of Nginx Proxy Manager, and admits its invoker from the connection itself: the
+# account of the peer's credentials, and the unit and controlling terminal of the process the
+# peer's pidfd names. It is a module helper: the seam admits the Appliance Console's own process
+# alone. The node is root's with the console's group, mode 0660, so the console can connect;
+# connecting is necessary, never sufficient. The image's preset and the portal package enable it.
+[Unit]
+Description=Appliance optional apps helper socket
+Documentation=https://github.com/olivaresai/olivares
+
+[Socket]
+ListenStream=/run/olivares-helpers/apps.sock
+Accept=yes
+SocketUser=root
+SocketGroup=olivares-portal
+SocketMode=0660
+DirectoryMode=0755
+MaxConnections=4
+
+[Install]
+WantedBy=sockets.target

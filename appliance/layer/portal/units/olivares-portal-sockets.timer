@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The backstop of the Appliance Console's management sockets. The path unit reacts to the selection and the
+# firewall measurement; this runs the generator again every two minutes for what no file announces: a
+# DHCP lease that moved the address, a socket that failed by itself (its device went away, a limit
+# tripped), a selected interface still waiting for an address, a publication that landed while a run was
+# in progress. A run that has nothing to change reads two files and makes no call to the service manager.
+[Unit]
+Description=Check the Appliance Console's management sockets every two minutes
+Documentation=https://github.com/olivaresai/olivares
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=2min
+Unit=olivares-portal-sockets.service
+
+[Install]
+WantedBy=timers.target

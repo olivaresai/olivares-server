@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Retains the host-package plan. `systemctl start olivares-package-retain.service`, as root, once a trusted
+# source (the entitled channel) has left delivery.json, previous.rpm and next.rpm in its delivery directory:
+# the program verifies both packages (digest, signature, identity), proves with rpm's test mode that
+# installing the next one replaces the installed previous version and needs nothing else, and leaves the
+# plan in the package helper's directory. It fetches nothing, so it has no network. Then the console is restarted, because it
+# composes its package tasks from the plan once, when its local listener opens; the socket holds
+# connections until the new process serves them. A plan that exists is never replaced: the retained previous
+# RPM is the recovery of an update that may have run. A plain unit, as olivares-appliance-update.service is:
+# nobody but root starts it, and nothing starts it by itself.
+#
+# rpm's test mode takes the transaction lock and opens the package database for writing, so the database is the
+# one writable path outside the two state directories (/var/lib/rpm is a link to /usr/lib/sysimage/rpm on
+# AlmaLinux 10). It installs nothing and runs no scriptlet, so the unit holds no capability.
+[Unit]
+Description=Retain the host-package plan from the delivered RPMs
+Documentation=https://github.com/olivaresai/olivares
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/olivares/olivares-package-retain
+ExecStartPost=/usr/bin/systemctl try-restart olivares-portal.service
+User=root
+StateDirectory=olivares-package-plan olivares-package-delivery
+StateDirectoryMode=0700
+ReadWritePaths=-/var/lib/rpm -/usr/lib/sysimage/rpm
+TimeoutStartSec=30min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077

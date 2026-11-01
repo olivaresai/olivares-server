@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Makes the socket units that expose the Appliance Console on the management interfaces, and removes
+# them when a prerequisite stops holding (olivares-portal-sockets, layer/portal/sockets.go). It runs
+# once the network is online, so a DHCP lease is already known, and again whenever the firewall owner
+# publishes a measurement or the selection changes (olivares-portal-sockets.path), and every two minutes
+# (olivares-portal-sockets.timer). It writes a unit only while portal.enabled is
+# true, portal.listen is management, an interface is selected and the firewall measurement holds; on a
+# host that keeps the console on loopback it changes nothing.
+#
+# It runs as root and writes only /run/systemd/system, which is empty after a reboot. It reloads the
+# manager, starts the sockets it wrote and stops the console, which holds the sockets it was passed
+# until it exits, and the manager refuses to start a socket while the service it triggers runs, so it stops
+# the console before it starts a socket. The program names its own units and removes no other. systemctl
+# reaches the manager on its private socket, which needs no capability for root.
+#
+# StartLimitIntervalSec=0: a start limit that trips would fail the path unit, which would stop watching the
+# measurement, and a management socket could then outlive the measurement that allowed it. The generator
+# never writes the measurement, so nothing can start it in a loop.
+#
+# The timer runs it every two minutes. The program exits non-zero for what it could not finish yet, a
+# selected interface with no address (a lease still pending) or a socket that would not stop or start,
+# and the next run looks again; the same run picks up what no file change announces: a lease that moved
+# the address, a socket that failed by itself, a publication that landed while it ran.
+[Unit]
+Description=Appliance Console sockets on the management interfaces
+Documentation=https://github.com/olivaresai/olivares
+After=network-online.target olivares-firewall.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/olivares/olivares-portal-sockets
+User=root
+TimeoutStartSec=270
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/run/systemd/system
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+IPAddressDeny=any
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0022
+
+[Install]
+WantedBy=multi-user.target

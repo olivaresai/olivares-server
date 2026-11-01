@@ -1,0 +1,113 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The appliance recipe's tasks. Run them from the repository root:
+#   task -d . -t appliance/Taskfile.yml appliance:test:answers
+# A composed build includes this file from its own Taskfile; every task runs in the root's directory (ROOT_DIR), so the
+# paths below read the same either way.
+version: "3"
+vars:
+  # A development tree's root workspace does not list this module (that file is derived, so it is never
+  # hand-edited); the module's own workspace does. A composed build's root workspace lists it, and then wins.
+  GOWORK_FILE:
+    sh: if grep -Eq '^[[:space:]]*(use[[:space:]]+)?\./appliance/?[[:space:]]*(//.*)?$' '{{.ROOT_DIR}}/go.work' 2>/dev/null; then echo; else echo '{{.ROOT_DIR}}/appliance/go.work'; fi
+tasks:
+  appliance:build:answers:
+    dir: '{{.ROOT_DIR}}'
+    desc: Build the offline appliance answers validator and planner.
+    cmds:
+      - GOWORK='{{.GOWORK_FILE}}' go build -o bin/appliance-answers ./appliance/cmd/appliance-answers
+
+  appliance:test:answers:
+    dir: '{{.ROOT_DIR}}'
+    desc: Test the appliance answers boundary and its read-only executable.
+    cmds:
+      - GOWORK='{{.GOWORK_FILE}}' go test -race -count=1 -timeout 120s ./appliance/...
+
+  appliance:build:firstboot:
+    dir: '{{.ROOT_DIR}}'
+    desc: Build the appliance first-boot command and the answers tool, static, into bin/.
+    cmds:
+      - GOWORK='{{.GOWORK_FILE}}' CGO_ENABLED=0 go build -trimpath -o bin/appliance-firstboot ./appliance/cmd/appliance-firstboot
+      - GOWORK='{{.GOWORK_FILE}}' CGO_ENABLED=0 go build -trimpath -o bin/appliance-answers ./appliance/cmd/appliance-answers
+
+  appliance:package:base:
+    dir: '{{.ROOT_DIR}}'
+    desc: >-
+      Package olivares-appliance-base with nfpm v2.47.0 from the one manifest, as
+      dist/olivares-appliance-base.rpm for the AlmaLinux image and dist/olivares-appliance-base.deb
+      for Debian as an installation target. VERSION defaults to 0.0.0-dev and ARCH to the Go
+      architecture. Not a push gate: the image workflow builds, installs and boots it.
+    deps: [appliance:build:firstboot]
+    cmds:
+      - mkdir -p dist
+      - VERSION="${VERSION:-0.0.0-dev}" ARCH="${ARCH:-$(go env GOARCH)}" go run github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0 package --config packaging/nfpm/olivares-appliance-base.yaml --packager rpm --target dist/olivares-appliance-base.rpm
+      - VERSION="${VERSION:-0.0.0-dev}" ARCH="${ARCH:-$(go env GOARCH)}" go run github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0 package --config packaging/nfpm/olivares-appliance-base.yaml --packager deb --target dist/olivares-appliance-base.deb
+
+  appliance:test:base:
+    dir: '{{.ROOT_DIR}}'
+    desc: Test the first-boot stage machine, its seams, the carriers and the package manifest.
+    cmds:
+      - GOWORK='{{.GOWORK_FILE}}' go test -race -count=1 -timeout 120s ./appliance/layer/... ./appliance/answers/carriers/...
+
+  appliance:build:
+    dir: '{{.ROOT_DIR}}'
+    desc: >-
+      One hosted amd64 qualification transaction of one edition: qualify one builder, build,
+      assemble iso, qcow2 and ova together (FORMAT=all, the only value) and run all four guest
+      cases and NoCloud. A single-format export is not a supported or qualified target. EDITION
+      is server (the default) or desktop, the server profile plus GNOME on the almalinux10 base
+      only. Requires, on the shipping BASE=almalinux10, the signed rpm-md tree of the product and
+      layer RPMs with its delivery.json in PACKAGE_DIR (and QUALIFICATION_KEY when a throwaway
+      key signed it; the Debian base, BASE=debian13, reads the .debs in PACKAGE_DIR and builds
+      the server edition only), an explicit ACCELERATOR=kvm|tcg and a new EVIDENCE directory in
+      the current Actions job. Not a push gate.
+    vars:
+      EDITION: '{{.EDITION | default "server"}}'
+      ARCH: '{{.ARCH | default "amd64"}}'
+      FORMAT: '{{.FORMAT | default "all"}}'
+      EVIDENCE: '{{.EVIDENCE | default ""}}'
+      ACCELERATOR: '{{.ACCELERATOR | default ""}}'
+      FIRMWARE: '{{.FIRMWARE | default "nonfree"}}'
+      BASE: '{{.BASE | default "almalinux10"}}'
+      PACKAGE_DIR: '{{.PACKAGE_DIR | default "dist/rpm"}}'
+      QUALIFICATION_KEY: '{{.QUALIFICATION_KEY | default ""}}'
+      TARGET_DIR: '{{.TARGET_DIR | default "dist/appliance"}}'
+    cmds:
+      - |
+        if { [ "{{.EDITION}}" != server ] && [ "{{.EDITION}}" != desktop ]; }            || [ "{{.ARCH}}" != amd64 ] || [ "{{.FORMAT}}" != all ]; then
+          echo "appliance:build is one qualification transaction: EDITION=server|desktop ARCH=amd64 FORMAT=all" >&2
+          echo "(iso, qcow2 and ova together); {{.EDITION}} {{.ARCH}} FORMAT={{.FORMAT}} is not supported" >&2
+          exit 2
+        fi
+      - >-
+        python3 appliance/images/kiwi/attempt.py --evidence "{{.EVIDENCE}}"
+        --accelerator "{{.ACCELERATOR}}" --firmware "{{.FIRMWARE}}"
+        --base "{{.BASE}}" --edition "{{.EDITION}}" --package-dir "{{.PACKAGE_DIR}}"
+        --qualification-key "{{.QUALIFICATION_KEY}}" --target-dir "{{.TARGET_DIR}}"
+
+  appliance:boot:
+    dir: '{{.ROOT_DIR}}'
+    desc: >-
+      Boot supplied artifacts of one edition through the guest battery and NoCloud with an
+      explicit ACCELERATOR=kvm|tcg. EDITION (server, the default, or desktop) selects which
+      edition's artifacts the batteries read. This standalone run does not admit or qualify a
+      builder. Not a push gate.
+    vars:
+      ARTIFACTS: '{{.ARTIFACTS | default "dist/appliance"}}'
+      EVIDENCE: '{{.EVIDENCE | default "dist/appliance/evidence"}}'
+      ACCELERATOR: '{{.ACCELERATOR | default ""}}'
+      EDITION: '{{.EDITION | default "server"}}'
+    cmds:
+      - |
+        case "{{.ACCELERATOR}}" in
+          kvm|tcg) ;;
+          *) echo "appliance:boot needs ACCELERATOR=kvm or tcg, typed explicitly" >&2; exit 2 ;;
+        esac
+        case "{{.EDITION}}" in
+          server|desktop) ;;
+          *) echo "appliance:boot needs EDITION=server or desktop" >&2; exit 2 ;;
+        esac
+      - bash appliance/test/battery-selftest.sh "{{.EVIDENCE}}/selftest"
+      - APPLIANCE_BOOT_ACCEL="{{.ACCELERATOR}}" APPLIANCE_EDITION="{{.EDITION}}" bash appliance/test/boot-battery.sh "{{.ARTIFACTS}}" "{{.EVIDENCE}}/boot"
+      - APPLIANCE_BOOT_ACCEL="{{.ACCELERATOR}}" APPLIANCE_EDITION="{{.EDITION}}" bash appliance/test/nocloud-probe.sh "{{.ARTIFACTS}}" "{{.EVIDENCE}}/nocloud"

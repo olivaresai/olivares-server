@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The Appliance Console's TLS pair, signed by the product's local CA. The engine makes that CA at its
+# first start and signs :8443 with it; this unit signs :9443 with the same one, so the operator trusts one
+# CA for both consoles. olivares.service wants it (olivares.service.d/50-console-certificate.conf), so it
+# runs each time the product starts, first boot's start included, and a changed host name or address is
+# re-issued from the same CA and key, as the engine re-issues its own leaf. The command waits for the
+# engine's CA, makes none, and leaves a pair the operator installed as it is. It prints no key.
+#
+# It runs in the first-boot domain, the one domain besides the engine that reads the engine's private
+# files: access.tsv rows FBOOT-53 (reads the CA key with the rest of the product's data) and FBOOT-102 to FBOOT-104 (the console's key, and the host's addresses).
+#
+# Ordering. It is ordered after the product and before the console, so a console that starts in the same
+# transaction waits for the pair. The console loads its pair when it starts: one that started before the
+# pair existed serves nothing until it starts again, which is on the next boot or its next restart, and a
+# pair re-issued for a changed address reaches a console that is running at its next start too.
+[Unit]
+Description=Olivares Appliance Console certificate
+Documentation=https://github.com/olivaresai/olivares/tree/main/appliance
+After=olivares.service
+Before=olivares-portal.service
+ConditionPathExists=/etc/olivares-portal
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/appliance-firstboot console-certificate
+SELinuxContext=system_u:system_r:olivares_firstboot_t:s0
+# The command's own 4-minute deadline ends first, so a missing CA fails the unit with its reason.
+TimeoutStartSec=5min
+
+# --- hardening: the product unit's set (packaging/systemd/olivares.service) by the same values,
+# except where a line below says why this unit needs a different one.
+NoNewPrivileges=true
+# ProtectSystem: strict; the unit writes only the Appliance Console's directory below.
+ProtectSystem=strict
+# Writable: the Appliance Console's directory only, where the pair is made. The engine's data directory,
+# where the CA is read, stays read-only. It may be missing ("-"): the unit's condition then skips it.
+ReadWritePaths=-/etc/olivares-portal
+# ProtectHome: true, tighter than the product: the unit reads no home directory.
+ProtectHome=true
+# PrivateTmp: true; the unit does not share temporary files with agent or MCP runtimes.
+PrivateTmp=true
+PrivateDevices=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+# RestrictNamespaces: true, tighter than the product: the unit starts no agent session.
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+# MemoryDenyWriteExecute: true; the unit runs a Go binary and requires no executable JIT memory.
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+# SystemCallFilter: the product's without its Landlock calls; the unit launches no agent or MCP children and chowns nothing.
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+# CapabilityBoundingSet: CAP_DAC_READ_SEARCH and CAP_DAC_OVERRIDE where the product keeps none: the unit runs
+# as root, reads the engine's CA key (mode 0600, the product account's) and writes the Appliance Console's
+# directory. Nothing else; it gives nothing to another account.
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE
+AmbientCapabilities=
+# RestrictAddressFamilies: the host's addresses are read over netlink (the engine's own list, secure.LocalLANAddresses); no socket is opened to a peer.
+RestrictAddressFamilies=AF_NETLINK
+IPAddressDeny=any
+# UMask: 0077, tighter than the product's 0027: the unit writes a private key; the certificate is chmod 0644 by its writer.
+UMask=0077

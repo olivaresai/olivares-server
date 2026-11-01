@@ -1,0 +1,18 @@
+{
+  "schema": "network-guest-image/v1",
+  "state": "provided",
+  "role": "primary RPM family (AlmaLinux 10.2, the current minor)",
+  "package": "rpm",
+  "init": "systemd",
+  "image_name": "AlmaLinux-10-GenericCloud-10.2-20261012.0.x86_64.qcow2",
+  "image_url": "https://repo.almalinux.org/almalinux/10.2/cloud/x86_64/images/AlmaLinux-10-GenericCloud-10.2-20261012.0.x86_64.qcow2",
+  "hash_algo": "sha256",
+  "image_hash": "cbee4726fc0f5a60694bb4f289003cc221e715dfbacebcce76b54daf386d8eca",
+  "sums_url": "https://repo.almalinux.org/almalinux/10.2/cloud/x86_64/images/CHECKSUM",
+  "sums_kind": "detached",
+  "sig_url": "https://repo.almalinux.org/almalinux/10.2/cloud/x86_64/images/CHECKSUM.asc",
+  "signer": "EE6DB7B98F5BF5EDD9DA0DE5DEE5C11CC2A1E572",
+  "keyring": "",
+  "key_url": "https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux-10",
+  "key_sha256": "de57c3c0a2dcde88ff5b894e74335f55a0ec074815f36d472270d937c16f077b"
+}

@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+# One native PAM transaction per accepted connection; no request goes in argv.
+[Unit]
+Description=Appliance native account verification
+
+[Service]
+ExecStart=/usr/libexec/olivares/olivares-portal-pam
+User=root
+Group=root
+StandardInput=socket
+StandardOutput=socket
+StandardError=null
+RuntimeMaxSec=30s
+TimeoutStopSec=1s
+KillMode=control-group
+SendSIGKILL=yes
+LimitCORE=0
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+# AlmaLinux keeps shadow mode0000; PAM needs only a read-only DAC bypass.
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+AmbientCapabilities=CAP_DAC_READ_SEARCH
+UMask=0077

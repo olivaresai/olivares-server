@@ -1,0 +1,38 @@
+Olivares Server
+Copyright 2026 Olivares.AI
+
+This product includes software developed at Olivares.AI (https://olivares.ai).
+
+This repository holds the Community appliance recipe of Olivares AI and is licensed under the GNU Affero General
+Public License, version 3 (AGPL-3.0-only). Which license governs a given file is stated by that file's SPDX header,
+its .license sidecar or the REUSE.toml entry that covers it. The separate, additive commercial editions (Business and
+Enterprise) are distributed privately under the Olivares.AI Commercial License and are not included in this
+repository. See LICENSING.md for this repository and the Olivares AI repository's LICENSING.md for the product.
+
+The AGPL-3.0-only material is likewise distributed WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See sections 15, 16 and 17 of the GNU Affero General Public License (in LICENSE,
+and in LICENSES/AGPL-3.0-only.txt at lines 587, 598 and 610) for details; section
+16 expressly covers LOSS OF DATA OR DATA BEING RENDERED INACCURATE.
+
+ADDITIONAL TERMS DISCLAIMING WARRANTY AND LIMITING LIABILITY apply to the material
+of which Francisco Olivares is the copyright holder or for which he is authorized
+by the copyright holder. They are stated as terms supplementing that License under
+its section 7(a) (LICENSES/AGPL-3.0-only.txt, lines 349-354), and as a further
+disclaimer complementing sections 7 and 8 of the Apache License, Version 2.0.
+THIS PARAGRAPH IS THE NOTICE INDICATING WHERE TO FIND THOSE TERMS: they are set
+out in full in the file DISCLAIMER.md distributed with this software. They do not
+restrict, condition or modify any right granted by AGPL-3.0-only or by
+Apache-2.0.
+
+NOTICES FOR THIRD-PARTY COMPONENTS:
+
+  * RPM-GPG-KEY-EPEL-10 (appliance/images/toolchain/almalinux10/), the EPEL 10 public signing key published by the
+    Fedora Project, redistributed unmodified and used only to verify packages; see
+    LICENSES/LicenseRef-Third-Party-Public-Key.txt.
+  * RPM-GPG-KEY-docker (appliance/images/kiwi/), Docker's release public signing key published by Docker, Inc.,
+    redistributed unmodified and used only to verify Docker's RPMs; see LICENSES/LicenseRef-Third-Party-Public-Key.txt.
+
+Notices for any component vendored later must be appended to this list as required
+by that component's license. The components actually present in a given artifact
+are enumerated in the SBOM published with that artifact.

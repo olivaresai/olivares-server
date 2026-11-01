@@ -1,0 +1,30 @@
+{
+  "name": "olivares-nginx-proxy-manager",
+  "x-olivares": {
+    "title": "Nginx Proxy Manager",
+    "version": "2.16.0",
+    "enabled_by_default": false
+  },
+  "services": {
+    "app": {
+      "image": "docker.io/jc21/nginx-proxy-manager@sha256:4393e642e233e5efd5adeb7f10918d4aaea71c9ed875b94190273fc8e87f9594",
+      "container_name": "olivares-nginx-proxy-manager",
+      "restart": "unless-stopped",
+      "ports": [
+        {"target": 80, "published": "80", "host_ip": "0.0.0.0", "protocol": "tcp"},
+        {"target": 443, "published": "443", "host_ip": "0.0.0.0", "protocol": "tcp"},
+        {"target": 81, "published": "81", "host_ip": "127.0.0.1", "protocol": "tcp"}
+      ],
+      "volumes": [
+        {"type": "bind", "source": "./data", "target": "/data", "bind": {"selinux": "z"}},
+        {"type": "bind", "source": "./letsencrypt", "target": "/etc/letsencrypt", "bind": {"selinux": "z"}}
+      ]
+    }
+  },
+  "networks": {
+    "default": {
+      "driver": "bridge",
+      "driver_opts": {"com.docker.network.bridge.name": "olv-npm"}
+    }
+  }
+}

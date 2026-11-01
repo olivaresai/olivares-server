@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[Unit]
+Description=Initialize the protected network runtime
+# The net-guard and helper sockets wait for this unit and are themselves ordered before sockets.target, which
+# basic.target follows; with default dependencies this unit would follow basic.target too, an ordering cycle that
+# systemd breaks by skipping a job (lab run 10, 2026-10-21). So it runs early, after the local file systems.
+DefaultDependencies=no
+After=local-fs.target
+Before=sockets.target shutdown.target olivares-net-guard.socket olivares-net-guard.service olivares-helper-netrestore.socket
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/libexec/olivares/olivares-net-guard initialize-runtime
+RemainAfterExit=yes
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+CapabilityBoundingSet=CAP_CHOWN CAP_FOWNER CAP_DAC_READ_SEARCH
+UMask=0077

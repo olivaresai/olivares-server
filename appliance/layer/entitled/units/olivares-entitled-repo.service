@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# One refresh of the entitled package channel. It runs as root because it writes /etc/yum.repos.d, and
+# it runs the product as the product's own user, which holds the licence binding; the product proves that
+# binding to the licensing service and publishes a 24-hour download credential into the handoff directory
+# below. The command takes that handoff and replaces olivares-entitled.repo with the suites the licence
+# earns: both while it is current, the security suite alone once it has expired. It starts only on an
+# installed licence, and it is started through olivares-edition.service, which its timer and path unit start and
+# which makes the installed edition the one the licence earns once this has run; nothing runs it at boot by itself.
+#
+# RuntimeDirectory= makes /run/olivares-dnf-handoff, the one directory the product publishes into; the command
+# hands it to the product user before the product runs, and systemd removes it when the unit stops.
+# INVOCATION_ID, which the service manager sets, is the cycle: the product records it in the handoff and the
+# command refuses a handoff that names another. The capabilities are the four it uses: hand the directory
+# over (CAP_CHOWN), run the product as its user with no groups (CAP_SETUID, CAP_SETGID) and read and remove
+# the handoff in a directory that user owns (CAP_DAC_OVERRIDE).
+[Unit]
+Description=Refresh the entitled package channel
+Documentation=https://github.com/olivaresai/olivares
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/var/lib/olivares/license.key
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/olivares/olivares-entitled-repo refresh
+User=root
+RuntimeDirectory=olivares-dnf-handoff
+RuntimeDirectoryMode=0700
+TimeoutStartSec=180
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/yum.repos.d /var/lib/olivares
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=CAP_CHOWN CAP_SETUID CAP_SETGID CAP_DAC_OVERRIDE
+AmbientCapabilities=
+UMask=0077

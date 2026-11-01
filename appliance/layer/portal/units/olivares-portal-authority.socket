@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+[Unit]
+Description=Appliance native operation authority socket
+After=systemd-sysusers.service
+PartOf=olivares.service
+
+[Socket]
+ListenStream=/run/olivares-portal-api/authority.sock
+Service=olivares.service
+Accept=no
+FileDescriptorName=authority
+SocketUser=root
+SocketGroup=olivares-appliance
+SocketMode=0660
+DirectoryMode=0755
+PassCredentials=yes
+RemoveOnStop=yes

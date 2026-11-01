@@ -1,0 +1,489 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-FileCopyrightText: 2026 Olivares.AI -->
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<!--
+  The ONE image description of the Olivares AI appliance, read by KIWI NG. One description
+  with profiles is the design's rule: an edition is a profile here, never a second file that
+  drifts from this one. This recipe delivers the server edition on amd64, based on AlmaLinux 10 (the
+  shipping profile) and still buildable on Debian 13 (not shipping); the desktop edition
+  is the almalinux10-desktop-amd64 profile of this same document, the server profile plus GNOME;
+  arm64 is a profile added to this same document too.
+
+  What this description does NOT do, on purpose:
+    * it starts no service and creates no identity. The appliance layer is installed as a
+      package and its own postinstall enables first boot; every host key, machine ID,
+      certificate, setup token and signing key is made on the first boot of each instance.
+    * it carries no first-boot logic. The layer is a package (design 5.2), so it is tested
+      without building an image and it updates through the normal channel on appliances that
+      are already installed.
+
+  Schema and attribute names are KIWI NG's own, from its documented schema:
+  https://osinside.github.io/kiwi/image_description/elements.html (read 2026-09-22).
+-->
+<image schemaversion="8.5" name="olivares-appliance" displayname="Olivares Server">
+  <description type="system">
+    <author>Olivares.AI</author>
+    <contact>enterprise@olivares.ai</contact>
+    <specification>Olivares Server appliance, based on AlmaLinux 10; the debian13-server-amd64 profile, not shipping, is based on Debian 13 (trixie)</specification>
+  </description>
+
+  <profiles>
+    <!-- The edition and the architecture are one profile: the packages, the disk layout and
+         the firmware of an edition travel together. import="true" makes it the profile a
+         build takes when none is named; build.sh always names it.
+
+         AlmaLinux 10 is the shipping base (re-based from Fedora 44):
+         RHEL 10 compatible, kernel 6.12 LTS, security support to 2035, server/minimal, amd64 at the
+         x86-64-v3 baseline. The Debian 13 profile stays, not shipping, while its own tests stay valid
+         for Debian; it is not an AlmaLinux test.
+
+         The desktop edition is the server profile's packages plus the desktop section below:
+         GNOME Shell with GDM, Firefox, Ptyxis, Nautilus and the default font set, over the
+         same type, repositories, SELinux policy and product layer. config.sh sets the graphical
+         default target and enables gdm and sshd inside the image root, with the links systemctl
+         enable would create; the overlay carries no links, so a published copy of the tree carries
+         plain files only. -->
+    <profile name="almalinux10-server-amd64" description="Server edition, amd64, based on AlmaLinux 10 (server/minimal, RPM/DNF); the shipping profile" import="true"/>
+    <profile name="almalinux10-desktop-amd64" description="Desktop edition, amd64, based on AlmaLinux 10: the server profile plus GNOME (GNOME Shell with GDM on the graphical target, Firefox, Ptyxis, Nautilus)"/>
+    <profile name="debian13-server-amd64" description="Server edition, amd64, based on Debian 13 (trixie); not shipping"/>
+    <!-- The firmware flag of the recipe. Redistributable but not free firmware is what the
+         official Debian installer has included since bookworm and it is what makes the image
+         boot on most server network and storage controllers. The owner's decision on whether
+         the published image carries it is still open (design 10.1, 11.4), so it is a profile
+         and not a fact of the edition: FIRMWARE=free drops it and the image is 100% free. -->
+    <profile name="firmware-nonfree" description="Redistributable non-free firmware for network, storage and graphics controllers"/>
+    <!-- The same FIRMWARE flag on AlmaLinux: linux-firmware is its redistributable firmware,
+         and FIRMWARE=free drops it there too. -->
+    <profile name="almalinux10-firmware" description="AlmaLinux 10's redistributable firmware (linux-firmware) for network, storage and graphics controllers"/>
+  </profiles>
+
+  <preferences profiles="debian13-server-amd64" arch="x86_64">
+    <version>1.0.0</version>
+    <packagemanager>apt</packagemanager>
+    <!-- KIWI's element for every package manager: with it, KIWI's apt configuration sets
+         AllowUnauthenticated "false". Every repository below is verified by its locked keyring
+         or is this build's own package repository. -->
+    <rpm-check-signatures>true</rpm-check-signatures>
+    <locale>en_US</locale>
+    <!-- No <keytable>: KIWI applies it with systemd-firstboot, which accepts only a *.map or
+         *.map.gz keymap under /usr/share/keymaps, /usr/share/kbd/keymaps or /usr/lib/kbd/keymaps,
+         and no Debian 13 package ships one named us. Debian's systemd is built without vconsole
+         support, so the setting would not be applied at boot either; with no keymap loaded the
+         console keeps the kernel's built-in US map. -->
+    <timezone>UTC</timezone>
+    <!--
+      oem, not iso: the artifact this description builds is the expandable disk, and the three
+      formats are assembled from it (appliance/images/formats). installiso="true" is what adds
+      the hybrid installer medium, which boots under legacy BIOS and under UEFI from the same
+      file, and installboot="install" makes its default entry the installation itself so an
+      unattended install needs no keystroke.
+
+      firmware="uefi" is KIWI's EFI layout FOR SECURE BOOT: shim first, then the signed GRUB.
+      eficsm="true" (KIWI's default, stated here because the boot battery depends on it) keeps
+      the legacy BIOS path on the same disk, which is why one disk image answers all three
+      firmware cases of the boot oracle.
+
+      oem-resize is false because the capability lives in a dracut module (dracut-kiwi-oem-repart)
+      that Debian 13 does not package, and the recipe takes its packages from Debian mirrors
+      only. The disk is therefore fixed at the size declared below; growing the data volume is
+      an operator action until rollback revisits it. Disabling the resize is documented as removing
+      the need for that package.
+
+      The console is on tty0 AND on the serial port: the label the layer installs in
+      /etc/issue.d is what the boot battery reads over ttyS0, and an appliance without a screen
+      is the normal case.
+
+      /boot is its own ext4 partition. The root is the btrfs subvolume @, so that a rollback
+      never touches the data volumes below. Debian's signed GRUB reads the early script KIWI
+      puts on the ESP, and that script loads /boot/grub/grub.cfg from the root file system; GRUB
+      2.12 without SUSE's subvolume patches reads btrfs paths from the top level, where the file
+      is /@/boot/grub/grub.cfg, and stops at its prompt (a hosted build). On the boot
+      partition the script loads /grub/grub.cfg, which is where the file is. 1024 MB holds two
+      kernels and their initrds while unattended-upgrades replaces one.
+    -->
+    <type image="oem" filesystem="btrfs" firmware="uefi" eficsm="true" efipartsize="512"
+          bootpartition="true" bootfilesystem="ext4" bootpartsize="1024"
+          installiso="true" installboot="install" btrfs_root_is_subvolume="true"
+          kernelcmdline="console=tty0 console=ttyS0,115200n8 net.ifnames=0 systemd.show_status=1">
+      <bootloader name="grub2" timeout="3"/>
+      <size unit="G">12</size>
+      <oemconfig>
+        <oem-resize>false</oem-resize>
+        <oem-unattended>true</oem-unattended>
+        <oem-swap>false</oem-swap>
+        <oem-skip-verify>false</oem-skip-verify>
+      </oemconfig>
+      <systemdisk>
+        <!-- The product's data and the first-boot record live outside the root subvolume, so a
+             rollback of the system never rolls back the audit book or makes first boot
+             run its recorded stages again. -->
+        <volume name="var/lib/olivares"/>
+        <volume name="var/lib/olivares-appliance"/>
+      </systemdisk>
+    </type>
+  </preferences>
+
+  <!-- The two AlmaLinux 10 editions share this section: the desktop profile is the server profile's
+       type, layout, package manager and SELinux policy, so an edition remains a package set and
+       an overlay, never a second layout (KIWI applies a section when any of its listed profiles
+       is selected). -->
+  <preferences profiles="almalinux10-server-amd64,almalinux10-desktop-amd64" arch="x86_64">
+    <version>1.0.0</version>
+    <!-- KIWI 11.0.4 names its Fedora-family package managers dnf4 and dnf5 (kiwi.rnc :999); RHEL 10 and
+         AlmaLinux 10 ship DNF 4.20 and no dnf5 (BaseOS, AppStream, CRB, extras and EPEL 10 carry none,
+         measured 2026-10-17). KIWI hands dnf this release version (else it passes releasever 0), and
+         with rpm-check-signatures every package is checked against the imported AlmaLinux key. -->
+    <packagemanager>dnf4</packagemanager>
+    <release-version>10</release-version>
+    <rpm-check-signatures>true</rpm-check-signatures>
+    <locale>en_US</locale>
+    <timezone>UTC</timezone>
+    <!-- The product's boot and storage layout, the same attributes as the Debian type above: it
+         is the product's, not the distribution's, and nothing about it is inferred from AlmaLinux.
+         btrfs is available on this base: kernel-modules ships btrfs.ko and AppStream btrfs-progs
+         (measured on the 10.2 trees, 2026-10-17). -->
+    <!-- SELinux stays enforcing: KIWI labels the root with the
+         file_contexts of this policy after config.sh and after the disk sync (system/setup.py
+         :633-645), and config.sh writes the enforcing mode and fails a root KIWI could not label. -->
+    <type image="oem" filesystem="btrfs" firmware="uefi" eficsm="true" efipartsize="512"
+          bootpartition="true" bootfilesystem="ext4" bootpartsize="1024"
+          installiso="true" installboot="install" btrfs_root_is_subvolume="true"
+          selinux_policy="targeted"
+          kernelcmdline="console=tty0 console=ttyS0,115200n8 net.ifnames=0 systemd.show_status=1">
+      <!-- GRUB 2.12 as AlmaLinux 10 ships it. KIWI writes these settings into /etc/default/grub, the
+           only defaults file the RHEL family's grub2-mkconfig reads: the menu on the console and on
+           the serial port, and GRUB_ENABLE_BLSCFG=true (grub2.py :700-800). The kernels are Boot Loader
+           Specification entries under /boot/loader/entries on the ext4 boot partition, which
+           grub2-efi-x64 owns and GRUB's blscfg reads: the entry form rollback consumes. AlmaLinux's signed
+           grubx64.efi embeds the prefix of the shim vendor directory (/EFI/almalinux), where KIWI
+           copies its early script, and the script loads /grub2/grub.cfg from the boot partition,
+           because grub2-tools ships grub2-install (defaults.py :649-669). -->
+      <bootloader name="grub2" timeout="3" bls="true" output_console="console serial"
+                  input_console="console serial"
+                  serial_line="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"/>
+      <size unit="G">12</size>
+      <oemconfig>
+        <oem-resize>false</oem-resize>
+        <oem-unattended>true</oem-unattended>
+        <oem-swap>false</oem-swap>
+        <oem-skip-verify>false</oem-skip-verify>
+      </oemconfig>
+      <systemdisk>
+        <volume name="var/lib/olivares"/>
+        <volume name="var/lib/olivares-appliance"/>
+      </systemdisk>
+    </type>
+  </preferences>
+
+  <!-- Debian 13 and nothing else. A build that needs any other network location is a build
+       nobody can repeat: the appliance's own packages arrive through the local repository
+       below, which build.sh stages from dist/. imageinclude puts the three Debian repositories
+       into the image's apt sources, which is where unattended-upgrades reads its security
+       updates from.
+
+       Each Debian repository is verified with the Debian archive keyring the builder already
+       has. KIWI runs archive-signed-by.sh on the apt sources file it writes for the repository,
+       at build time and for the image's own sources; the script refuses a key file whose sha256
+       differs from archive-keys.json and otherwise adds a Signed-By line naming it. apt 3.0.3
+       in the builder reads a repository's keyring from Signed-By, and does not read the
+       trusted.gpg file where KIWI's own <signing> keys would go. -->
+  <repository type="apt-deb" alias="debian-trixie" distribution="trixie" profiles="debian13-server-amd64"
+              components="main non-free-firmware" repository_gpgcheck="true" imageinclude="true"
+              customize="archive-signed-by.sh">
+    <source path="http://deb.debian.org/debian"/>
+  </repository>
+  <repository type="apt-deb" alias="debian-trixie-updates" distribution="trixie-updates" profiles="debian13-server-amd64"
+              components="main non-free-firmware" repository_gpgcheck="true" imageinclude="true"
+              customize="archive-signed-by.sh">
+    <source path="http://deb.debian.org/debian"/>
+  </repository>
+  <repository type="apt-deb" alias="debian-trixie-security" distribution="trixie-security" profiles="debian13-server-amd64"
+              components="main non-free-firmware" repository_gpgcheck="true" imageinclude="true"
+              customize="archive-signed-by.sh">
+    <source path="http://security.debian.org/debian-security"/>
+  </repository>
+  <!-- The local repository is the one repository trusted without a signature: build.sh stages
+       its packages in this build (the two it copies from dist/ and the dracut package its stage
+       step builds), and its index has no Release file to sign. apt refuses such a repository
+       unless it is trusted, and KIWI writes `trusted: yes` for a repository only when
+       repository_gpgcheck is false. The Debian repositories above keep their signature check. -->
+  <repository type="deb-dir" alias="olivares-appliance-packages" repository_gpgcheck="false" profiles="debian13-server-amd64">
+    <source path="dir:///packages"/>
+  </repository>
+
+  <!-- AlmaLinux 10 and nothing else: the BaseOS and AppStream x86_64 trees of the pinned minor (10.2; one
+       tree carries the minor's updates) as rpm-md. Every package is checked against the AlmaLinux 10 key
+       (package_gpgcheck; KIWI imports the signing key into the image's rpm database). AlmaLinux does not
+       sign repomd.xml, so almalinux-repo-pinned.sh, the customize script KIWI runs on each .repo file it
+       writes, refuses a tree whose repomd.xml no longer has the sha256 almalinux-repositories.json pins,
+       and adds the locked key as gpgkey. The build repositories do not become the image's update channel:
+       the almalinux-repos package installs the image's own repository files, as it does on any AlmaLinux
+       host, and config.sh holds them to baseos and appstream. -->
+  <repository type="rpm-md" alias="almalinux-baseos" profiles="almalinux10-server-amd64,almalinux10-desktop-amd64"
+              repository_gpgcheck="false" package_gpgcheck="true" customize="almalinux-repo-pinned.sh">
+    <source path="https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/">
+      <signing key="file:///etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-10"/>
+    </source>
+  </repository>
+  <repository type="rpm-md" alias="almalinux-appstream" profiles="almalinux10-server-amd64,almalinux10-desktop-amd64"
+              repository_gpgcheck="false" package_gpgcheck="true" customize="almalinux-repo-pinned.sh">
+    <source path="https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/">
+      <signing key="file:///etc/pki/rpm-gpg/RPM-GPG-KEY-AlmaLinux-10"/>
+    </source>
+  </repository>
+  <!-- The product's own RPMs: the Interface through which the product's nFPM RPMs (olivares and
+       olivares-appliance-base) enter the AlmaLinux image, as the signed rpm-md tree the product package pipeline produces
+       (signed RPM headers, repodata/repomd.xml.asc with the package-repository key) with its
+       delivery.json. Both checks are on, here as on the appliance:
+       build.sh refuses a delivery whose key, signature, sha256 or package set is not the expected
+       one before KIWI reads it (delivery_check.py), and stages the checked key beside the
+       description. olivares-repo-pinned.sh, KIWI's customize script for the .repo file, checks the
+       key's fingerprint against that pin again and names it as gpgkey. -->
+  <repository type="rpm-md" alias="olivares-appliance-rpms" profiles="almalinux10-server-amd64,almalinux10-desktop-amd64"
+              repository_gpgcheck="true" package_gpgcheck="true" customize="olivares-repo-pinned.sh">
+    <source path="dir:///packages">
+      <signing key="file:///description/olivares-package-repository.asc"/>
+    </source>
+  </repository>
+  <!-- The dracut RPM the stage step builds from the builder's KIWI 11.0.4 modules, and Docker's four RPMs, in a repository
+       of its own. The stage step signs the dracut RPM and the repository's repomd.xml with a per-build key, through the
+       same package repository scripts that sign the product repository, and discards the secret key; the build log and
+       the manifest record the key's fingerprint. Docker's RPMs (container_runtime in the lock: each pinned by sha256,
+       its header signature checked against Docker's release key before it is staged) keep Docker's own signature, so the
+       repository names Docker's key beside the per-build one and dnf checks that signature again at install: the image's
+       repositories stay AlmaLinux's two trees and the product's own, and no repository of the recipe is ever read with a
+       check off. The product repository keeps exactly the two packages. -->
+  <repository type="rpm-md" alias="olivares-appliance-build" profiles="almalinux10-server-amd64,almalinux10-desktop-amd64"
+              repository_gpgcheck="true" package_gpgcheck="true" customize="olivares-repo-pinned.sh">
+    <source path="dir:///build-packages">
+      <signing key="file:///description/olivares-build-key.asc"/>
+      <signing key="file:///description/docker-release-key.asc"/>
+    </source>
+  </repository>
+
+  <!-- The trust the bootstrap needs before anything else is installed: apt, its keyring and
+       the tools that check a signature. -->
+  <packages type="bootstrap" profiles="debian13-server-amd64">
+    <package name="apt"/>
+    <package name="dpkg"/>
+    <package name="gnupg"/>
+    <package name="gpgv"/>
+    <package name="ca-certificates"/>
+    <package name="debian-archive-keyring"/>
+  </packages>
+
+  <packages type="image" profiles="debian13-server-amd64">
+    <!-- the system -->
+    <package name="linux-image-amd64"/>
+    <package name="systemd"/>
+    <package name="systemd-sysv"/>
+    <package name="systemd-timesyncd"/>
+    <package name="dbus"/>
+    <package name="dracut"/>
+    <package name="dracut-core"/>
+    <package name="locales"/>
+    <package name="tzdata"/>
+    <package name="sudo"/>
+    <package name="less"/>
+    <package name="ca-certificates"/>
+    <!-- a coding session runs git in its folder -->
+    <package name="git"/>
+    <!-- the disk: btrfs root, the EFI system partition and the tools a rescue needs -->
+    <package name="btrfs-progs"/>
+    <package name="dosfstools"/>
+    <package name="e2fsprogs"/>
+    <package name="gdisk"/>
+    <package name="parted"/>
+    <!-- what the installer medium's initrd calls while it writes the disk image to the
+         target: the partition mapper, the progress dialog the unattended path skips, and
+         the compressor the embedded image is stored with -->
+    <package name="kpartx"/>
+    <package name="dialog"/>
+    <package name="xz-utils"/>
+    <!-- the boot chain, both firmwares. shim-signed is signed by the Microsoft UEFI CA and is
+         what a machine with Secure Boot on verifies first; grub-efi-amd64-signed is the second
+         stage it verifies; grub-pc-bin is the same disk's legacy BIOS path. Removing
+         shim-signed is the negative control of the Secure Boot case of the boot battery. -->
+    <package name="grub2-common"/>
+    <package name="grub-efi-amd64-bin"/>
+    <package name="grub-efi-amd64-signed"/>
+    <package name="shim-signed"/>
+    <package name="grub-pc-bin"/>
+    <package name="efibootmgr"/>
+    <package name="mokutil"/>
+    <!-- the host settings' owner, the keys first boot records, and the update channel of the
+         base the appliance commits to for the life of the release -->
+    <package name="cloud-init"/>
+    <package name="openssh-server"/>
+    <package name="unattended-upgrades"/>
+    <package name="nftables"/>
+    <!-- the edition the image ships installed, and the appliance layer beside it. Both come
+         from the local repository build.sh stages; the layer's postinstall enables first boot
+         and starts nothing. -->
+    <package name="olivares"/>
+    <package name="olivares-appliance-base"/>
+    <!-- The installer medium's dracut modules, from the SAME pinned KIWI release that builds
+         this image: Debian 13 packages none of them (measured on packages.debian.org,
+         2026-09-22), and the recipe takes nothing from a second network location. They arrive
+         as the package KIWI's runtime check for an installer medium requires by name
+         (check_dracut_module_for_oem_install_in_package_list): build.sh's stage step builds it
+         in the builder from the builder's own modules (dracut_package.py) into the local
+         repository, at the locked KIWI version, so dpkg owns the files in the image. -->
+    <package name="dracut-kiwi-oem-dump"/>
+    <!-- What those modules need in the image root. KIWI adds kiwi-dump and kiwi-dump-reboot to the
+         installer initrd with dracut's add list, and dracut exits 1 when an added module, or a
+         module it depends on, cannot be installed. kiwi-dump depends on dracut's network module,
+         which ships in dracut-network; the network backend this image can run is systemd-networkd
+         (systemd ships it), which needs ip from iproute2. kiwi-lib depends on dracut's crypt
+         module, which needs cryptsetup. kiwi-dump-reboot boots the installed system with kexec.
+         Each was measured necessary against Debian 13 and dracut 106. -->
+    <package name="dracut-network"/>
+    <package name="iproute2"/>
+    <package name="cryptsetup-bin"/>
+    <package name="kexec-tools"/>
+  </packages>
+
+  <packages type="image" profiles="firmware-nonfree">
+    <package name="firmware-linux-nonfree"/>
+  </packages>
+
+  <!-- AlmaLinux 10: the rpm database and its keyring first. dnf installs into the image root from the
+       builder (KIWI runs the builder's dnf with installroot). almalinux-release brings almalinux-repos,
+       the image's own repository files, with it. -->
+  <packages type="bootstrap" profiles="almalinux10-server-amd64,almalinux10-desktop-amd64">
+    <package name="filesystem"/>
+    <package name="almalinux-release"/>
+    <package name="almalinux-gpg-keys"/>
+    <package name="rpm"/>
+    <package name="ca-certificates"/>
+  </packages>
+
+  <!-- The Debian profile's packages mapped to AlmaLinux 10 names (each resolves in the 10.2 trees, measured
+       2026-10-17; NEVRA and sha256 of each in toolchain/almalinux10/input-lock.json image_packages). -->
+  <packages type="image" profiles="almalinux10-server-amd64,almalinux10-desktop-amd64">
+    <!-- the system: udev is apart from systemd, and chrony replaces systemd-timesyncd -->
+    <package name="kernel"/>
+    <package name="systemd"/>
+    <package name="systemd-udev"/>
+    <package name="chrony"/>
+    <package name="dbus-broker"/>
+    <package name="dracut"/>
+    <package name="glibc-langpack-en"/>
+    <package name="tzdata"/>
+    <package name="sudo"/>
+    <package name="less"/>
+    <package name="ca-certificates"/>
+    <!-- a coding session runs git in its folder; git-core is git without its Perl and Python helpers -->
+    <package name="git-core"/>
+    <!-- the administrator's shell (the regression): every name resolves in the AlmaLinux 10.2 BaseOS or AppStream
+         tree the lock pins by NEVRA and sha256, and the image never uses EPEL, so htop is absent; vim-minimal
+         owns /usr/bin/vi and vim-enhanced does not require it -->
+    <package name="vim-enhanced"/>
+    <package name="vim-minimal"/>
+    <package name="net-tools"/>
+    <package name="which"/>
+    <package name="tree"/>
+    <package name="procps-ng"/>
+    <package name="lsof"/>
+    <package name="tcpdump"/>
+    <package name="rsync"/>
+    <package name="bash-completion"/>
+    <package name="man-db"/>
+    <package name="man-pages"/>
+    <!-- the disk: btrfs-progs is in AppStream and gdisk is EPEL's alone, which the image never uses, so
+         the partition tools are parted's -->
+    <package name="btrfs-progs"/>
+    <package name="dosfstools"/>
+    <package name="e2fsprogs"/>
+    <package name="parted"/>
+    <!-- the installer medium's initrd: partition mapper, dialog, compressor -->
+    <package name="kpartx"/>
+    <package name="dialog"/>
+    <package name="xz"/>
+    <!-- the boot chain, both firmwares: shim signed by the Microsoft UEFI CA, AlmaLinux's signed GRUB
+         it verifies, the x86_64-efi modules, GRUB's tools, and the legacy BIOS path of eficsm -->
+    <package name="grub2-common"/>
+    <package name="grub2-tools"/>
+    <package name="grub2-efi-x64-modules"/>
+    <package name="grub2-efi-x64"/>
+    <package name="shim-x64"/>
+    <package name="grub2-pc"/>
+    <package name="grub2-pc-modules"/>
+    <package name="efibootmgr"/>
+    <package name="mokutil"/>
+    <!-- the host settings' owner, the keys first boot records, the firewall and the network owner
+         cloud-init renders to on the RHEL family -->
+    <package name="cloud-init"/>
+    <package name="openssh-server"/>
+    <package name="nftables"/>
+    <package name="NetworkManager"/>
+    <!-- the product and the appliance layer, the product's RPMs from the local repository -->
+    <package name="olivares"/>
+    <package name="olivares-appliance-base"/>
+    <package name="olivares-appliance-portal"/>
+    <!-- KIWI 11.0.4's installer modules, built by the stage step at the locked version (AlmaLinux 10 does
+         not package dracut-kiwi-oem-dump; EPEL 10 has 11.1.1 only), and what they need in the image root -->
+    <package name="dracut-kiwi-oem-dump"/>
+    <package name="dracut-network"/>
+    <package name="iproute"/>
+    <package name="cryptsetup"/>
+    <package name="kexec-tools"/>
+    <!-- The update interface: DNF 4.20, which RHEL 10 ships (dnf5 is not in any AlmaLinux 10 or EPEL 10
+         tree), the pre- and post-transaction actions plugins the package-phase bridge hooks, dnf-automatic
+         with its install timer enabled for security updates only (the profile overlay's preset, automatic.conf and timer
+         drop-in, checked by config.sh), and AlmaLinux's own repository files. Our key and repository file are the profile overlay's
+         (almalinux10-server-amd64/); installonly_limit is dnf.conf's own 3, which config.sh checks. -->
+    <package name="dnf"/>
+    <package name="python3-dnf-plugin-pre-transaction-actions"/>
+    <package name="python3-dnf-plugin-post-transaction-actions"/>
+    <package name="dnf-automatic"/>
+    <package name="almalinux-repos"/>
+    <!-- SELinux: the targeted policy, enforcing, and setfiles, with which KIWI labels the root; the appliance's
+         policy module (olivares-selinux, from the local repository like the product, which requires it before its own
+         install) and semanage, which the module package's scriptlets run (policycoreutils-python-utils, the pinned
+         policycoreutils build) -->
+    <package name="selinux-policy-targeted"/>
+    <package name="policycoreutils"/>
+    <package name="policycoreutils-python-utils"/>
+    <package name="olivares-selinux"/>
+    <!-- The container runtime the optional apps run (appliance/layer/optionalapps: /usr/bin/docker with the Compose plugin,
+         against a daemon with SELinux support, which config.sh configures). Docker Engine, its CLI, the Compose plugin and
+         containerd are Docker's four RPMs, locked by sha256 in container_runtime and staged into the
+         olivares-appliance-build repository; the image takes no repository of Docker's. The rest is AlmaLinux's, each
+         in the lock's image_packages: container-selinux, the container types the policy module names (olivares-selinux
+         requires it); iptables-nft, the daemon's firewall backend, with the nftables named above; and
+         kernel-modules-extra of the kernel in this image, which carries xt_addrtype: the iptables backend needs that
+         module and kernel-modules does not carry it, so without the package the daemon exits at start. -->
+    <package name="docker-ce"/>
+    <package name="docker-ce-cli"/>
+    <package name="containerd.io"/>
+    <package name="docker-compose-plugin"/>
+    <package name="container-selinux"/>
+    <package name="iptables-nft"/>
+    <package name="kernel-modules-extra"/>
+  </packages>
+
+  <!-- The desktop edition's own packages, on top of the server set both profiles share above.
+       Every name resolves in the AlmaLinux 10.2 AppStream tree (measured 2026-10-17 against the pinned
+       repomd: NEVRA and sha256 of each in the lock), and nothing here adds a repository. gdm hard-requires
+       gnome-session, gnome-session-wayland-session, gnome-shell and gnome-settings-daemon, so the session
+       arrives with it; gnome-shell is named beside it because the desktop is GNOME Shell, not only its
+       greeter. No package of the GNOME line requires a font package (Firefox requires only libfontconfig,
+       measured over the 10.2 primaries), so the default font set is named; the locale stays the server
+       profile's glibc-langpack-en. The terminal is Ptyxis, the GNOME terminal AppStream carries
+       (gnome-console is not in the 10.2 trees). openssh-server, already in the shared set, ships
+       sftp-server and its stock sshd_config serves the sftp subsystem; the desktop overlay enables sshd
+       and points default.target at graphical.target, where gdm runs as display-manager.service. -->
+  <packages type="image" profiles="almalinux10-desktop-amd64">
+    <package name="gdm"/>
+    <package name="gnome-shell"/>
+    <package name="firefox"/>
+    <package name="nautilus"/>
+    <package name="ptyxis"/>
+    <package name="default-fonts-core"/>
+  </packages>
+
+  <packages type="image" profiles="almalinux10-firmware">
+    <package name="linux-firmware"/>
+  </packages>
+</image>

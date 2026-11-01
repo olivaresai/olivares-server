@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The desktop edition's preset: the server profile's lines unchanged, plus the two units the
+# desktop profile exists to run. The enablement itself is made by the recipe's config.sh inside
+# the image root - the three links systemctl's enable and default-target operations would create
+# (gdm.service installs only an Alias, display-manager.service, which graphical.target wants;
+# sshd.service is wanted by multi-user.target); these lines are the declared record config.sh
+# checks, in the file that sorts before AlmaLinux's own presets (systemd.preset(5)).
+#
+# AlmaLinux security updates apply by default: dnf-automatic's install timer is enabled (config.sh makes the link and reads it
+# back), with the security-only /etc/dnf/automatic.conf and the reboot window of its timer drop-in. The other three timers
+# (dnf-automatic 4.20.0 ships four, each with a service) stay disabled: one automatic route, and it never applies a
+# product release.
+enable dnf-automatic-install.timer
+disable dnf-automatic.timer
+disable dnf-automatic-download.timer
+disable dnf-automatic-notifyonly.timer
+disable dnf-automatic.service
+disable dnf-automatic-download.service
+disable dnf-automatic-install.service
+disable dnf-automatic-notifyonly.service
+# The Appliance Console's socket: loopback 9443 on a booted appliance. The service is its socket's, and the repair
+# console on tty1 is the server image's alone, linked by config.sh because gdm owns tty1 on the desktop.
+enable olivares-portal.socket
+# The console's management sockets: made once the network is online and whenever the firewall owner publishes a
+# measurement, and only while portal.enabled, portal.listen management, a selected interface and the measurement hold;
+# the timer checks them every two minutes.
+enable olivares-portal-sockets.service
+enable olivares-portal-sockets.path
+enable olivares-portal-sockets.timer
+# The module helpers' sockets, which the Appliance Console connects to for the services, storage, firewall, host-package and optional apps reads.
+# The root helpers' sockets are packaged, not enabled.
+enable olivares-helper-units.socket
+enable olivares-helper-storage.socket
+enable olivares-helper-apps.socket
+enable olivares-helper-firewall.socket
+enable olivares-helper-apt.socket
+# The firewall owner's boot load, which loads the confirmed policy before the network, and its guard, which reverts
+# an unconfirmed change at its deadline.
+enable olivares-firewall.service
+enable olivares-firewall-guard.service
+# The entitled package channel: the path unit refreshes it the moment a licence is installed, and the timer renews its
+# 24-hour credential. The refresh service itself runs only on an installed licence; the update service is started by
+# nobody but root, by hand.
+enable olivares-entitled-repo.path
+enable olivares-entitled-repo.timer
+# The container runtime the optional apps run on (appliance/layer/optionalapps). Docker's RPMs enable nothing, so the image
+# enables the daemon: config.sh makes the link and reads it back. docker.service requires docker.socket and wants
+# containerd.service, so no other unit needs a line.
+enable docker.service
+# The installed root is grown online by the guarded native repart path.
+enable olivares-grow-data@auto.service
+# The desktop's display manager, which starts GNOME Shell on the graphical target config.sh
+# sets as the default, and the SSH server, whose stock configuration serves SFTP.
+enable gdm.service
+enable sshd.service

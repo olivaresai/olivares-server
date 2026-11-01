@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+# The AlmaLinux 10 builder for the almalinux10-server-amd64 profile. Its RPMs are locked by NEVRA and sha256; KIWI 11.0.4
+# is built from its verified source on AlmaLinux's own Python packages.
+FROM docker.io/library/almalinux:10@sha256:ba31c3299856068f77bc10574cad51b0a4f6a3dafb882668656e1639bee63db6
+WORKDIR /toolchain
+COPY input-lock.json bootstrap.sh install.py RPM-GPG-KEY-EPEL-10 ./
+RUN bash /toolchain/bootstrap.sh
+RUN python3 /toolchain/install.py fetch
+# No build-backend or dependency code may fetch an implicit input.
+RUN --network=none python3 /toolchain/install.py install
+ENV PATH="/opt/kiwi/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+RUN --network=none python3 /toolchain/install.py qualify
+CMD ["kiwi-ng", "--version"]

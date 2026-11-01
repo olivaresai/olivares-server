@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The appliance's edition: the image ships Community, and this unit makes the installed edition the one the licence
+# earns. It refreshes the entitled channel first (Requires= and After=), then, as root, swaps the Community package
+# for Business when the licence earns the feature suite, and swaps it back when the licence is gone. One package
+# transaction, the package manager's own signature checks, the product's data and keys untouched, and the product
+# started again when it was running. Forward only, like the update: it keeps no way back to a previous build.
+#
+# It starts on the credential's renewal (olivares-entitled-repo.timer), which is also its retry for a channel that was
+# not ready, and when a licence is installed or removed (olivares-entitled-repo.path). With nothing to change
+# it asks the package database twice and ends. A refresh skipped for want of a licence counts as success for
+# Requires=, which is how the step runs on deactivation. It is a plain unit, not hardened as the refresh is: a
+# package transaction writes the package database, /usr and the unit files, and runs scriptlets as root.
+#
+# KillMode=mixed and TimeoutStopSec=: a stop (or the start timeout) sends SIGTERM to the command alone, which passes
+# it on to dnf; dnf gets ten minutes to finish or unwind (stopGrace in the command) before systemd kills what is
+# left, after fifteen. The default would signal dnf directly and kill it after 90 seconds, in the middle of a package
+# transaction.
+#
+# RequiresMountsFor=: the data directory is a volume of its own, and a licence file that is not there yet because the
+# volume is not mounted yet must never be read as a removed licence.
+[Unit]
+Description=Make the installed edition the one the licence earns
+Documentation=https://github.com/olivaresai/olivares
+RequiresMountsFor=/var/lib/olivares
+Requires=olivares-entitled-repo.service
+After=olivares-entitled-repo.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/olivares/olivares-entitled-repo edition
+TimeoutStartSec=1h
+TimeoutStopSec=15min
+KillMode=mixed

@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The firewall owner publishes its measurement after every load of its policy: at boot, when first boot
+# confirms the first policy, when a change is confirmed and when the guard reverts one. First boot
+# publishes the selection the decision also reads. Each time, the Appliance Console's management sockets
+# are made again, so they exist exactly while the selection and the measurement allow them. The
+# generator writes neither file, so it cannot start itself.
+[Unit]
+Description=Make the Appliance Console's management sockets when the selection or the firewall measurement changes
+Documentation=https://github.com/olivaresai/olivares
+
+[Path]
+PathChanged=/run/olivares-firewall/measured.json
+PathChanged=/etc/olivares-portal/selection.json
+Unit=olivares-portal-sockets.service
+
+[Install]
+WantedBy=multi-user.target

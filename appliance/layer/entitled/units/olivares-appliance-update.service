@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The appliance's update: `olivares-appliance service start olivares-appliance-update.service` upgrades every
+# installed Olivares package (the product, the appliance layer and the SELinux policy) through the entitled channel,
+# with the package manager's own signature checks, and the journal is its log. It first renews the channel's
+# credential, so it never runs on a lapsed one; an expired licence renews to the security suite alone, and the
+# package manager then offers only security updates. Forward only: it installs what the channel offers and
+# keeps no way back. It is a plain unit and not a helper socket: the services module starts it, as the act of the
+# service verb that the Appliance Console's Updates page names, with a plan, a confirmation and a receipt; root's
+# `systemctl start` does the same without them. Stopping it while it runs interrupts the package manager
+# mid-transaction: look at `dnf history` and `rpm -Va` afterwards.
+[Unit]
+Description=Update the appliance's Olivares packages through the entitled channel
+Documentation=https://github.com/olivaresai/olivares
+Requires=olivares-entitled-repo.service
+After=olivares-entitled-repo.service network-online.target
+Wants=network-online.target
+# A failed Condition skips a unit and counts as success for Requires=; an Assert fails the start and says why. Without
+# a licence there is no entitled channel and the public repository is disabled, so an update has nothing to read.
+AssertPathExists=/var/lib/olivares/license.key
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/dnf --assumeyes --setopt=install_weak_deps=False upgrade --refresh olivares*
+TimeoutStartSec=1h
