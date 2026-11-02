@@ -54,6 +54,7 @@ gen_require(`
 	type node_t;
 	type passwd_file_t;
 	type power_unit_file_t;
+	type proc_net_t;
 	type proc_t;
 	type random_device_t;
 	type removable_device_t;
@@ -2054,6 +2055,9 @@ allow olivares_firstboot_t olivares_firewall_unit_file_t:service { start status 
 # PROD-45: snapshotPackageUpgrade lstats and reads the package's pre-migration request before the store opens; no write, no unlink
 allow olivares_t olivares_upgrade_request_t:file { getattr open read };
 
+# PROD-46: the engine reads /proc/self/net/tcp and tcp6 to find which socket listens on the managed Ollama's address; the type covers every network state file under /proc/net and cannot be narrowed; read only
+allow olivares_t proc_net_t:file { getattr open read };
+
 # ---- FBOOT ----
 
 # FBOOT-97: reaches the fixed firewall owner current-boot measurement
@@ -2854,7 +2858,7 @@ allow olivares_tool_t olivares_tool_home_t:dir { add_name create getattr open re
 # TOOL-50: a tool writes its configuration, database, logs and lock files in its account home
 allow olivares_tool_t olivares_tool_home_t:file { append create getattr lock map open read rename setattr unlink write };
 
-# TOOL-116: Claude Code copies its configuration backup by reflink (FICLONE) before it falls back to a plain copy; TOOL-50 holds every other access to these files
+# TOOL-118: Claude Code copies its configuration backup by reflink (FICLONE) before it falls back to a plain copy; TOOL-50 holds every other access to these files
 allow olivares_tool_t olivares_tool_home_t:file ioctl;
 
 # TOOL-51: a session tool works in its session folder and watches it for changes
@@ -3149,6 +3153,12 @@ allow olivares_t olivares_tool_t:dir search;
 
 # TOOL-106: and reads /proc/<pid>/stat of each, its state, to tell a live process from a zombie; SELinux cannot narrow this to stat, so the engine may read the /proc/<pid> files of its tool's processes that the kernel does not gate with a ptrace check (stat, status, cmdline): it started them, and environ and maps stay refused because these rows grant no ptrace; the guard walks only its own children, which the kernel lists in its own /proc entry, never the processes of other domains
 allow olivares_t olivares_tool_t:file { getattr open read };
+
+# TOOL-116: before it registers the managed Ollama's endpoint, the engine lists /proc/<pid>/fd of the Ollama it started (TOOL-105 reaches it): every tool-domain process may bind the model runtime ports, so an answer on 127.0.0.1:11434 alone does not show that the started child serves it
+allow olivares_t olivares_tool_t:dir { getattr open read };
+
+# TOOL-117: and reads those descriptor links (socket:[inode]) to find the child's listening socket; the kernel gates them with a ptrace read check, which SELinux answers with TOOL-106's file read; no ptrace permission is granted
+allow olivares_t olivares_tool_t:lnk_file read;
 
 # TOOL-107: the same pass for the commands the tool started, which become the guard children once their parent is killed
 allow olivares_t olivares_cmd_t:dir search;

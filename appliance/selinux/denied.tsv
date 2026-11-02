@@ -192,3 +192,11 @@ N-HOOK-CLAUDE-EXEC	olivares_hook_t	olivares_tool_claude_exec_t	file	execute		the
 N-CHOOK-CLAUDE-EXEC	olivares_container_hook_t	olivares_tool_claude_exec_t	file	execute		the in-container hook never executes Claude Code's installed program
 N-CONTAINER-HOME	container_t	olivares_tool_home_t	file	read		a plain container never reads an account's files; a session's container runs as olivares_tool_t (the regression)
 N-CONTAINER-WORKSPACE	container_t	olivares_workspace_t	file	read		a plain container never reads a session's workspace (the regression)
+N-TOOL-BIND-CONSOLE	olivares_tool_t	olivares_console_port_t	tcp_socket	name_bind		an installed tool never binds the appliance's console port (tcp 8443): the model runtime ports it may bind are a separate type
+N-TOOL-BIND-GRPC	olivares_tool_t	olivares_grpc_port_t	tcp_socket	name_bind		an installed tool never binds the appliance's gRPC port (tcp 8444): the model runtime ports it may bind are a separate type
+N-TOOL-BIND-PORTAL	olivares_tool_t	olivares_portal_port_t	tcp_socket	name_bind		an installed tool never binds the appliance's portal port (tcp 9443): the model runtime ports it may bind are a separate type
+N-TOOL-BIND-HTTP	olivares_tool_t	http_port_t	tcp_socket	name_bind		an installed tool never binds a web port of the base policy (http_port_t: 80, 443 and the rest): the model runtime ports it may bind are a separate type
+N-CMD-BIND-CONSOLE	olivares_cmd_t	olivares_console_port_t	tcp_socket	name_bind		a command a tool runs never binds the appliance's console port (tcp 8443)
+N-CMD-BIND-GRPC	olivares_cmd_t	olivares_grpc_port_t	tcp_socket	name_bind		a command a tool runs never binds the appliance's gRPC port (tcp 8444)
+N-CMD-BIND-PORTAL	olivares_cmd_t	olivares_portal_port_t	tcp_socket	name_bind		a command a tool runs never binds the appliance's portal port (tcp 9443)
+N-CMD-BIND-HTTP	olivares_cmd_t	http_port_t	tcp_socket	name_bind		a command a tool runs never binds a web port of the base policy (http_port_t: 80, 443 and the rest)

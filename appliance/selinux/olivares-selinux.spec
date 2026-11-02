@@ -10,7 +10,7 @@
 
 Name:           olivares-selinux
 Version:        1.0.0
-Release:        27%{?dist}
+Release:        28%{?dist}
 Summary:        SELinux policy module of the Olivares AI appliance
 License:        AGPL-3.0-only
 URL:            https://github.com/olivaresai/olivares
@@ -125,9 +125,11 @@ fi
 %ghost %verify(not md5 size mode mtime) %{_sharedstatedir}/selinux/%{selinuxtype}/active/modules/200/%{modulename}
 
 %changelog
-* Sat Oct 31 2026 Olivares.AI <enterprise@olivares.ai> - 1.0.0-27
+* Sun Nov 01 2026 Olivares.AI <enterprise@olivares.ai> - 1.0.0-28
 - Permit the container session's measured hook, shell and device accesses, MCS-constrained.
 - Permit Claude Code's reflink of its own configuration backup.
+* Sat Oct 31 2026 Olivares.AI <enterprise@olivares.ai> - 1.0.0-27
+- Let the engine confirm that the managed Ollama child holds its address, and never grant tools the appliance's own ports.
 * Sat Oct 31 2026 Olivares.AI <enterprise@olivares.ai> - 1.0.0-26
 - Permit the firewall SSH probe to stat and enumerate OpenSSL's include directory.
 - Pin its OpenSSL file and directory metadata reads in the measured manifest.
