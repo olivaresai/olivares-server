@@ -120,7 +120,7 @@ REFUSED = {(FIRSTBOOT, "etc_t", "file"): {"write", "append", "unlink", "rename",
            (GUARD, "etc_t", "file"): {"write", "append", "unlink", "rename", "setattr", "create"},
            (GUARD, "var_run_t", "dir"): {"create", "remove_name", "rmdir"},
            (GUARD, "olivares_netrestore_run_t", "dir"): {"add_name", "write", "remove_name"},
-           # the runtime reads its own pid namespace, never PID 1's (#2834)
+           # the runtime reads its own pid namespace, never PID 1's
            (GUARD, "init_t", "lnk_file"): {"read"}, (RESTORE, "init_t", "lnk_file"): {"read"}}
 
 

@@ -223,7 +223,10 @@ for profile in "${profiles[@]}"; do profile_args+=(--profile "$profile"); done
 stage_modules='set -eux
     mkdir -p /work/stage/usr/lib/dracut/modules.d
     modules=$(python3 -c "import json; print(json.load(open(\"/toolchain/input-lock.json\"))[\"toolchain\"][\"dracut_modules_dir\"])")
-    cp -a "$modules/." /work/stage/usr/lib/dracut/modules.d/'
+    cp -a "$modules/." /work/stage/usr/lib/dracut/modules.d/
+    converter="/work/description/$OLIVARES_DOCUMENT_OVERLAY/usr/lib/olivares/markitdown"
+    python3 -m venv --copies --without-pip "$converter"
+    python3 -m pip --python "$converter/bin/python3" install --only-binary=:all: --require-hashes -r "/work/description/$OLIVARES_DOCUMENT_OVERLAY/usr/share/olivares/documents/requirements.txt"'
 if [ "$kind" = deb ]; then
   stage_index='
     python3 /work/dracut_package.py --lock /toolchain/input-lock.json --root /work/stage --output /packages
@@ -240,7 +243,7 @@ if [ "$kind" = rpm ]; then
   local_volumes+=(--volume "$build_packages:/build-packages")
 fi
 plan_stage=("$runtime" run --cidfile "$work/stage.cid" --label "org.olivares.appliance.attempt=$attempt"
-  --volume "$work:/work"
+  --volume "$work:/work" --env "OLIVARES_DOCUMENT_OVERLAY=$overlay"
   "${local_volumes[@]}"
   "$image_id"
   bash -c "$stage_modules$stage_index")
@@ -320,6 +323,11 @@ else
   cp "$repo_scripts/rpm-payload-sign.py" "$repo_scripts/render-rpm-repodata.py" "$work/repo-scripts/"
   printf 'delivered product repository accepted: %s\n' "$delivery_record"
 fi
+# The document converter's pinned requirements and its license, in the overlay as the repository carries them; the
+# stage step installs the converter from them with the builder's qualified python3 alone.
+mkdir -p "$stage/$overlay/usr/share/olivares/documents" "$stage/$overlay/usr/share/doc/markitdown"
+cp "$repo/modules/documents/requirements.txt" "$stage/$overlay/usr/share/olivares/documents/requirements.txt"
+cp "$repo/modules/documents/MarkItDown-LICENSE.txt" "$stage/$overlay/usr/share/doc/markitdown/LICENSE"
 
 # After current admission a failed builder command is an observed defect, whatever status the
 # container or its tool returned (GNU tar's fatal status is 2): exit 1, with the raw status in

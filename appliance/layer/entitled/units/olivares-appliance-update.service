@@ -5,11 +5,20 @@
 # installed Olivares package (the product, the appliance layer and the SELinux policy) through the entitled channel,
 # with the package manager's own signature checks, and the journal is its log. It first renews the channel's
 # credential, so it never runs on a lapsed one; an expired licence renews to the security suite alone, and the
-# package manager then offers only security updates. Forward only: it installs what the channel offers and
-# keeps no way back. It is a plain unit and not a helper socket: the services module starts it, as the act of the
-# service verb that the Appliance Console's Updates page names, with a plan, a confirmation and a receipt; root's
-# `systemctl start` does the same without them. Stopping it while it runs interrupts the package manager
-# mid-transaction: look at `dnf history` and `rpm -Va` afterwards.
+# package manager then offers only security updates. When the channel offers a newer package, it stops a running
+# product and takes a read-only btrfs snapshot of /var/lib/olivares in /var/lib/olivares-snapshots before the
+# package manager starts, keeps the last three, and starts the product again afterwards; at 95% data-volume usage
+# it refuses before any of that. Beside the snapshot it keeps the installed version of every Olivares package,
+# downloaded again from the channel, which is what olivares-appliance-rollback.service reinstalls; a channel that no
+# longer offers them does not hold the update back, and the journal says the rollback will refuse. The snapshot is a local restore point,
+# not a backup. It is a plain unit and not a helper socket: the services
+# module starts it, as the act of the service verb that the Appliance Console's Updates page names, with a plan, a
+# confirmation and a receipt; root's `systemctl start` does the same without them.
+#
+# KillMode=mixed and TimeoutStopSec=, as in olivares-edition.service: a stop (or the start timeout) sends SIGTERM to
+# the command alone, which passes it on to dnf, gives dnf ten minutes to finish or unwind, and starts the product it
+# stopped; systemd kills what is left after fifteen. The default would signal dnf directly, kill it after 90 seconds
+# in the middle of a package transaction, and leave the product stopped.
 [Unit]
 Description=Update the appliance's Olivares packages through the entitled channel
 Documentation=https://github.com/olivaresai/olivares
@@ -22,5 +31,7 @@ AssertPathExists=/var/lib/olivares/license.key
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/dnf --assumeyes --setopt=install_weak_deps=False upgrade --refresh olivares*
+ExecStart=/usr/libexec/olivares/olivares-entitled-repo update
 TimeoutStartSec=1h
+TimeoutStopSec=15min
+KillMode=mixed

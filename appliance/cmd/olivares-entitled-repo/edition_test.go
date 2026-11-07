@@ -31,11 +31,22 @@ type host struct {
 	active      bool
 	calls       []string
 	swapErr     error
+	snapshotErr error
+	noUpgrade   bool // the channel offers no newer Olivares package
+	notOffered  bool // the channel does not offer the edition a swap would install
+	locked      bool // the product transaction lock a snapshot holds until its point is closed
 	startErr    error
+	retainErr   error         // the channel no longer offers the installed package
 	onSwap      func(h *host) // the world changing while the transaction runs
 	startCtxErr error         // the error of the context the product was started with
 	log         bytes.Buffer
 }
+
+type closer func() error
+
+func (c closer) Close() error { return c() }
+
+func (c closer) PackageDir() string { return "/points/0123.package" }
 
 func newHost(t *testing.T, held string, licensed bool, repo string) *host {
 	t.Helper()
@@ -58,6 +69,38 @@ func newHost(t *testing.T, held string, licensed bool, repo string) *host {
 			}
 			delete(h.held, s.From)
 			h.held[s.To] = true
+			h.active = false
+			return nil
+		},
+		Snapshot: func(context.Context) (point, error) {
+			h.calls = append(h.calls, "snapshot")
+			if h.snapshotErr != nil {
+				return nil, h.snapshotErr
+			}
+			if h.locked {
+				return nil, errors.New("another product transaction is running")
+			}
+			h.locked, h.active = true, false
+			return closer(func() error { h.locked = false; return nil }), nil
+		},
+		SwapOffered: func(_ context.Context, s entitled.Swap) (bool, error) {
+			h.calls = append(h.calls, "offer "+s.To)
+			return !h.notOffered, nil
+		},
+		UpgradeAvailable: func(context.Context) (bool, error) {
+			h.calls = append(h.calls, "check")
+			return !h.noUpgrade, nil
+		},
+		RetainPrevious: func(_ context.Context, dir string) error {
+			h.calls = append(h.calls, "retain "+dir)
+			return h.retainErr
+		},
+		Rollback: func(context.Context) error {
+			h.calls = append(h.calls, "rollback")
+			return nil
+		},
+		Upgrade: func(context.Context) error {
+			h.calls = append(h.calls, "upgrade")
 			h.active = false
 			return nil
 		},
@@ -99,6 +142,43 @@ func (h *host) repoExists() bool {
 	return err == nil
 }
 
+func TestUpdateSnapshotsBeforeThePackageTransactionAndRestartsTheProduct(t *testing.T) {
+	h := newHost(t, "olivares", true, currentRepo)
+	h.active = true
+	if err := update(context.Background(), h.e); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := h.calls, []string{"check", "snapshot", "retain /points/0123.package", "upgrade", "start"}; !slices.Equal(got, want) {
+		t.Fatalf("calls %q, want check, snapshot, the installed package retained beside the point, upgrade, restart", got)
+	}
+	// A channel that no longer offers the installed package does not hold a security update back; the journal says
+	// that a rollback to this point will refuse.
+	h = newHost(t, "olivares", true, currentRepo)
+	h.active, h.retainErr = true, errors.New("no package olivares-0.7.0-1.x86_64 available")
+	if err := update(context.Background(), h.e); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(h.calls, "upgrade") || !strings.Contains(h.log.String(), "a rollback to this point will refuse") {
+		t.Fatalf("calls %q, log %q: want the upgrade and the lost rollback named", h.calls, h.log.String())
+	}
+}
+
+// An update with nothing to install must not stop the product or take a point: each point would push the
+// pre-upgrade one out of the three kept.
+func TestUpdateWithNothingToUpgradeTakesNoSnapshotAndLeavesTheProductRunning(t *testing.T) {
+	h := newHost(t, "olivares", true, currentRepo)
+	h.active, h.noUpgrade = true, true
+	if err := update(context.Background(), h.e); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := h.calls, []string{"check"}; !slices.Equal(got, want) {
+		t.Fatalf("calls %q, want only the check", got)
+	}
+	if !h.active {
+		t.Fatal("the product was stopped for an update that installs nothing")
+	}
+}
+
 func TestEditionActivationSwapsCommunityForBusinessAndRestartsARunningProduct(t *testing.T) {
 	h := newHost(t, "olivares", true, currentRepo)
 	h.active = true
@@ -106,7 +186,7 @@ func TestEditionActivationSwapsCommunityForBusinessAndRestartsARunningProduct(t 
 		t.Fatal(err)
 	}
 	// The product stops with the old package and the new one starts nothing, so a product that ran must be started again.
-	if got, want := h.calls, []string{"swap olivares olivares-business", "start"}; !slices.Equal(got, want) {
+	if got, want := h.calls, []string{"offer olivares-business", "snapshot", "swap olivares olivares-business", "start"}; !slices.Equal(got, want) {
 		t.Errorf("calls %q, want %q", got, want)
 	}
 	if !h.held["olivares-business"] || h.held["olivares"] {
@@ -125,7 +205,7 @@ func TestEditionActivationLeavesAStoppedProductStopped(t *testing.T) {
 	if err := edition(context.Background(), h.e); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := h.calls, []string{"swap olivares olivares-business"}; !slices.Equal(got, want) {
+	if got, want := h.calls, []string{"offer olivares-business", "snapshot", "swap olivares olivares-business"}; !slices.Equal(got, want) {
 		t.Errorf("calls %q, want %q (first boot owns the first start)", got, want)
 	}
 	if h.active {
@@ -139,7 +219,7 @@ func TestEditionDeactivationReturnsToCommunityAndDropsTheCredential(t *testing.T
 	if err := edition(context.Background(), h.e); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := h.calls, []string{"swap olivares-business olivares", "start"}; !slices.Equal(got, want) {
+	if got, want := h.calls, []string{"offer olivares", "snapshot", "swap olivares-business olivares", "start"}; !slices.Equal(got, want) {
 		t.Errorf("calls %q, want %q", got, want)
 	}
 	if h.repoExists() {
@@ -216,16 +296,48 @@ func TestEditionChangesNothingWhenTheLicenceAndTheHostAlreadyAgree(t *testing.T)
 func TestEditionFailedSwapReportsItAndStartsAProductItMayHaveStopped(t *testing.T) {
 	h := newHost(t, "olivares", true, currentRepo)
 	h.active = true
-	h.swapErr = errors.New("no match for argument: olivares-business")
+	h.swapErr = errors.New("transaction check error: file conflicts")
 	err := edition(context.Background(), h.e)
-	if err == nil || !strings.Contains(err.Error(), "no match for argument") {
+	if err == nil || !strings.Contains(err.Error(), "transaction check error") {
 		t.Fatalf("err = %v, want the package manager's failure", err)
 	}
-	if got, want := h.calls, []string{"swap olivares olivares-business", "start"}; !slices.Equal(got, want) {
+	if got, want := h.calls, []string{"offer olivares-business", "snapshot", "swap olivares olivares-business", "start"}; !slices.Equal(got, want) {
 		t.Errorf("calls %q, want %q", got, want)
 	}
 	if !h.held["olivares"] {
 		t.Errorf("host holds %v after a failed swap", h.held)
+	}
+}
+
+// An edition the channel does not offer yet (a channel not ready, a package not published) is no reason to stop the
+// product or take a point: each run of the timer would cut the sessions and push the pre-update point out of the three kept.
+func TestEditionLeavesTheProductAloneWhenTheChannelDoesNotOfferTheEdition(t *testing.T) {
+	h := newHost(t, "olivares", true, currentRepo)
+	h.active, h.notOffered = true, true
+	err := edition(context.Background(), h.e)
+	if err == nil || !strings.Contains(err.Error(), "does not offer olivares-business") {
+		t.Fatalf("err = %v, want the channel's refusal named", err)
+	}
+	if got, want := h.calls, []string{"offer olivares-business"}; !slices.Equal(got, want) {
+		t.Fatalf("calls %q, want only the offer check", got)
+	}
+	if !h.active || !h.held["olivares"] {
+		t.Fatalf("active %t, host holds %v: the product was touched for an edition the channel does not offer", h.active, h.held)
+	}
+}
+
+func TestEditionSnapshotFailureStopsBeforeTheSwap(t *testing.T) {
+	h := newHost(t, "olivares", true, currentRepo)
+	h.snapshotErr = errors.New("data volume is 95% full or more")
+	err := edition(context.Background(), h.e)
+	if err == nil || !strings.Contains(err.Error(), "95%") {
+		t.Fatalf("err = %v, want the capacity refusal", err)
+	}
+	if got, want := h.calls, []string{"offer olivares-business", "snapshot"}; !slices.Equal(got, want) {
+		t.Fatalf("calls %q, want no package transaction", got)
+	}
+	if !h.held["olivares"] {
+		t.Fatalf("host holds %v after the refusal", h.held)
 	}
 }
 
@@ -406,7 +518,7 @@ func TestEditionActsOnALicenceThatChangedWhileASwapRan(t *testing.T) {
 	if err := edition(context.Background(), h.e); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := h.calls, []string{"swap olivares olivares-business", "swap olivares-business olivares"}; !slices.Equal(got, want) {
+	if got, want := h.calls, []string{"offer olivares-business", "snapshot", "swap olivares olivares-business", "offer olivares", "snapshot", "swap olivares-business olivares"}; !slices.Equal(got, want) {
 		t.Errorf("calls %q, want %q", got, want)
 	}
 	if !h.held["olivares"] || h.held["olivares-business"] || h.repoExists() {
@@ -422,7 +534,7 @@ func TestEditionDoesNotSwapToBusinessOnAStaleRepositoryAfterALicenceWasInstalled
 	if err := edition(context.Background(), h.e); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := h.calls, []string{"swap olivares-business olivares"}; !slices.Equal(got, want) {
+	if got, want := h.calls, []string{"offer olivares", "snapshot", "swap olivares-business olivares"}; !slices.Equal(got, want) {
 		t.Errorf("calls %q, want %q (the next refresh decides)", got, want)
 	}
 	if !h.repoExists() {
@@ -444,8 +556,8 @@ func TestEditionStopsAfterAFewPassesOfASwapThatChangesNothing(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "did not settle") {
 		t.Fatalf("err = %v, want the did-not-settle failure", err)
 	}
-	if n := len(h.calls); n != editionPasses {
-		t.Errorf("%d swaps, want %d (the bound)", n, editionPasses)
+	if n := len(h.calls); n != 3*editionPasses {
+		t.Errorf("%d offer/snapshot/swap actions, want %d (the bound)", n, 3*editionPasses)
 	}
 }
 
@@ -484,6 +596,9 @@ func TestRunDispatchesEachVerbToItsStep(t *testing.T) {
 	}
 	if !slices.Contains(h.calls, "swap olivares olivares-business") {
 		t.Errorf("calls %q: the edition verb did not reach the edition step", h.calls)
+	}
+	if code := run(context.Background(), []string{"rollback"}, nil, &stderr); code != 0 || !slices.Contains(h.calls, "rollback") {
+		t.Errorf("run(rollback) = %d, calls %q: the rollback verb did not reach the rollback step", code, h.calls)
 	}
 	// refresh reaches refresh, which refuses outside a service invocation (no INVOCATION_ID in this environment).
 	stderr.Reset()

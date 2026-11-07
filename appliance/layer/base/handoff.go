@@ -16,10 +16,17 @@ import (
 const HostOwnerFile = "/etc/cloud/cloud.cfg.d/99-olivares-host-owner.cfg"
 const hostOwnerConfig = "# Managed by Olivares Server after host-settings verification.\nnetwork: {config: disabled}\npreserve_hostname: true\n"
 
+// localHandoff is the effect for a local host owner: the appliance already owns the host
+// settings and there is no cloud-init to hand them over from, so nothing is written.
+const localHandoff = Effect("host_settings_owner: appliance (local host owner; no cloud-init configuration)")
+
 // HostSettingsHandoff durably transfers host settings without changing network profiles.
 type HostSettingsHandoff struct{ Host Host }
 
-func (s HostSettingsHandoff) Apply(context.Context, Input) (Effect, error) {
+func (s HostSettingsHandoff) Apply(_ context.Context, in Input) (Effect, error) {
+	if in.Answers.Owner == "local" {
+		return localHandoff, nil
+	}
 	target := s.Host.path(HostOwnerFile)
 	existing, found, err := carriers.ReadProtected(target, 4096)
 	if err != nil {
@@ -43,6 +50,10 @@ func (s HostSettingsHandoff) Apply(context.Context, Input) (Effect, error) {
 }
 
 func (s HostSettingsHandoff) Verify(_ context.Context, _ Input, recorded Effect) error {
+	// The handoff holds only while no cloud-init can take the host settings back.
+	if recorded == localHandoff {
+		return refuseEnabledCloudInit(s.Host)
+	}
 	info, err := os.Lstat(s.Host.path(HostOwnerFile))
 	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0644 {
 		return Refuse("host_owner_file_changed")
@@ -65,8 +76,15 @@ func HandOverHostSettings(ctx context.Context, store Store, step HostSettingsHan
 	if !found {
 		return rec, Refuse("host_settings_not_verified")
 	}
-	if _, ok := effectOf(rec, StageHostSettings); !ok {
+	settings, ok := effectOf(rec, StageHostSettings)
+	if !ok {
 		return rec, Refuse("host_settings_not_verified")
+	}
+	// No answers are reloaded: a local host owner is known by the effect its verification recorded
+	// (localHostSettings, whose text is frozen for that reason).
+	var in Input
+	if settings == localHostSettings {
+		in.Answers.Owner = "local"
 	}
 	if effect, ok := effectOf(rec, StageHostHandoff); ok {
 		if rec.HostSettingsOwner != "appliance" {
@@ -77,7 +95,7 @@ func HandOverHostSettings(ctx context.Context, store Store, step HostSettingsHan
 	if rec.HostSettingsOwner != "" {
 		return rec, Refuse("host_owner_record_conflict")
 	}
-	effect, err := step.Apply(ctx, Input{})
+	effect, err := step.Apply(ctx, in)
 	if err != nil {
 		return rec, err
 	}

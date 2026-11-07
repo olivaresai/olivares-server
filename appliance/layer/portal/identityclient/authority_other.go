@@ -14,3 +14,7 @@ import (
 func (authority) Authorize(context.Context, hostops.Descriptor, string, string) (hostops.Caller, error) {
 	return hostops.Caller{}, refused
 }
+
+func (a authority) ReserveExposure(ctx context.Context, d hostops.Descriptor, target, digest string) (hostops.Caller, error) {
+	return hostops.Caller{}, refused
+}

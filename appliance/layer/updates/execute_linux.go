@@ -77,3 +77,11 @@ func (b *boundedOutput) Write(data []byte) (int, error) {
 func lockDirectory(f *os.File) error {
 	return syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 }
+
+func filesystemCapacity(path string) (uint64, uint64, error) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return 0, 0, err
+	}
+	return stat.Blocks, stat.Bavail, nil
+}

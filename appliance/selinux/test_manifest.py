@@ -8,6 +8,7 @@ the local API is in the manifest.
 Run: python3 -m unittest discover -s appliance/selinux -p 'test_*.py'
 """
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -45,9 +46,9 @@ def entered(rows, login, entry_type):
     """The domains the rows make login enter by executing entry_type: interface calls and type_transition rows."""
     out = []
     for r in rows:
-        if r["kind"] == "interface":
-            _, transitions, _ = compare_rules.interface_rules(r)
-            out += [new for s, t, c, new in transitions if (s, t, c) == (login, entry_type, "process")]
+        if r["kind"] == "interface" and r["perms"] == "unconfined_run_to":
+            _, transitions, _, _ = compare_rules.interface_rules(r)
+            out += [new for s, t, c, _, new in transitions if (s, t, c) == (login, entry_type, "process")]
         elif r["kind"] == "type_transition" and (r["source"], r["target"], r["class"]) == (login, entry_type, "process"):
             out.append(r["perms"].split(" ", 1)[0])
     return out
@@ -145,7 +146,7 @@ def entry_failures(manifest, rows):
     """The entries for the operator's login: for each interface row, an entry for an SSH root login and one for an
     olivares-admins login, a no-entry for a copy of the program labeled bin_t, and the one transition sesearch shows."""
     failures = []
-    for r in (r for r in rows if r["kind"] == "interface"):
+    for r in (r for r in rows if r["kind"] == "interface" and r["perms"] == "unconfined_run_to"):
         entries = [m for m in manifest if m["kind"] == "entry" and m["rows"].split(";")[0] == r["id"]]
         for who in ("root", "olivares-admins"):
             if not any(who in m["reason"] for m in entries):
@@ -190,6 +191,24 @@ def expected_denials():
 
 
 class Manifest(unittest.TestCase):
+    def test_engine_commands_are_not_visible_to_tools(self):
+        _, rows, _ = repository()
+        engine = entered(rows, "olivares_t", "bin_t")
+        tool = entered(rows, "olivares_tool_t", "bin_t")
+        self.assertEqual(engine, ["olivares_engine_cmd_t"])
+        self.assertEqual(tool, ["olivares_cmd_t"])
+        self.assertEqual(manifest_failures(*repository()), [])
+        atoms = {a[1:5] for a in compare_rules.row_atoms(rows) if a[0] == "allow"}
+        for target in (engine[0], "olivares_gitpub_t", "olivares_git_import_t"):
+            for source in ("olivares_tool_t", tool[0]):
+                self.assertNotIn((source, target, "file", "read"), atoms)
+                self.assertNotIn((source, target, "dir", "search"), atoms)
+        self.assertIn(("olivares_tool_t", tool[0], "file", "read"), atoms)
+        self.assertIn((tool[0], "olivares_t", "fifo_file", "write"), atoms)
+        self.assertIn(("olivares_t", engine[0], "process", "signal"), atoms)
+        self.assertIn(("olivares_t", tool[0], "process", "signal"), atoms)
+        self.assertIn(("olivares_t", tool[0], "process", "sigkill"), atoms)
+
     def test_every_entry_is_held_or_refused_by_the_tables(self):
         self.assertEqual(manifest_failures(*repository()), [])
 
@@ -221,6 +240,91 @@ class Manifest(unittest.TestCase):
                 self.assertIn((path, "grant"), paths)
         self.assertIn(("/usr/bin/cloud-init", "deny"), paths)
         self.assertIn(("/usr/bin/id", "deny"), paths)
+
+    def test_first_boot_stats_every_cloud_init_unit_link_it_names(self):
+        """A local host owner refuses cloud-init when a link of cloudInitUnitLinks (adapters.go) exists. First boot
+        stats each one without following it; a link the policy does not let it stat reads as "cannot be read", which
+        would refuse every local install under enforcing."""
+        with open(os.path.join(TREE, "appliance", "layer", "base", "adapters.go"), encoding="utf-8") as f:
+            block = re.search(r"var cloudInitUnitLinks = \[\]string\{(.*?)\n\}", f.read(), re.S)
+        self.assertIsNotNone(block, "adapters.go names no cloudInitUnitLinks")
+        links = re.findall(r'"([^"]+)"', block.group(1))
+        self.assertTrue(links, "cloudInitUnitLinks is empty")
+        manifest, _, _ = repository()
+        held = {(m["path"], m["class"], m["perms"]) for m in manifest
+                if m["domain"] == "olivares_firstboot_t" and m["kind"] == "grant"}
+        for link in links:
+            with self.subTest(link=link):
+                self.assertIn((link, "lnk_file", "getattr"), held)
+                self.assertIn((os.path.dirname(link), "dir", "search"), held)
+
+    def test_first_boot_may_run_every_program_the_guestinfo_carrier_asks(self):
+        """The guestinfo carrier reads a runner error as "no VMware tools here" (sources.go), so a program it asks
+        that first boot's domain cannot execute makes the carrier silently absent on VMware under enforcing."""
+        with open(os.path.join(TREE, "appliance", "answers", "carriers", "sources.go"), encoding="utf-8") as f:
+            asked = re.findall(r'c\.Run\(ctx, "([^"]+)"', f.read())
+        self.assertTrue(asked, "sources.go names no program the guestinfo carrier runs")
+        manifest, _, _ = repository()
+        runs = {m["path"] for m in manifest if (m["domain"], m["class"], m["kind"]) == ("olivares_firstboot_t", "file", "grant")
+                and {"execute", "execute_no_trans"} <= set(m["perms"].split())}
+        for name in asked:
+            with self.subTest(program=name):
+                self.assertIn("/usr/bin/" + name, runs)
+
+    def test_systemd_userdbd_reads_the_administrator_record(self):
+        # The record exists for systemd-userdbd to serve; at the boot after the console wrote it, its getattr was refused.
+        manifest, _, _ = repository()
+        grants = {(m["path"], m["class"], m["perms"]) for m in manifest
+                  if m["domain"] == "systemd_userdbd_t" and m["kind"] == "grant"}
+        self.assertIn(("/etc/userdb/olivares.user", "file", "getattr open read"), grants)
+
+    def test_the_repair_console_holds_the_power_verbs_serialization_locks(self):
+        # The power verb holds the lifecycle lock shared and the operation store's lock exclusive (repair.HostHold),
+        # then reads every record (repair.RecordsGate); the lifecycle directory's search was refused, nothing granted
+        # the rest, and the console never writes the store.
+        manifest, _, _ = repository()
+        console = {(m["path"], m["class"], m["perms"]) for m in manifest
+                   if m["domain"] == "olivares_repair_console_t" and m["kind"] == "grant"}
+        for entry in (("/run/olivares-lifecycle", "dir", "search"),
+                      ("/run/olivares-lifecycle/lifecycle.lock", "file", "getattr lock open read"),
+                      ("/var/lib/olivares-portal", "dir", "search"),
+                      ("/var/lib/olivares-portal/operations", "dir", "getattr open read search"),
+                      ("/var/lib/olivares-portal/operations/store.lock", "file", "getattr lock open read"),
+                      ("/var/lib/olivares-portal/operations/<id>.json", "file", "getattr open read")):
+            with self.subTest(entry=entry):
+                self.assertIn(entry, console)
+        portal = {(m["path"], m["class"], m["perms"]) for m in manifest
+                  if m["domain"] == "olivares_portal_t" and m["kind"] == "grant"}
+        # The engine sets the lock's mode and group when it opens, so the console's group can reach it.
+        self.assertIn(("/var/lib/olivares-portal/operations/store.lock", "file", "setattr"), portal)
+
+    def test_the_repair_console_reaches_every_gate_after_the_window_and_the_power_helper(self):
+        # An ordinary reboot after the window gate: PackageGate queries rpm's lock with F_OFD_GETLK
+        # (repair.lockHeld), StorageGate asks the bus daemon only (Hello, NameHasOwner), then the power helper.
+        # The rpm search was refused on an enforcing desktop's first boot; nothing granted the bus.
+        manifest, rows, _ = repository()
+        console = {(m["path"], m["class"], m["perms"]) for m in manifest
+                   if m["domain"] == "olivares_repair_console_t" and m["kind"] == "grant"}
+        for entry in (("/usr/lib/sysimage/rpm", "dir", "search"),
+                      ("/usr/lib/sysimage/rpm/.rpm.lock", "file", "getattr lock open read"),
+                      ("/run/dbus", "dir", "search"),
+                      ("/run/dbus/system_bus_socket", "sock_file", "write"),
+                      ("/run/dbus/system_bus_socket", "unix_stream_socket", "connectto"),
+                      ("/run/olivares-helpers", "dir", "search"),
+                      ("/run/olivares-helpers/power.sock", "sock_file", "getattr write"),
+                      ("/run/olivares-helpers/power.sock", "unix_stream_socket", "connectto")):
+            with self.subTest(entry=entry):
+                self.assertIn(entry, console)
+        allowed = {(r["source"], r["target"], r["class"]): set(r["perms"].split())
+                   for r in rows if r["kind"] == "allow" and "olivares_repair_console_t" in (r["source"], r["target"])}
+        self.assertEqual(allowed.get(("olivares_repair_console_t", "system_dbusd_t", "dbus")), {"send_msg"})
+        self.assertEqual(allowed.get(("system_dbusd_t", "olivares_repair_console_t", "dbus")), {"send_msg"})
+        # The bus daemon only: no service on the bus, udisks included, is a target of the console.
+        self.assertEqual(sorted(t for (s, t, c) in allowed if s == "olivares_repair_console_t" and c == "dbus"),
+                         ["system_dbusd_t"])
+        # Read-only on rpm's database: no write, append, create or map.
+        self.assertEqual(sorted(p for (s, t, c), perms in allowed.items() if t == "rpm_var_lib_t"
+                                for p in perms if p in ("write", "append", "create", "map", "unlink", "add_name")), [])
 
     def test_every_local_api_row_and_denial_is_in_the_manifest(self):
         manifest, rows, _ = repository()

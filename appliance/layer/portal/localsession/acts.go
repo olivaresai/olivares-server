@@ -39,6 +39,21 @@ func (a checkedAuthority) Authorize(ctx context.Context, d hostops.Descriptor, t
 	}
 	return caller, err
 }
+func (a checkedAuthority) ReserveExposure(ctx context.Context, d hostops.Descriptor, target, digest string) (hostops.Caller, error) {
+	if a.own.Check() != nil {
+		return hostops.Caller{}, errors.New("mode_refused")
+	}
+	reserve, ok := a.delegate.(hostops.ExposureAuthority)
+	if !ok {
+		return hostops.Caller{}, errors.New("consumer_unavailable")
+	}
+	caller, err := reserve.ReserveExposure(ctx, d, target, digest)
+	if a.own.Check() != nil {
+		return hostops.Caller{}, errors.New("mode_refused")
+	}
+	return caller, err
+}
+
 func (s *Server) authority(ctx context.Context, own *owner) (hostops.Authority, error) {
 	if own == nil || own.Check() != nil {
 		return nil, errors.New("mode_refused")
@@ -77,6 +92,9 @@ func (s *Server) apply(ctx context.Context, request localframe.Record, own *owne
 		code = "plan_changed"
 	case errors.As(err, &locked):
 		code = "target_locked"
+	case err.Error() == "exposure_requires_step_up":
+		code = "exposure_requires_step_up"
+		status = 409
 	case err.Error() == "mode_refused":
 		code = "mode_refused"
 	case err.Error() == "act_not_adopted":

@@ -6,9 +6,37 @@ package portal
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// systemd-sysusers ignores a second declaration of a name with "Conflict with earlier
+// configuration"; the shipped files must say each account and group once.
+func TestPortalPackage_SysusersDeclareEachNameOnce(t *testing.T) {
+	files, err := filepath.Glob("units/sysusers.d/*.conf")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("sysusers files: %v %v", files, err)
+	}
+	seen := map[string]string{}
+	for _, file := range files {
+		b, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			f := strings.Fields(line)
+			if len(f) < 2 || strings.HasPrefix(f[0], "#") {
+				continue
+			}
+			key := f[0] + " " + f[1]
+			if first, dup := seen[key]; dup {
+				t.Errorf("%q declared in %s and %s", key, first, file)
+			}
+			seen[key] = file
+		}
+	}
+}
 
 func TestPortalPackage_ShipsGuardHelpersPolkitRuleAndAccounts(t *testing.T) {
 	b, err := os.ReadFile("../../../packaging/nfpm/olivares-appliance-portal.yaml")

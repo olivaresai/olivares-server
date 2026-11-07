@@ -59,11 +59,11 @@ func Verbs() []auth.Verb {
 var asks = map[auth.Verb]string{
 	auth.VerbApplyUpdate:     "apply an approved update, and show what a pending one contains",
 	auth.VerbRollBack:        "roll this appliance back to the previous snapshot",
-	auth.VerbNetwork:         "revert to the last network profile that worked, and show or repair the firewall policy",
-	auth.VerbCertificate:     "show the certificate fingerprint of the console on 9443, and replace the certificate",
+	auth.VerbNetwork:         "revert to the last working network profile; show or repair the firewall",
+	auth.VerbCertificate:     "show the 9443 certificate fingerprint, or replace the certificate",
 	auth.VerbSupportBundle:   "produce a support bundle",
 	auth.VerbPower:           "reboot or shut down this appliance",
-	auth.VerbRepairPortalPAM: "repair the sign-in stack of the console on 9443, which no other surface can",
+	auth.VerbRepairPortalPAM: "repair the sign-in stack of the console on 9443; only this screen can",
 }
 
 // notImplemented is the second half of every answer this console gives. It is stated for
@@ -105,8 +105,10 @@ type Console struct {
 	// authority signs the operator in through the host's local-console sign-in service.
 	authority Authority
 	// record and recovery are the host layer's host record and its account-recovery entry.
-	record   HostRecord
-	recovery AccountRecovery
+	record     HostRecord
+	recovery   AccountRecovery
+	creator    AdministratorCreator
+	setupToken SetupToken
 	// certificateFingerprint reads only the public certificate; portalPAM restores the portal's stack.
 	certificateFingerprint CertificateFingerprint
 	portalPAM              PortalPAMRepair
@@ -144,29 +146,27 @@ func (c Console) WithHelper(h Helper) Console {
 	return c
 }
 
-// Header is what the console states before anything else: what it is, that it is the last
-// door, how it authenticates, which mode the console on 9443 is in, and what it performs.
+// Header is what the console states before the menu: what it is, the product's state in one line,
+// and how an act is signed in. The web pages state the sign-in mode in full (auth.State.Statement).
 func (c Console) Header() []string {
 	return []string{
 		ConsoleName,
-		"This console is the last door, and it runs on tty1. It is not a network service, so the " +
-			"failure that closes the console on 9443 cannot close this one.",
-		"It authenticates its operator by its own sign-in, never by access to this machine, and an " +
-			"ordinary act needs that sign-in qualified.",
-		c.network.Statement(),
-		c.performs(),
+		"The repair screen on tty1 of this machine, for when the web console cannot be used.",
+		c.stateLine(),
+		"It authenticates by its own sign-in (s), never by access to this machine.",
+		"An act needs that sign-in qualified; access alone authorizes none.",
 	}
 }
 
-// performs is the header's last line: what the console performs with the sign-in it holds. It
-// names no act as unimplemented, because each selection says that of its own act.
-func (c Console) performs() string {
-	if !c.qualified() {
-		return "It offers the verbs below and performs none of them until its operator signs in (s) through " +
-			"this host's local-console sign-in service: an ordinary act needs that qualified sign-in."
+// stateLine is the product's state and the web sign-in's, in one line. Its reason stays on the web pages.
+func (c Console) stateLine() string {
+	switch c.network.Mode {
+	case auth.ProductUp:
+		return "State: the product is up, and its own sign-in decides each act."
+	case auth.ProductDownRepair:
+		return "State: the product is down, so only the repair verbs are offered."
 	}
-	return "It offers the verbs below. With its qualified sign-in it performs power, certificate, " +
-		"repair-portal-pam, the network restore and the firewall restore, and none of the others in this version."
+	return "State: the web sign-in is unavailable on this boot."
 }
 
 // Entry is the console's menu line for v: the verb and what selecting it would ask for.
@@ -311,7 +311,10 @@ func (c Console) Run(in io.Reader, out, diagnostics io.Writer) int {
 		w.say("  %d) %s", i+1, c.Entry(v))
 	}
 	w.say("  s) sign in through this host's local-console sign-in service")
-	w.say("  r) Host-layer account recovery: set-admin-password for the human the host layer recorded, which grants no act here")
+	w.say("  r) account recovery (set-admin-password; grants no act here)")
+	if c.creator != nil {
+		w.say("  c) create an administrator with an operator-chosen login and credential")
+	}
 	w.say("  q) leave this console")
 	w.say("")
 	lines := bufio.NewScanner(in)
@@ -335,8 +338,23 @@ func (c Console) Run(in io.Reader, out, diagnostics io.Writer) int {
 		}
 		return strings.TrimSpace(lines.Text()), true, 0
 	}
+	letters := "s, r"
+	if c.creator != nil {
+		letters = "c, s, r"
+	}
+	if c.setupToken != nil {
+		letters += ", t"
+	}
 	for {
-		w.say("Select a verb by its number, s to sign in, r for account recovery, or q to leave:")
+		prompt := "Pick a number"
+		if c.creator != nil {
+			prompt += ", c to create an administrator"
+		}
+		prompt += ", s to sign in, r for recovery"
+		if c.setupToken != nil {
+			prompt += ", t for the setup token"
+		}
+		w.say("%s, q to leave:", prompt)
 		if w.failed {
 			return stop(diagnostics, outputFailed)
 		}
@@ -361,6 +379,34 @@ func (c Console) Run(in io.Reader, out, diagnostics io.Writer) int {
 		case "q", "Q":
 			w.say("Leaving this console.")
 			return w.left(diagnostics)
+		case "c", "C":
+			c.signIn = end(c.signIn)
+			if c.creator == nil {
+				w.say("Administrator creation is not composed with this console, so nothing was changed.")
+				continue
+			}
+			login, ok, code := ask("New administrator login:")
+			if !ok {
+				return code
+			}
+			confirmation, ok, code := ask("Type create to create this administrator, or anything else to ask for nothing:")
+			if !ok {
+				return code
+			}
+			if confirmation != "create" {
+				w.say("Nothing was created.")
+				continue
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), recoveryTimeout)
+			human, err := c.creator.CreateAdministrator(ctx, login)
+			cancel()
+			if err != nil {
+				_, _ = fmt.Fprintf(diagnostics, "administrator creation refused: %v\n", err)
+				w.say("Administrator creation was refused: %v. If an account was already created, use host-layer account recovery.", err)
+				continue
+			}
+			w.say("Administrator %s created. Its credential was set by the distribution's password service. Sign in (s) to continue.", human.Login)
+			continue
 		case "s", "S":
 			c.signIn = end(c.signIn)
 			login, ok, code := ask("login:")
@@ -380,10 +426,34 @@ func (c Console) Run(in io.Reader, out, diagnostics io.Writer) int {
 			c.signIn = end(c.signIn)
 			w.say("%s", c.AccountRecovery())
 			continue
+		case "t", "T":
+			if c.setupToken == nil {
+				w.say("Choose a number between 1 and %d, %s or q.", len(verbs), letters)
+				continue
+			}
+			answer, ok, code := ask("Type show to display the one-time setup token, or anything else to show nothing:")
+			if !ok {
+				return code
+			}
+			shown := c.ShowSetupToken(answer)
+			w.say("%s", shown)
+			if strings.HasPrefix(shown, setupTokenShown) {
+				// Hold the token until the operator has copied it, then clear the screen and its scrollback;
+				// the idle sign-out cannot clear a screen while this console waits for a line.
+				if _, ok, code := ask("Press Enter to clear the token from the screen:"); !ok {
+					return code
+				}
+				w.say("\033[H\033[2J\033[3J")
+			}
+			continue
 		}
 		position, err := strconv.Atoi(selection)
+		if selection == "" {
+			w.say("Choose a number, %s or q.", letters)
+			continue
+		}
 		if err != nil || position < 1 || position > len(verbs) {
-			w.say("That selected nothing: choose a number between 1 and %d, s, r or q.", len(verbs))
+			w.say("Choose a number between 1 and %d, %s or q.", len(verbs), letters)
 			continue
 		}
 		verb := verbs[position-1]

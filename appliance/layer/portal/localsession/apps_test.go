@@ -41,6 +41,10 @@ func (appsIdentity) Authorize(_ context.Context, d hostops.Descriptor, target, d
 	return hostops.Caller{Actor: "operator", Mode: "product-up"}, nil
 }
 
+func (a appsIdentity) ReserveExposure(ctx context.Context, d hostops.Descriptor, target, digest string) (hostops.Caller, error) {
+	return a.Authorize(ctx, d, target, digest)
+}
+
 // The optional app's lifecycle is an adopted act of the portal's local socket: the served catalog
 // carries it, and a plan for install reaches the apps helper's status and offers the apply. The
 // lifecycle verbs that are not served are not adopted, and an absent helper offers no apply.

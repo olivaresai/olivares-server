@@ -68,7 +68,7 @@ func parseOperationRecord(data []byte, authority bool) (Record, error) {
 	case "error":
 		required = []string{"t", "op", "status", "code"}
 		optional = []string{"reason"}
-		if !contains(r.Code, "input_refused", "mode_refused", "consumer_unavailable", "act_not_adopted", "p1_stage_missing", "pidfd_unproven", "operation_unknown", "target_locked", "plan_changed") {
+		if !contains(r.Code, "input_refused", "exposure_requires_step_up", "mode_refused", "consumer_unavailable", "act_not_adopted", "p1_stage_missing", "pidfd_unproven", "operation_unknown", "target_locked", "plan_changed") {
 			return Record{}, fault("record_malformed")
 		}
 	case "ended":

@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """generate.py writes the appliance's SELinux policy module from its two rule tables.
 
-access.tsv holds one row per rule: an allow, a type_transition or the boolean, each with its id and reason, one
-interface row: the module's single call of a base-policy interface, whose source and target are its two arguments and
-whose perms column is its name, and role rows: system_r (source) holding a domain application_domain or the command
-domain declares (target), written after the rules (neither declaration authorizes a role).
+access.tsv holds one row per rule: an allow, a type_transition or the boolean, fixed base-policy interface calls,
+whose source and target are their arguments and whose perms column is the interface name, and role rows: system_r
+(source) holding a domain application_domain or the command domain declares (target), written after the rules
+(neither declaration authorizes a role).
 contexts.tsv holds one row per file or port context, with how the module declares the type. From them this
 script writes olivares.te, olivares.fc and olivares.if. Rows whose `via` column names a base-policy macro
 (init_daemon_domain and init_nnp_daemon_domain for a service, application_domain for a program users run) are
@@ -46,25 +46,34 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 KINDS = ("allow", "type_transition", "boolean", "interface", "role")
 # A role row authorizes system_r, the role of the service that executes the domain (TOOL-09); no other role.
 ROLE = re.compile(r"^system_r$")
-# The one base-policy interface call the module makes, with its name and both arguments fixed: the operator's SSH login
-# runs the local API's command-line client in its own domain (unconfineduser.if). It is the only place the
-# module may name the login's domain family, and it is written inside optional_policy.
-INTERFACES = (("unconfined_run_to", "olivares_cli_t", "olivares_cli_exec_t"),)
+# Fixed base-policy interface calls: the operator's login runs the CLI in its domain; the repair console uses the
+# distribution's PAM, utmp and audit interfaces. Repeating one call is refused, and no other interface is admitted.
+INTERFACES = (("unconfined_run_to", "olivares_cli_t", "olivares_cli_exec_t"),
+              ("auth_use_pam", "olivares_repair_console_t", "-"),
+              ("init_read_utmp", "olivares_repair_console_t", "-"),
+              ("logging_send_audit_msgs", "olivares_repair_console_t", "-"),
+              ("usermanage_domtrans_useradd", "olivares_helper_system_t", "-"),)
+# The optional blocks declare every external type or attribute their expansions reference.
+INTERFACE_REQUIRES = {
+    "auth_use_pam": "attribute can_read_shadow_passwords, nsswitch_domain;\n"
+                    "type auth_cache_t, chkpwd_exec_t, chkpwd_t, shadow_t, updpwd_exec_t, updpwd_t;",
+    "init_read_utmp": "type initrc_var_run_t;",
+    "usermanage_domtrans_useradd": "type useradd_t, useradd_exec_t;",
+}
 # The base policy's native assertion is separate from the explicit read-only shadow rule.
 SHADOW_READER = "auth_reader_shadow"
-# The command domain: a shell or generic program an installed tool executes runs in it, and so does the git the engine
-# runs for session Git and worktree sessions (the regression). It is entered only by that exec from COMMAND_CALLERS, and it
-# enters no other domain. Its command_domain rows are its entry points on the generic command types.
+# Tool commands and engine commands have separate process labels: tool process monitoring
+# must never reach an engine child carrying credentials.
 COMMAND_DOMAIN, COMMAND_VIA = "olivares_cmd_t", "command_domain"
+ENGINE_COMMAND_DOMAIN = "olivares_engine_cmd_t"
 COMMAND_CALLERS = ("olivares_tool_t", "olivares_t")
-CALLERS_TEXT = " or ".join(COMMAND_CALLERS)
 # The engine's network git runs in two more generic-entry domains (the regression), gitpublish's and the skills import's: bin_t
 # is their entry point and they enter no other domain, like the command domain, but no type transition reaches them: only
 # NET_GIT_CALLER enters them, by naming one for its next exec (process setexec, then transition).
 NET_GIT_DOMAINS, NET_GIT_CALLER = ("olivares_gitpub_t", "olivares_git_import_t"), "olivares_t"
-GENERIC_DOMAINS = (COMMAND_DOMAIN,) + NET_GIT_DOMAINS
+GENERIC_DOMAINS = (COMMAND_DOMAIN, ENGINE_COMMAND_DOMAIN) + NET_GIT_DOMAINS
 # setexec lets the engine name any domain it may transition to, so that set is pinned.
-ENGINE_TARGETS = ("olivares_tool_t", COMMAND_DOMAIN) + NET_GIT_DOMAINS
+ENGINE_TARGETS = ("olivares_tool_t", ENGINE_COMMAND_DOMAIN) + NET_GIT_DOMAINS
 # The PEP hook client: the command domain's exec of the engine's program enters the hook domain, whose one entry point
 # that program is. It is entered no other way and enters no other domain.
 HOOK_DOMAIN, HOOK_ENTRY, HOOK_VIA = "olivares_hook_t", "olivares_exec_t", "hook_domain"
@@ -135,7 +144,8 @@ class Module:
         self.types = []         # (type, declaration, [context ids]) in table order
         self.booleans = {}      # name -> (default, row)
         self.rules = []         # rows written as rules, in table order
-        self.interfaces = []    # the interface row, written inside optional_policy
+        self.interfaces = []    # fixed base-policy interface rows, written inside optional_policy
+        self.interface_calls = set()
         self.roles = []         # role rows, written after the rules
         self.command = {}       # generic-entry domain -> its entry rows (via command_domain), which declare it
         self.hook = []          # the hook domain's entry row (via hook_domain), which declares it
@@ -181,10 +191,11 @@ class Module:
                                      f"makes, {name}({INTERFACES[0][1]}, {INTERFACES[0][2]})")
                 elif r["condition"] or r["via"]:
                     self.refuse(rid, "an interface row carries no condition and no via")
-                elif self.interfaces:
-                    self.refuse(rid, "a second interface row; the module makes one call")
+                elif (r["perms"], r["source"], r["target"]) in self.interface_calls:
+                    self.refuse(rid, "a second interface row with the same call")
                 else:
                     self.interfaces.append(r)
+                    self.interface_calls.add((r["perms"], r["source"], r["target"]))
                 continue
             if r["via"] and r["via"] not in MACROS and not FORBIDDEN.search(r["via"]):
                 self.refuse(rid, f"via {r['via']} is not a macro the generator writes")
@@ -223,7 +234,9 @@ class Module:
                 if not TYPE_NAME.match(parts[0]) or (len(parts) == 2 and not re.match(r'^"[^"`\s]+"$', parts[1])):
                     self.refuse(rid, "a type_transition row names one type and at most one quoted object name")
         entered = {(r["source"], r["target"]) for r in self.access if (r["kind"], r["class"], r["perms"]) ==
-                   ("type_transition", "process", COMMAND_DOMAIN) and r["source"] in COMMAND_CALLERS}
+                   ("type_transition", "process",
+                    ENGINE_COMMAND_DOMAIN if r["source"] == "olivares_t" else COMMAND_DOMAIN)
+                   and r["source"] in COMMAND_CALLERS}
         missing_transition = next((r for r in self.access if r["kind"] == "allow" and r["class"] == "file" and
                                   "entrypoint" in r["perms"].split() and r["target"] == "container_file_t" and
                                   ("olivares_tool_t", "container_file_t") not in entered), None)
@@ -231,7 +244,7 @@ class Module:
             self.refuse(missing_transition["id"], f"{missing_transition['source']} may execute container_file_t only into {COMMAND_DOMAIN}")
         for r in callers:
             if (r["source"], r["target"]) not in entered:
-                self.refuse(r["id"], f"{r['source']} may execute {r['target']} only into {COMMAND_DOMAIN}")
+                self.refuse(r["id"], f"{r['source']} may execute {r['target']} only into {ENGINE_COMMAND_DOMAIN if r['source'] == 'olivares_t' else COMMAND_DOMAIN}")
         hook_exec = any((r["kind"], r["source"], r["target"], r["class"], r["perms"]) ==
                         ("type_transition", COMMAND_DOMAIN, HOOK_ENTRY, "process", HOOK_DOMAIN) for r in self.access)
         container_hook_exec = {r["source"] for r in self.access if
@@ -246,6 +259,11 @@ class Module:
                     {"transition", "dyntransition"} & perms)))):
                 target = r["perms"].split(" ", 1)[0] if r["kind"] == "type_transition" else r["target"]
                 self.refuse(r["id"], f"{target} is entered only by {NET_GIT_CALLER} naming it for its next exec")
+            elif (r["kind"] == "allow" and r["target"] == ENGINE_COMMAND_DOMAIN and
+                  r["source"] != "olivares_t" and
+                  (r["class"] == "process2" or
+                   (r["class"] == "process" and {"transition", "dyntransition"} & perms))):
+                self.refuse(r["id"], f"{ENGINE_COMMAND_DOMAIN} is entered only by olivares_t")
             elif (r["kind"] == "allow" and r["source"] == NET_GIT_CALLER and r["target"] not in ENGINE_TARGETS and
                   r["target"] != CONTAINER_RELAY_DOMAIN and
                   (r["class"] == "process2" or (r["class"] == "process" and
@@ -312,9 +330,11 @@ class Module:
                      {"transition", "dyntransition", "setexec"} & perms)))):
                 self.refuse(r["id"], f"{r['source']} enters no other domain")
             elif (r["kind"] == "type_transition" and r["class"] == "process" and
-                  r["perms"].split(" ", 1)[0] == COMMAND_DOMAIN and
-                  (r["source"] not in COMMAND_CALLERS or r["target"] not in GENERIC_COMMANDS)):
-                self.refuse(r["id"], f"only the exec of bin_t or shell_exec_t by {CALLERS_TEXT} enters {COMMAND_DOMAIN}")
+                  r["perms"].split(" ", 1)[0] in (COMMAND_DOMAIN, ENGINE_COMMAND_DOMAIN) and
+                  (r["source"] != ("olivares_t" if r["perms"] == ENGINE_COMMAND_DOMAIN else "olivares_tool_t") or
+                   r["target"] not in GENERIC_COMMANDS)):
+                self.refuse(r["id"], f"only the exec of bin_t or shell_exec_t by "
+                            f"{'olivares_t' if r['perms'] == ENGINE_COMMAND_DOMAIN else 'olivares_tool_t'} enters {r['perms']}")
             elif (r["kind"] == "allow" and r["source"] in GENERIC_DOMAINS and r["class"] == "file" and
                   "entrypoint" in r["perms"].split() and r["via"] != COMMAND_VIA):
                 self.refuse(r["id"], f"{r['source']}'s entry points are its command_domain rows")
@@ -570,8 +590,15 @@ class Module:
             for r in self.roles:
                 out.append(f"# {r['id']}: {r['rationale']}\nrole {r['source']} types {r['target']};\n\n")
             for r in self.interfaces:
-                out.append(section("The one base-policy interface call"))
-                out.append(f"# {r['id']}: {r['rationale']}\noptional_policy(`\n\t{r['perms']}({r['source']}, {r['target']})\n')\n\n")
+                out.append(section("Base-policy interface calls"))
+                args = r["source"] if r["target"] == "-" else f"{r['source']}, {r['target']}"
+                require = INTERFACE_REQUIRES.get(r["perms"], "")
+                if require:
+                    out.append(f"# {r['id']}: {r['rationale']}\noptional_policy(`\nrequire {{\n{require}\n}}\n\t{r['perms']}({args})\n')\n\n")
+                elif r["perms"] == "unconfined_run_to":
+                    out.append(f"# {r['id']}: {r['rationale']}\noptional_policy(`\n\t{r['perms']}({args})\n')\n\n")
+                else:
+                    out.append(f"# {r['id']}: {r['rationale']}\n{r['perms']}({args})\n\n")
         return "".join(out).rstrip("\n") + "\n"
 
     def fc(self):

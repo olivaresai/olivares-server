@@ -16,6 +16,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/olivaresai/olivares/core/secure"
 )
 
 // fakeHost stands in for every owner first boot reaches. Its effects are idempotent: the
@@ -337,6 +339,41 @@ func (f firewallRefusal) Apply(context.Context, Input) (Effect, error) {
 }
 
 func (f firewallRefusal) Verify(context.Context, Input, Effect) error { return nil }
+
+func TestStageMachine_InterruptedSetupDeliveryRecovers(t *testing.T) {
+	in := answersFixture(t, "olivares.example.test")
+	realHost, data := deliveryHost(t)
+	dir, h := t.TempDir(), newFakeHost()
+	seams := h.seams()
+	seams.SetupDelivery = SetupTokenDelivery{Host: realHost}
+	seams.Firewall = firewallRefusal{h}
+	first := newMachine(dir, h, &in, seams)
+	first.crash = func(s Stage, b boundary) bool { return s == StageSetupDelivery && b == afterEffect }
+	if _, err := first.Run(context.Background()); !errors.Is(err, errCrashed) {
+		t.Fatalf("the interrupted run did not stop at delivery: %v", err)
+	}
+	delivered := filepath.Join(realHost.Root, StateDir, setupTokenDeliveryFile)
+	if err := os.Rename(delivered, delivered+".new"); err != nil {
+		t.Fatal(err)
+	}
+
+	again := newMachine(dir, h, &in, seams)
+	again.Identities = func() ([]string, error) { return ProductIdentities(realHost.Root) }
+	rec, err := again.Run(context.Background())
+	if err != nil || rec.Stage != StageFirewall {
+		t.Fatalf("the retry did not reach the firewall after recovery: %+v %v", rec, err)
+	}
+	plaintext, err := os.ReadFile(delivered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !secure.NewSetupToken(filepath.Join(data, "setup.token")).Verify(strings.TrimSuffix(string(plaintext), "\n")) {
+		t.Fatal("the recovered token does not verify against the product record")
+	}
+	if _, err := os.Lstat(delivered + ".new"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the recovered staging file remains: %v", err)
+	}
+}
 
 func TestStageMachine_ItsOwnSetupTokenIsNotAPreviousInstallation(t *testing.T) {
 	in := answersFixture(t, "olivares.example.test")

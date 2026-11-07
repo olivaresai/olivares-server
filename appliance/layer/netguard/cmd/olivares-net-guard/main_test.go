@@ -121,13 +121,13 @@ func TestServeUntilSelected(t *testing.T) {
 	}
 }
 
-// While nothing is selected, the portal (the guard's only client) is refused by name, so it cannot make an unguarded
-// change and says why (the regression review).
+// While nothing is selected, the portal is refused by name, so it cannot make an unguarded change and says why (the
+// regression review); its status says the guard is unselected, never "ok".
 func TestUnguardedRefusesThePortalAsGuardUnavailable(t *testing.T) {
 	portalPeer := helperschema.Peer{UID: 1001, Account: "olivares-portal", Unit: "olivares-portal.service", Attested: true}
-	for _, action := range []string{"status", "apply", "confirm"} {
-		if got := unguarded.Handle(context.Background(), portalPeer, netguard.EdgeRequest{Action: action}).Code; got != "network_guard_unavailable" {
-			t.Errorf("unguarded.Handle(portal, %q) = %q; want network_guard_unavailable", action, got)
+	for action, want := range map[string]string{"status": netguard.CodeUnselected, "apply": "network_guard_unavailable", "confirm": "network_guard_unavailable"} {
+		if got := unguarded().Handle(context.Background(), portalPeer, netguard.EdgeRequest{Action: action}).Code; got != want {
+			t.Errorf("unguarded().Handle(portal, %q) = %q; want %s", action, got, want)
 		}
 	}
 }

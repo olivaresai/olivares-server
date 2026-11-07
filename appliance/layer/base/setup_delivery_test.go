@@ -173,3 +173,91 @@ func refused(err error) bool {
 	var outcome *Outcome
 	return errors.As(err, &outcome) && outcome.State == Refused
 }
+
+func TestSetupTokenDelivery_RecoversInterruptedStagedDelivery(t *testing.T) {
+	host, data := deliveryHost(t)
+	plaintext, _, err := secure.NewSetupToken(filepath.Join(data, "setup.token")).Ensure()
+	if err != nil {
+		t.Fatal(err)
+	}
+	staged := filepath.Join(host.Root, StateDir, setupTokenDeliveryFile+".new")
+	if err := os.WriteFile(staged, []byte(plaintext+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := (SetupTokenDelivery{Host: host}).Apply(context.Background(), Input{}); err != nil {
+		t.Fatalf("the matching staged token was not recovered: %v", err)
+	}
+	delivered, err := os.ReadFile(filepath.Join(host.Root, StateDir, setupTokenDeliveryFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !secure.NewSetupToken(filepath.Join(data, "setup.token")).Verify(strings.TrimSuffix(string(delivered), "\n")) {
+		t.Fatal("the recovered token does not verify against the product record")
+	}
+	if _, err := os.Lstat(staged); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the recovered staging file remains: %v", err)
+	}
+}
+
+func TestSetupTokenDelivery_ReplacesStaleStagingAfterFreshMint(t *testing.T) {
+	host, data := deliveryHost(t)
+	staged := filepath.Join(host.Root, StateDir, setupTokenDeliveryFile+".new")
+	if err := os.WriteFile(staged, []byte("olst_STALE\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := (SetupTokenDelivery{Host: host}).Apply(context.Background(), Input{}); err != nil {
+		t.Fatalf("a stale regular staging file blocked a fresh mint: %v", err)
+	}
+	delivered, err := os.ReadFile(filepath.Join(host.Root, StateDir, setupTokenDeliveryFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !secure.NewSetupToken(filepath.Join(data, "setup.token")).Verify(strings.TrimSuffix(string(delivered), "\n")) {
+		t.Fatal("the fresh token does not verify against the product record")
+	}
+	if _, err := os.Lstat(staged); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the fresh staging file remains: %v", err)
+	}
+}
+
+func TestSetupTokenDelivery_RefusesMultiplyLinkedStaging(t *testing.T) {
+	host, _ := deliveryHost(t)
+	staged := filepath.Join(host.Root, StateDir, setupTokenDeliveryFile+".new")
+	if err := os.WriteFile(staged, []byte("olst_STALE\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(t.TempDir(), "other")
+	if err := os.Link(staged, other); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (SetupTokenDelivery{Host: host}).Apply(context.Background(), Input{}); err == nil {
+		t.Fatal("a multiply-linked staging file was used to deliver the token")
+	}
+	data, err := os.ReadFile(other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "olst_STALE\n" {
+		t.Fatal("the other link was overwritten during token delivery")
+	}
+}
+
+// The enforcing policy gives the delivered plaintext its own type by a file-name transition on its staging name,
+// the way the console's key does: a random staging name would leave the file in the state directory's type, which
+// the repair console may not read. So the file is staged under one fixed name, created without following a link.
+func TestSetupTokenDelivery_StagesUnderItsFixedNameAndFollowsNoLink(t *testing.T) {
+	host, _ := deliveryHost(t)
+	state := filepath.Join(host.Root, StateDir)
+	elsewhere := filepath.Join(t.TempDir(), "elsewhere")
+	if err := os.Symlink(elsewhere, filepath.Join(state, setupTokenDeliveryFile+".new")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (SetupTokenDelivery{Host: host}).Apply(context.Background(), Input{}); err == nil {
+		t.Fatal("the token was staged through a link planted under its staging name")
+	}
+	if _, err := os.Lstat(elsewhere); err == nil {
+		t.Fatal("the plaintext token was written through the link")
+	}
+}

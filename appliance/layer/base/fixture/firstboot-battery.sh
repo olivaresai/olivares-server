@@ -334,6 +334,13 @@ boot_command='address=$(ip -o -4 address show dev eth0 scope global | awk "{prin
   exec /sbin/init'
 boot() {
   local name=$1 seed_dir=${2:-} credentials=${3:-}
+  # One systemd container at a time. A scenario keeps its evidence in files, so the previous container is
+  # done. Left running, four of them were still up when the Debian fixture's fifth ended at once with exit
+  # 255 and no output on a shared runner. A failed removal is retried by the EXIT trap and shows as the
+  # next container not booting.
+  if [ "${#containers[@]}" -gt 0 ]; then
+    docker rm --force "${containers[-1]}" >/dev/null 2>&1 || true
+  fi
   local args=(--detach --name "$name" --hostname "$hostname" --privileged --cgroupns=private
     --tmpfs /run --tmpfs /run/lock)
   if [ -n "$seed_dir" ]; then
@@ -679,6 +686,22 @@ agreeing() {
   else
     unable "agreeing: initialize-storage was not reached, so what it records is unmeasured"
   fi
+  # An interrupted delivery left the product record and a matching regular staging file, but no
+  # final token. Reapplying must recover it through the existing first-boot path.
+  docker exec "${fx}-agreeing" cat /var/lib/olivares-appliance/state.json > "$d/interrupted-record.json"
+  jq '.state = "applying" | .stage = "prepare-setup-delivery" | .reason = "" | .completed = [.completed[] | select(.stage != "prepare-setup-delivery")]' \
+    "$d/interrupted-record.json" > "$d/interrupted-record.json.new"
+  docker cp "$d/interrupted-record.json.new" "${fx}-agreeing":/var/lib/olivares-appliance/state.json
+  docker exec "${fx}-agreeing" chown root:root /var/lib/olivares-appliance/state.json
+  docker exec "${fx}-agreeing" sh -c 'mv /var/lib/olivares-appliance/setup-token /var/lib/olivares-appliance/setup-token.new; systemctl start olivares-appliance-firstboot.service > /tmp/recovery.stdout 2> /tmp/recovery.stderr || true'
+  docker exec "${fx}-agreeing" cat /tmp/recovery.stdout > "$d/recovery.stdout" 2>/dev/null || true
+  docker exec "${fx}-agreeing" cat /tmp/recovery.stderr > "$d/recovery.stderr" 2>/dev/null || true
+  capture "${fx}-agreeing" "$d"
+  in_container "${fx}-agreeing" test ! -e /var/lib/olivares-appliance/setup-token.new > "$d/staging-leftover"
+  check interrupted_delivery_recovers_the_staged_token holds "$d/setup-token" "shape olst"
+  control interrupted_delivery_recovers_the_staged_token holds "$(counterfeit_text 'shape nope')" "shape olst"
+  check interrupted_delivery_leaves_no_staging_file is "$d/staging-leftover" present
+  control interrupted_delivery_leaves_no_staging_file is "$(counterfeit_text absent)" present
   job_graph agreeing "$d"
   check never_ready_without_measured_readiness is "$d/ready" absent
   control never_ready_without_measured_readiness is "$(counterfeit_text present)" absent

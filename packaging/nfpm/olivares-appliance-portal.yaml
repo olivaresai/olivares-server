@@ -22,7 +22,7 @@
       "depends": ["olivares-appliance-base", "libpam0g"]
     },
     "rpm": {
-      "depends": ["olivares-appliance-base", "pam", "olivares-selinux >= 1.0.0-13"]
+      "depends": ["olivares-appliance-base", "pam", "olivares-selinux >= 1.0.0-33"]
     }
   },
   "contents": [
@@ -104,6 +104,13 @@
     {
       "src": "bin/olivares-portal-power",
       "dst": "/usr/libexec/olivares/olivares-portal-power",
+      "file_info": {
+        "mode": 493
+      }
+    },
+    {
+      "src": "bin/olivares-portal-system",
+      "dst": "/usr/libexec/olivares/olivares-portal-system",
       "file_info": {
         "mode": 493
       }
@@ -256,6 +263,13 @@
       }
     },
     {
+      "src": "appliance/layer/helpers/units/olivares-helper-system@.service",
+      "dst": "/usr/lib/systemd/system/olivares-helper-system@.service",
+      "file_info": {
+        "mode": 420
+      }
+    },
+    {
       "src": "appliance/layer/helpers/units/olivares-helper-support-bundle@.service",
       "dst": "/usr/lib/systemd/system/olivares-helper-support-bundle@.service",
       "file_info": {
@@ -279,6 +293,13 @@
     {
       "src": "appliance/layer/helpers/units/olivares-helper-power.socket",
       "dst": "/usr/lib/systemd/system/olivares-helper-power.socket",
+      "file_info": {
+        "mode": 420
+      }
+    },
+    {
+      "src": "appliance/layer/helpers/units/olivares-helper-system.socket",
+      "dst": "/usr/lib/systemd/system/olivares-helper-system.socket",
       "file_info": {
         "mode": 420
       }
@@ -516,6 +537,15 @@
       }
     },
     {
+      "src": "appliance/layer/entitled/units/olivares-appliance-rollback.service",
+      "dst": "/usr/lib/systemd/system/olivares-appliance-rollback.service",
+      "file_info": {
+        "mode": 420,
+        "owner": "root",
+        "group": "root"
+      }
+    },
+    {
       "src": "appliance/layer/portal/units/pam.d/olivares-portal",
       "dst": "/etc/pam.d/olivares-portal",
       "type": "config|noreplace",
@@ -644,6 +674,24 @@
     {
       "src": "appliance/layer/portal/units/olivares-portal-sockets.timer",
       "dst": "/usr/lib/systemd/system/olivares-portal-sockets.timer",
+      "file_info": {
+        "mode": 420,
+        "owner": "root",
+        "group": "root"
+      }
+    },
+    {
+      "src": "appliance/layer/portal/tty1-banner.sh",
+      "dst": "/usr/libexec/olivares/tty1-banner",
+      "file_info": {
+        "mode": 493,
+        "owner": "root",
+        "group": "root"
+      }
+    },
+    {
+      "src": "appliance/layer/portal/units/olivares-tty1-banner.service",
+      "dst": "/usr/lib/systemd/system/olivares-tty1-banner.service",
       "file_info": {
         "mode": 420,
         "owner": "root",

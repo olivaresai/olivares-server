@@ -12,8 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/olivaresai/olivares/appliance/layer/firewall"
 	"github.com/olivaresai/olivares/appliance/layer/hostops"
 	"github.com/olivaresai/olivares/appliance/layer/hostusers"
+	"github.com/olivaresai/olivares/appliance/layer/optionalapps"
 	"github.com/olivaresai/olivares/appliance/layer/portal/localframe"
 	"github.com/olivaresai/olivares/core/auth"
 	"github.com/olivaresai/olivares/core/engine"
@@ -163,6 +165,75 @@ func TestEngineAuthorityUsesCurrentOSCredentialAndExactNativeCatalog(t *testing.
 			if err != nil || answer.Task != req.Task || answer.Target != req.Target || answer.IntentDigest != req.IntentDigest ||
 				answer.Actor != initiator.Actor() || answer.Mode != "product-up" || !answer.ValidUntil.After(before) || answer.ValidUntil.After(time.Now().Add(5*time.Second)) {
 				t.Fatalf("current exact act attribution: %+v err=%v", answer, err)
+			}
+			appCatalog, err := hostops.NewCatalog(optionalapps.Descriptors())
+			if err != nil {
+				t.Fatal(err)
+			}
+			appAuthority := NewServer(a, az, nativeAccount{}, appCatalog)
+			appRequest := localframe.AuthorityRequest{Task: "nginx-proxy-manager.install", Target: "app:nginx-proxy-manager", IntentDigest: strings.Repeat("b", 64)}
+			if _, err := appAuthority.authorize(ctx, 1602, appRequest); !errors.Is(err, auth.ErrExposureNeedsStepUp) {
+				t.Fatalf("exposure with none: %v", err)
+			}
+			if err := st.AuthMutate(ctx, func(as store.AuthScope) error {
+				_, err := as.AuthPolicy().Create(ctx, model.AuthPolicy{AdminStepUp: auth.StepUpPasskey})
+				return err
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := appAuthority.authorize(ctx, 1602, appRequest); err != nil {
+				t.Fatal(err)
+			}
+			exposure, err := a.ConsoleExposure(ctx)
+			if err != nil || exposure.ManagedPublic() {
+				t.Fatalf("plan mutated exposure: %+v %v", exposure, err)
+			}
+			appRequest.ReserveExposure = true
+			if _, err := appAuthority.authorize(ctx, 1602, appRequest); err != nil {
+				t.Fatal(err)
+			}
+			exposure, err = a.ConsoleExposure(ctx)
+			if err != nil || !exposure.ManagedPublic() {
+				t.Fatalf("apply did not reserve exposure: %+v %v", exposure, err)
+			}
+			// Removing existing firewall exposure must work on a legacy node
+			// whose policy is none. The exact input digest proves this is removal.
+			if err := st.AuthMutate(ctx, func(as store.AuthScope) error {
+				rows, _, err := as.AuthPolicy().List(ctx, model.Query{})
+				if err != nil {
+					return err
+				}
+				rows[0].AdminStepUp = auth.StepUpNone
+				_, err = as.AuthPolicy().Update(ctx, rows[0])
+				return err
+			}); err != nil {
+				t.Fatal(err)
+			}
+			firewallCatalog, err := hostops.NewCatalog(firewall.Descriptors())
+			if err != nil {
+				t.Fatal(err)
+			}
+			descriptor, err := firewallCatalog.Describe(firewall.Module, firewall.VerbAppRow, "cli")
+			if err != nil {
+				t.Fatal(err)
+			}
+			removalInput := []byte(`{"app":"nginx-proxy-manager","change":"remove"}`)
+			removalDigest, err := hostops.TaskIntentDigest(descriptor, firewall.Target, removalInput)
+			if err != nil {
+				t.Fatal(err)
+			}
+			removal := localframe.AuthorityRequest{Task: descriptor.ID, Target: firewall.Target, IntentDigest: removalDigest, Inputs: removalInput, ReserveExposure: true}
+			firewallAuthority := NewServer(a, az, nativeAccount{}, firewallCatalog)
+			if _, err := firewallAuthority.authorize(ctx, 1602, removal); err != nil {
+				t.Fatalf("removing exposure with none: %v", err)
+			}
+			exposure, err = a.ConsoleExposure(ctx)
+			if err != nil || exposure.Enabled["firewall"] {
+				t.Fatalf("removal reserved exposure: %+v %v", exposure, err)
+			}
+			removal.Inputs = []byte(`{"app":"nginx-proxy-manager","change":"add"}`)
+			if _, err := firewallAuthority.authorize(ctx, 1602, removal); err == nil {
+				t.Fatal("changed inputs escaped the exact intent digest")
 			}
 			req.Task = "foreign.task"
 			if _, err = s.authorize(ctx, 1602, req); err == nil {

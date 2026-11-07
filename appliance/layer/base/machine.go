@@ -380,10 +380,12 @@ func bindsAnswers(stage Stage) bool {
 // field Run sets with Applying@start-services, not the stage, which the next outcome overwrites.
 // withoutRecordedSetupToken drops the setup token from the identities a later run finds when this
 // record's prepare-setup-delivery minted it: first boot creates that one identity itself, before
-// the product starts, and the stage's Verify proves the file is the one it recorded. Every other
-// identity, and a setup token no recorded delivery accounts for, still refuses.
+// the product starts. Applying at that stage is the same interrupted mint, before its effect was
+// persisted. Every other identity, and a setup token outside those two records, still refuses.
 func withoutRecordedSetupToken(rec Record, ids []string) []string {
-	if _, delivered := effectOf(rec, StageSetupDelivery); !delivered {
+	_, delivered := effectOf(rec, StageSetupDelivery)
+	interrupted := rec.State == Applying && rec.Stage == StageSetupDelivery
+	if !delivered && !interrupted {
 		return ids
 	}
 	return slices.DeleteFunc(slices.Clone(ids), func(id string) bool { return id == setupTokenIdentity })

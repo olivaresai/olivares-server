@@ -8,12 +8,16 @@ N-PORTAL-KEY	olivares_portal_t	olivares_portal_key_t	file	read		the console meas
 N-PORTAL-PORT	olivares_portal_t	pki_ca_port_t	tcp_socket	name_bind		the console binds tcp 9443 alone, not the rest of the base policy's 9443-9447
 N-RCON	olivares_repair_console_t	olivares_helper_bundle_sock_t	sock_file	write		the repair console reaches the power helper only
 N-HPWR	olivares_helper_power_t	olivares_portal_t	dir	search		the power helper attests only the repair console
+N-SYS	olivares_helper_system_t	olivares_portal_t	dir	search		the host-user helper attests only the repair console
 N-HBND	olivares_helper_bundle_t	olivares_helper_bundle_var_lib_t	dir	remove_name		the spool is written once and never emptied by the helper
 N-SNAP	olivares_snapshotcore_t	olivares_var_lib_t	file	read		the excluded-state guard reads subvolume ids, never the product's files
 N-FBOOT-KEY	olivares_firstboot_t	olivares_portal_key_t	file	unlink		first boot makes the console's key once, under its staged name, and never removes one: its rename cannot replace a key, and the code opens tls.key to read it only (the write grant on the type also allows an in-place write, which nothing in the code does)
 N-FBOOT-CLOUDINIT	olivares_firstboot_t	cloud_init_exec_t	file	execute		first boot stats cloud-init's program and never runs it
 N-FBOOT-EXEC	olivares_firstboot_t	bin_t	file	execute		first boot executes no generic command
 N-FBOOT-PRIVATE	olivares_firstboot_t	sshd_key_t	file	read		first boot reads the public host keys only
+N-FBOOT-VMTOOLS-DOMAIN	olivares_firstboot_t	vmtools_t	process	transition		first boot runs vmtoolsd in its own domain and never enters vmtools_t, which the base policy leaves unconfined (vmtools.te): a caller there could load any plugin directory it names
+N-FBOOT-VMTOOLS-SCRIPT	olivares_firstboot_t	vmtools_unconfined_exec_t	file	execute		first boot runs none of the tools' scripts in /etc/vmware-tools, the entry points of vmtools_unconfined_t
+N-FBOOT-VMTOOLS-CONF	olivares_firstboot_t	vmtools_unconfined_exec_t	dir	search		vmtoolsd's lookup of /etc/vmware-tools/tools.conf stays refused: the directory has the type of the tools' unconfined scripts, and the one query runs on the tools' defaults
 N-PROD-JIT	olivares_t	olivares_t	process	execmem	olivares_operate_runtime=true	executable memory only while olivares_operate_runtime is on
 N-PROD-PORT	olivares_t	http_port_t	tcp_socket	name_bind		the engine binds tcp 8443 alone, not every http port
 N-API-PROD-CONNECT	olivares_t	olivares_portal_t	unix_stream_socket	connectto		the product engine is not an admitted caller of the local API
@@ -200,3 +204,34 @@ N-CMD-BIND-CONSOLE	olivares_cmd_t	olivares_console_port_t	tcp_socket	name_bind		
 N-CMD-BIND-GRPC	olivares_cmd_t	olivares_grpc_port_t	tcp_socket	name_bind		a command a tool runs never binds the appliance's gRPC port (tcp 8444)
 N-CMD-BIND-PORTAL	olivares_cmd_t	olivares_portal_port_t	tcp_socket	name_bind		a command a tool runs never binds the appliance's portal port (tcp 9443)
 N-CMD-BIND-HTTP	olivares_cmd_t	http_port_t	tcp_socket	name_bind		a command a tool runs never binds a web port of the base policy (http_port_t: 80, 443 and the rest)
+N-ENGINE-SETUP-PLAINTEXT	olivares_t	olivares_setup_plaintext_t	file	read		the engine reads the setup-token hash only (PROD-40); the plaintext copy for the person at the console never reaches it
+N-RCON-SETUP-WRITE	olivares_repair_console_t	olivares_setup_plaintext_t	file	write		the repair console shows the setup token and never writes, replaces or removes it
+N-RCON-SETUP-UNLINK	olivares_repair_console_t	olivares_setup_plaintext_t	file	unlink		the repair console shows the setup token and never writes, replaces or removes it
+N-RCON-STATE-READ	olivares_repair_console_t	olivares_appliance_var_lib_t	file	read		the repair console reads the setup token by its own type and none of the state directory's other files
+N-TOOL-ECMD-SEARCH	olivares_tool_t	olivares_engine_cmd_t	dir	search		tools and their commands never inspect engine child process files
+N-TOOL-ECMD-READ	olivares_tool_t	olivares_engine_cmd_t	file	read		tools and their commands never inspect engine child process files
+N-TOOL-ECMD-PTRACE	olivares_tool_t	olivares_engine_cmd_t	process	ptrace		tools and their commands never inspect engine child process files
+N-TOOL-GPUB-SEARCH	olivares_tool_t	olivares_gitpub_t	dir	search		tools and their commands never inspect engine child process files
+N-TOOL-GPUB-READ	olivares_tool_t	olivares_gitpub_t	file	read		tools and their commands never inspect engine child process files
+N-TOOL-GPUB-PTRACE	olivares_tool_t	olivares_gitpub_t	process	ptrace		tools and their commands never inspect engine child process files
+N-TOOL-GIMP-SEARCH	olivares_tool_t	olivares_git_import_t	dir	search		tools and their commands never inspect engine child process files
+N-TOOL-GIMP-READ	olivares_tool_t	olivares_git_import_t	file	read		tools and their commands never inspect engine child process files
+N-TOOL-GIMP-PTRACE	olivares_tool_t	olivares_git_import_t	process	ptrace		tools and their commands never inspect engine child process files
+N-CMD-ECMD-SEARCH	olivares_cmd_t	olivares_engine_cmd_t	dir	search		tools and their commands never inspect engine child process files
+N-CMD-ECMD-READ	olivares_cmd_t	olivares_engine_cmd_t	file	read		tools and their commands never inspect engine child process files
+N-CMD-ECMD-PTRACE	olivares_cmd_t	olivares_engine_cmd_t	process	ptrace		tools and their commands never inspect engine child process files
+N-CMD-GPUB-SEARCH	olivares_cmd_t	olivares_gitpub_t	dir	search		tools and their commands never inspect engine child process files
+N-CMD-GPUB-READ	olivares_cmd_t	olivares_gitpub_t	file	read		tools and their commands never inspect engine child process files
+N-CMD-GPUB-PTRACE	olivares_cmd_t	olivares_gitpub_t	process	ptrace		tools and their commands never inspect engine child process files
+N-CMD-GIMP-SEARCH	olivares_cmd_t	olivares_git_import_t	dir	search		tools and their commands never inspect engine child process files
+N-CMD-GIMP-READ	olivares_cmd_t	olivares_git_import_t	file	read		tools and their commands never inspect engine child process files
+N-CMD-GIMP-PTRACE	olivares_cmd_t	olivares_git_import_t	process	ptrace		tools and their commands never inspect engine child process files
+N-ENGINE-DOCKER-SOCK	olivares_t	container_var_run_t	sock_file	write		the engine has no access to the Docker daemon (root on the host): container sessions use the engine user's rootless podman
+N-ENGINE-USERBUS	olivares_t	session_dbusd_tmp_t	sock_file	getattr		the engine finds no user manager: its lookup of the engine user's D-Bus socket fails, so it neither hides that directory from a session nor asks the manager for a scope (confine.UserBusDirs)
+N-ENGINE-USERMGR	olivares_t	user_tmp_t	sock_file	getattr		the same lookup of systemd's private socket in the user's runtime directory stays refused: the engine must not reach the user manager that serves the session podman socket
+N-ECMD-HOME-READ	olivares_engine_cmd_t	olivares_tool_home_t	file	read		an engine command (session Git, an MCP stdio server) only searches an account's tool home and never reads its login files
+N-RCON-SETUID	olivares_repair_console_t	olivares_repair_console_t	capability	setuid		pam_unix's forked helper child calls setuid(0) before it execs unix_chkpwd or unix_update; at uid 0 the kernel logs the check and keeps the uid, so the helper runs and the console holds no setuid
+N-RCON-DAC-OVERRIDE	olivares_repair_console_t	olivares_repair_console_t	capability	dac_override		pam_unix probes the mode-0000 /etc/shadow in process; the refusal hands the work to unix_chkpwd and unix_update, the distribution's own helpers
+N-RCON-DAC-READ	olivares_repair_console_t	olivares_repair_console_t	capability	dac_read_search		pam_unix probes the mode-0000 /etc/shadow in process; the refusal hands the work to unix_chkpwd and unix_update, the distribution's own helpers
+N-RCON-SHADOW-READ	olivares_repair_console_t	shadow_t	file	read		the repair console never reads password hashes; unix_chkpwd checks a credential in its own domain
+N-RCON-SHADOW-WRITE	olivares_repair_console_t	shadow_t	file	write		the repair console never writes password hashes; unix_update changes a credential in its own domain

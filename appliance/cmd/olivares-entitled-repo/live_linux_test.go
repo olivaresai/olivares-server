@@ -124,6 +124,33 @@ func TestDnfSwapIsOneTransactionAndTakesCommunityFromThePublicRepositoryAlone(t 
 	}
 }
 
+// The edition a swap installs is asked of the repositories the swap reads, and dnf's exit status is the answer:
+// 0 offered, 1 no package of that name, anything else a failure to ask.
+func TestDnfSwapOfferedAsksTheSwapsRepositoriesForTheTargetPackage(t *testing.T) {
+	for _, tc := range []struct {
+		swap entitled.Swap
+		want string
+	}{
+		{entitled.Swap{From: "olivares", To: "olivares-business"}, "--refresh list --available olivares-business"},
+		{entitled.Swap{From: "olivares-business", To: "olivares"}, "--disablerepo=olivares-entitled-* --enablerepo=olivares --refresh list --available olivares"},
+	} {
+		log := stub(t, &dnfPath, "exit 0")
+		if offered, err := dnfSwapOffered(context.Background(), tc.swap); !offered || err != nil {
+			t.Fatalf("offered %t, err %v, want offered", offered, err)
+		}
+		if c := calls(t, log); len(c) != 1 || c[0] != tc.want {
+			t.Errorf("dnf was run as %q, want %q", c, tc.want)
+		}
+	}
+	for body, wantErr := range map[string]bool{"exit 1": false, "exit 2": true, "exit 127": true} {
+		stub(t, &dnfPath, body)
+		offered, err := dnfSwapOffered(context.Background(), entitled.Swap{From: "olivares", To: "olivares-business"})
+		if offered || (err != nil) != wantErr {
+			t.Errorf("%s: offered %t, err %v", body, offered, err)
+		}
+	}
+}
+
 // A cancelled context asks dnf to stop with SIGTERM and waits for it; SIGKILL in the middle of a package transaction
 // can leave the host with neither package or both.
 func TestDnfSwapIsAskedToStopNotKilled(t *testing.T) {

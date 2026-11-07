@@ -99,11 +99,11 @@ func isProtected(unit string) bool {
 }
 
 // managedServices are the product unit, the unattended upgrades and cron services, under
-// Debian's and AlmaLinux's names, and the update services of the Updates page: the product update
-// and the operating system's security run. A unit joins this list with the change that adopts its
+// Debian's and AlmaLinux's names, and the update services of the Updates page: the product update,
+// its rollback and the operating system's security run. A unit joins this list with the change that adopts its
 // acts, never by the shape of its name.
 var managedServices = []string{"olivares.service", "unattended-upgrades.service", "cron.service", "crond.service",
-	"olivares-appliance-update.service", "dnf-automatic-install.service"}
+	"olivares-appliance-update.service", "olivares-appliance-rollback.service", "dnf-automatic-install.service"}
 
 // managedTimers are the layer's timers, each by name: the nightly operating system security run.
 // A timer joins this list with the change that ships it, never by the shape of its name.

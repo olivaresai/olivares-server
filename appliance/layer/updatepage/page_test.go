@@ -106,6 +106,8 @@ func TestPage_UpdateUnitsShowTheirMeasuredStateAndTheirEquivalentCommands(t *tes
 	for _, want := range []string{
 		"dnf-automatic-install.timer", "active (waiting)", "failed (failed)", "inactive (dead)",
 		"olivares-appliance service start olivares-appliance-update.service",
+		"olivares-appliance service start olivares-appliance-rollback.service",
+		"olivares-appliance service logs olivares-appliance-rollback.service --lines &lt;n&gt;",
 		"olivares-appliance service start dnf-automatic-install.service",
 		"olivares-appliance service disable dnf-automatic-install.timer",
 		"olivares-appliance service logs dnf-automatic-install.service --lines &lt;n&gt;",

@@ -19,6 +19,8 @@ case ",${kiwi_profiles:-}," in
   *,debian13-server-amd64,*) base=debian13 ;;
   *) printf 'images.sh: no base profile in kiwi_profiles=%s\n' "${kiwi_profiles:-}" >&2; exit 1 ;;
 esac
+# A missing or relocated Python environment fails the image build, never first use.
+/usr/lib/olivares/markitdown/bin/python3 -I -c 'from markitdown import MarkItDown; MarkItDown(enable_plugins=False)'
 [ "$base" = almalinux10 ] || exit 0
 
 # The units the desktop overlay enables must be in the image, each check failing the build: gdm,

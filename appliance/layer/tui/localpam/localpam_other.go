@@ -11,6 +11,11 @@ import "github.com/olivaresai/olivares/appliance/layer/portal/auth"
 // Built reports that this binary carries the adapter: it does not.
 const Built = false
 
+// ChangePassword refuses: this binary cannot reach the host's sign-in services.
+func (Stack) ChangePassword(string, string) error {
+	return ErrNotBuilt
+}
+
 // Start refuses: this binary cannot reach the host's sign-in services.
 func (Stack) Start(string, string) (auth.Transaction, error) {
 	_ = errRefused

@@ -8,6 +8,7 @@ package identityengine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
 	"time"
@@ -79,6 +80,43 @@ func (s *Server) authorize(ctx context.Context, uid uint32, req localframe.Autho
 		until = decision.FreshUntil
 	}
 	if decision.Outcome != auth.EvidenceAllow || ctx.Err() != nil || !until.After(time.Now()) {
+		return localframe.AuthorityReply{}, refused
+	}
+	// Reserve protection before authorizing an operation that may start a tunnel.
+	// An uncertain effect retains its reservation. Stop authorization alone cannot
+	// remove it: only a confirmed native stop is evidence that exposure ended.
+	exposureKind := hostops.ManagedExposureKind(descriptor)
+	if exposureKind == "firewall" {
+		digest, err := hostops.TaskIntentDigest(descriptor, req.Target, req.Inputs)
+		if err != nil || digest != req.IntentDigest {
+			return localframe.AuthorityReply{}, refused
+		}
+		var input struct {
+			Change string `json:"change"`
+		}
+		if json.Unmarshal(req.Inputs, &input) != nil {
+			return localframe.AuthorityReply{}, refused
+		}
+		if input.Change == "remove" {
+			exposureKind = ""
+		}
+	}
+	if exposureKind != "" {
+		if req.ReserveExposure {
+			if err := s.principals.SetManagedExposure(ctx, current, exposureKind, true); err != nil {
+				return localframe.AuthorityReply{}, err
+			}
+		} else {
+			policy, err := s.principals.AdminStepUp(ctx)
+			if err != nil {
+				return localframe.AuthorityReply{}, err
+			}
+			if policy == auth.StepUpNone {
+				return localframe.AuthorityReply{}, auth.ErrExposureNeedsStepUp
+			}
+		}
+	}
+	if ctx.Err() != nil || !until.After(time.Now()) {
 		return localframe.AuthorityReply{}, refused
 	}
 	return localframe.AuthorityReply{Task: req.Task, Target: req.Target, IntentDigest: req.IntentDigest,

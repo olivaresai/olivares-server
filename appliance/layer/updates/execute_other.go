@@ -18,3 +18,6 @@ func LinuxRun(context.Context, []string, int64) ([]byte, error) {
 }
 func ownedByHelper(fs.FileInfo) bool { return false }
 func lockDirectory(*os.File) error   { return nil }
+func filesystemCapacity(string) (uint64, uint64, error) {
+	return 0, 0, errors.New("consumer_unavailable")
+}

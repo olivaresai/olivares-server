@@ -35,7 +35,11 @@ type Host interface {
 	Home(context.Context, string) (Home, error)
 	Run(context.Context, string, []string) error
 }
-type Provisioner struct{ Host Host }
+type Provisioner struct {
+	Host              Host
+	Record            UserdbRecord
+	SupplementalGroup string
+}
 
 func Decode(input json.RawMessage) (Request, error) {
 	var r Request
@@ -117,6 +121,13 @@ func (x Provisioner) apply(ctx context.Context, cmd hostops.Command, input json.
 		return hostops.Observation{P1: "not-performed"}
 	}
 	err = x.Host.Run(ctx, "/usr/sbin/useradd", []string{"--create-home", "--home-dir", r.Home, "--gid", gid, "--no-user-group", "--shell", "/bin/bash", "--key", "UMASK=077", "--key", "HOME_MODE=0700", "--", r.Account})
+	if err == nil && x.SupplementalGroup != "" {
+		err = x.Host.Run(ctx, "/usr/sbin/usermod", []string{"--append", "--groups", x.SupplementalGroup, "--", r.Account})
+	}
+	if err != nil {
+		// A failed step saves no administrator record and keeps the installer's deferral marker.
+		x.Record = ""
+	}
 	obs := x.measure(ctx, r, gid)
 	if err != nil {
 		if obs.P1 == "performed" || obs.MeasuredChange {
@@ -146,6 +157,11 @@ func (x Provisioner) measure(ctx context.Context, r Request, gid string) hostops
 	}
 	h, homeErr := x.Host.Home(ctx, r.Home)
 	if exists && a.Name == r.Account && id(a.UID) && a.GID == gid && a.Home == r.Home && homeErr == nil && h.Exists && h.Directory && h.Private && h.UID == a.UID && h.GID == gid {
+		if x.Record != "" {
+			if err := x.Record.Save(r.Account, a.UID); err != nil {
+				return hostops.Observation{P1: "partial", MeasuredChange: true}
+			}
+		}
 		return hostops.Observation{P1: "performed", MeasuredChange: true, Postconditions: []string{"OS account " + r.Account + " has home " + r.Home + " and primary GID " + gid, "Home is a private directory owned by UID " + a.UID + " and GID " + gid}}
 	}
 	if exists || homeErr == nil && h.Exists {

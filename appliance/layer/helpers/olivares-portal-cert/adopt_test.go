@@ -381,8 +381,15 @@ func TestCertHelper_AdoptReadsWhereTheAppsHelperKeepsTheCertificates(t *testing.
 	if state == nil || !bytes.Contains(manifest, []byte(`"source": "./letsencrypt", "target": "/etc/letsencrypt"`)) {
 		t.Fatalf("the apps unit names no state directory (%q) or the manifest keeps the certificates elsewhere", state)
 	}
-	if want := "/var/lib/" + string(state[1]) + "/letsencrypt"; appliance().AppCertRoot != want {
-		t.Fatalf("adopt reads %s, the app keeps its certificates in %s", appliance().AppCertRoot, want)
+	// The unit lists one state directory per app; Nginx Proxy Manager's is the one ending in its name.
+	var npm string
+	for _, dir := range strings.Fields(string(state[1])) {
+		if filepath.Base(dir) == "nginx-proxy-manager" {
+			npm = dir
+		}
+	}
+	if want := "/var/lib/" + npm + "/letsencrypt"; npm == "" || appliance().AppCertRoot != want {
+		t.Fatalf("adopt reads %s, the app keeps its certificates in %s (state directories %q)", appliance().AppCertRoot, want, state[1])
 	}
 }
 

@@ -37,11 +37,11 @@ func ran(dir, name string) bool {
 	return err == nil
 }
 
-// First boot runs these tools by name from PATH: the guestinfo carrier's vmware-rpctool and
-// vmtoolsd (sources.go) and the base layer's cloud-init, systemctl and id
+// First boot runs these tools by name from PATH: the guestinfo carrier's vmtoolsd
+// (sources.go) and the base layer's cloud-init, systemctl and id
 // (layer/base/adapters.go). The base layer also runs the product's configuration generator,
 // by its absolute path.
-var listedTools = []string{"vmware-rpctool", "vmtoolsd", "cloud-init", "systemctl", "id"}
+var listedTools = []string{"vmtoolsd", "cloud-init", "systemctl", "id"}
 
 const productBinary = "/usr/bin/olivares"
 
@@ -72,7 +72,7 @@ func TestExecRunner_RunsOnlyTheClosedListOfProgramsFirstBootUses(t *testing.T) {
 	// fails here until this test names it too.
 	refused := []string{"sh", "bash", "/bin/sh", "useradd", "olivares", filepath.Join(dir, "systemctl"), "./id",
 		"/usr/local/bin/olivares", "/usr/bin/../bin/olivares", "systemctl ", ""}
-	const closedList = "vmware-rpctool, vmtoolsd, cloud-init, systemctl, id, /usr/bin/olivares"
+	const closedList = "vmtoolsd, cloud-init, systemctl, id, /usr/bin/olivares"
 	for _, name := range refused {
 		out, err := carriers.ExecRunner(done, name, "--help")
 		if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, exec.ErrNotFound) {
@@ -105,7 +105,7 @@ func TestExecRunner_RunsEveryProgramTheGuestInfoCarrierAsksFor(t *testing.T) {
 	if _, ok, err := (carriers.GuestInfoCarrier{Run: record}).Read(context.Background()); ok || err != nil {
 		t.Fatalf("without VMware tools the carrier must be absent: %v, %v", ok, err)
 	}
-	if got := strings.Join(names, " "); got != "vmware-rpctool vmtoolsd" {
+	if got := strings.Join(names, " "); got != "vmtoolsd" {
 		t.Fatalf("the guestinfo carrier ran %q", got)
 	}
 	done, cancel := context.WithCancel(context.Background())

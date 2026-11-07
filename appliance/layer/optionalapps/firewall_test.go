@@ -5,8 +5,12 @@
 package optionalapps
 
 import (
+	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/olivaresai/olivares/appliance/layer/firewall/policy"
@@ -77,5 +81,52 @@ func TestManifest_VolumesAskTheRuntimeToRelabelThem(t *testing.T) {
 		if _, set := v.Bind["create_host_path"]; set {
 			t.Errorf("%s: create_host_path sends the mount through the API that cannot relabel it", v.Source)
 		}
+	}
+}
+
+func TestCloudflaredRequiresAProtectedTokenAndPublishesNoInboundPort(t *testing.T) {
+	h := newDockerHost(t)
+	h.app = Cloudflared
+	x := h.executor()
+	x.App = Cloudflared
+	before, err := x.Apply(context.Background(), "install")
+	if err == nil || before.P1 != "not-performed" || len(h.effects) != 0 {
+		t.Fatalf("missing token allowed a native effect: %+v %v %v", before, err, h.effects)
+	}
+	m, err := manifestFor(Cloudflared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := m.Services["app"]
+	if len(app.Ports) != 0 || app.NetworkMode != "host" || !slices.Contains(app.Command, "--token-file") || !slices.Contains(app.Command, "127.0.0.1:20241") || len(app.Volumes) != 2 || !app.Volumes[0].ReadOnly || !app.Volumes[1].ReadOnly {
+		t.Fatalf("tunnel must use a file token without inbound ports: %+v", app)
+	}
+	for _, mode := range []os.FileMode{0644, 0600} {
+		if err := h.root.WriteFile("tunnel-token", []byte(strings.Repeat("fixture", 2)), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(filepath.Join(h.root.Name(), "tunnel-token"), mode); err != nil {
+			t.Fatal(err)
+		}
+		if mode == 0600 {
+			result, err := x.Apply(context.Background(), "install")
+			if err == nil || result.P1 != "not-performed" || len(h.effects) != 0 {
+				t.Fatalf("missing origin CA allowed effect: %+v %v", result, err)
+			}
+			if err := h.root.WriteFile("origin-ca.pem", []byte("fixture public certificate"), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		result, err := x.Apply(context.Background(), "install")
+		if mode == 0644 {
+			if err == nil || len(h.effects) != 0 {
+				t.Fatalf("unprotected token allowed effect: %+v %v", result, err)
+			}
+		} else if err != nil || result.P1 != "performed" || len(h.probes) != 0 {
+			t.Fatalf("protected token tunnel install: %+v %v probes=%v", result, err, h.probes)
+		}
+	}
+	for _, row := range FirewallApps()[Cloudflared] {
+		t.Fatalf("outbound tunnel requested an inbound firewall row: %+v", row)
 	}
 }

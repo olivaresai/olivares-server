@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/olivaresai/olivares/appliance/layer/portal/auth"
 )
@@ -171,9 +172,9 @@ func TestTty1_OffersTheRepairVerbsWhenPamIsUnusable(t *testing.T) {
 
 	console := NewConsole(state)
 
-	t.Run("the console states what it is and how it authenticates", func(t *testing.T) {
+	t.Run("the console states what it is, the product's state and how an act is signed in", func(t *testing.T) {
 		header := strings.Join(console.Header(), "\n")
-		for _, want := range []string{ConsoleName, "last door", "its own sign-in", "never by access to this machine", "tty1"} {
+		for _, want := range []string{ConsoleName, "repair screen", "State:", "its own sign-in", "authorizes none"} {
 			if !strings.Contains(header, want) {
 				t.Errorf("the header does not state %q:\n%s", want, header)
 			}
@@ -385,4 +386,31 @@ func verbNames() []string {
 		names = append(names, string(v))
 	}
 	return names
+}
+
+// A person at the machine reads the repair console on a 1280x800 screen, one line per row. Every line
+// the console states must fit one such line, and the menu must end on the first screen with its prompt.
+func TestTty1_ScreenStatesEachLineWithoutWrappingOnOneScreen(t *testing.T) {
+	const maxColumns = 100
+	const maxRows = 22
+	const prompt = "Select a verb by its number"
+	for _, state := range []auth.State{{Mode: auth.ProductUp}, {Mode: auth.ProductDownRepair}, {Mode: auth.Unavailable}} {
+		var out strings.Builder
+		if code := NewConsole(state).Run(strings.NewReader("q\n"), &out, io.Discard); code != 0 {
+			t.Fatalf("%s: leaving exited %d", state.Mode, code)
+		}
+		menu := []string{}
+		for _, line := range strings.Split(out.String(), "\n") {
+			if n := utf8.RuneCountInString(line); n > maxColumns {
+				t.Errorf("%s: a %d-column line wraps on the screen: %q", state.Mode, n, line)
+			}
+			if strings.HasPrefix(line, prompt) {
+				break
+			}
+			menu = append(menu, line)
+		}
+		if len(menu) > maxRows {
+			t.Errorf("%s: the menu takes %d rows before its prompt, want at most %d", state.Mode, len(menu), maxRows)
+		}
+	}
 }

@@ -5,6 +5,8 @@
 package base
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -62,8 +64,19 @@ func TestConsoleCertificateUnit_RunsInTheFirstBootDomainWithTheNarrowestWrite(t 
 		t.Fatalf("ReadWritePaths=%q: the Appliance Console's directory only", got)
 	}
 	// The host's addresses come over netlink (net.Interfaces); the unit connects to no peer.
-	if got, _ := unit.last("RestrictAddressFamilies"); got != "AF_NETLINK" {
-		t.Fatalf("RestrictAddressFamilies=%q", got)
+	families, _ := unit.last("RestrictAddressFamilies")
+	if families != "AF_NETLINK" {
+		t.Fatalf("RestrictAddressFamilies=%q", families)
+	}
+	// FBOOT-104's reason names this unit and its families: the first-boot unit shares the domain and sets none.
+	access, err := os.ReadFile(filepath.Join(repoRoot, "appliance/selinux/access.tsv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, row, _ := strings.Cut(string(access), "\nFBOOT-104\t")
+	row, _, _ = strings.Cut(row, "\n")
+	if !strings.Contains(row, "olivares-console-certificate.service") || !strings.Contains(row, "RestrictAddressFamilies="+families+" ") {
+		t.Fatalf("FBOOT-104's reason does not name this unit's RestrictAddressFamilies=%s: %q", families, row)
 	}
 	if got, _ := unit.last("IPAddressDeny"); got != "any" {
 		t.Fatalf("IPAddressDeny=%q", got)
@@ -97,5 +110,27 @@ func TestConsoleCertificateUnit_CarriesTheProductHardeningByLastValueOrStatesWhy
 		if (!present || got != want) && !justified {
 			t.Fatalf("%s=%q (present %v), the product's %q, and no stated reason", key, got, present, want)
 		}
+	}
+}
+
+// On first boot the product, and with it the console's certificate, start only at first boot's
+// start-services, but the repair console wants the portal at once, and the portal's LoadCredential=
+// sources do not exist yet, so it failed twice at CREDENTIALS. The certificate's Before= orders the
+// portal only when both are queued, so the portal orders after first boot, which queues them. It never
+// pulls first boot in, and nothing enables the portal, so multi-user.target never orders after it: no
+// cycle through first boot's After=multi-user.target.
+func TestPortal_StartsAfterFirstBootSoItsCertificateExists(t *testing.T) {
+	portal, _ := readUnit(t, "appliance/layer/portal/units/olivares-portal.service")
+	if !slices.Contains(portal["After"], "olivares-appliance-firstboot.service") {
+		t.Fatalf("After=%q: on first boot the portal starts before its certificate exists", portal["After"])
+	}
+	for _, key := range []string{"Wants", "Requires", "Requisite", "BindsTo", "WantedBy", "RequiredBy"} {
+		if slices.Contains(portal[key], "olivares-appliance-firstboot.service") || strings.HasSuffix(key, "By") && len(portal[key]) != 0 {
+			t.Fatalf("%s=%q: the portal pulls first boot in or is enabled, which would order multi-user.target after it", key, portal[key])
+		}
+	}
+	certificate, _ := readUnit(t, consoleCertificateUnitPath)
+	if !slices.Contains(certificate["Before"], "olivares-portal.service") {
+		t.Fatalf("Before=%q: the portal no longer waits for a certificate started with it", certificate["Before"])
 	}
 }

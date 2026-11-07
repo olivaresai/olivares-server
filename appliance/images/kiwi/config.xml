@@ -73,10 +73,9 @@
     <timezone>UTC</timezone>
     <!--
       oem, not iso: the artifact this description builds is the expandable disk, and the three
-      formats are assembled from it (appliance/images/formats). installiso="true" is what adds
+      formats are assembled from it (appliance/images/formats). installiso="true" adds
       the hybrid installer medium, which boots under legacy BIOS and under UEFI from the same
-      file, and installboot="install" makes its default entry the installation itself so an
-      unattended install needs no keystroke.
+      file, and the person chooses and confirms the target disk before anything is erased.
 
       firmware="uefi" is KIWI's EFI layout FOR SECURE BOOT: shim first, then the signed GRUB.
       eficsm="true" (KIWI's default, stated here because the boot battery depends on it) keeps
@@ -103,13 +102,13 @@
     -->
     <type image="oem" filesystem="btrfs" firmware="uefi" eficsm="true" efipartsize="512"
           bootpartition="true" bootfilesystem="ext4" bootpartsize="1024"
-          installiso="true" installboot="install" btrfs_root_is_subvolume="true"
-          kernelcmdline="console=tty0 console=ttyS0,115200n8 net.ifnames=0 systemd.show_status=1">
+          installiso="true" btrfs_root_is_subvolume="true"
+          kernelcmdline="console=tty0 console=ttyS0,115200n8 net.ifnames=0 systemd.show_status=1 loglevel=3">
       <bootloader name="grub2" timeout="3"/>
       <size unit="G">12</size>
       <oemconfig>
         <oem-resize>false</oem-resize>
-        <oem-unattended>true</oem-unattended>
+        <oem-unattended>false</oem-unattended>
         <oem-swap>false</oem-swap>
         <oem-skip-verify>false</oem-skip-verify>
       </oemconfig>
@@ -147,9 +146,9 @@
          :633-645), and config.sh writes the enforcing mode and fails a root KIWI could not label. -->
     <type image="oem" filesystem="btrfs" firmware="uefi" eficsm="true" efipartsize="512"
           bootpartition="true" bootfilesystem="ext4" bootpartsize="1024"
-          installiso="true" installboot="install" btrfs_root_is_subvolume="true"
+          installiso="true" btrfs_root_is_subvolume="true"
           selinux_policy="targeted"
-          kernelcmdline="console=tty0 console=ttyS0,115200n8 net.ifnames=0 systemd.show_status=1">
+          kernelcmdline="console=tty0 console=ttyS0,115200n8 net.ifnames=0 systemd.show_status=1 loglevel=3">
       <!-- GRUB 2.12 as AlmaLinux 10 ships it. KIWI writes these settings into /etc/default/grub, the
            only defaults file the RHEL family's grub2-mkconfig reads: the menu on the console and on
            the serial port, and GRUB_ENABLE_BLSCFG=true (grub2.py :700-800). The kernels are Boot Loader
@@ -164,7 +163,7 @@
       <size unit="G">12</size>
       <oemconfig>
         <oem-resize>false</oem-resize>
-        <oem-unattended>true</oem-unattended>
+        <oem-unattended>false</oem-unattended>
         <oem-swap>false</oem-swap>
         <oem-skip-verify>false</oem-skip-verify>
       </oemconfig>
@@ -273,6 +272,7 @@
   </packages>
 
   <packages type="image" profiles="debian13-server-amd64">
+    <package name="python3"/>
     <!-- the system -->
     <package name="linux-image-amd64"/>
     <package name="systemd"/>
@@ -361,6 +361,7 @@
   <!-- The Debian profile's packages mapped to AlmaLinux 10 names (each resolves in the 10.2 trees, measured
        2026-10-17; NEVRA and sha256 of each in toolchain/almalinux10/input-lock.json image_packages). -->
   <packages type="image" profiles="almalinux10-server-amd64,almalinux10-desktop-amd64">
+    <package name="python3"/>
     <!-- the system: udev is apart from systemd, and chrony replaces systemd-timesyncd -->
     <package name="kernel"/>
     <package name="systemd"/>
@@ -458,6 +459,11 @@
     <package name="docker-ce-cli"/>
     <package name="containerd.io"/>
     <package name="docker-compose-plugin"/>
+    <!-- The runtime container sessions use: rootless podman for the engine user (session-image.sh builds the session image
+         into its store, and the user's podman.socket serves the engine). AlmaLinux's own package from the locked
+         AppStream tree; its subuid and subgid helpers, netavark and passt arrive with it. The engine has no access to the
+         Docker daemon above. -->
+    <package name="podman"/>
     <package name="container-selinux"/>
     <package name="iptables-nft"/>
     <package name="kernel-modules-extra"/>
@@ -476,6 +482,7 @@
        and points default.target at graphical.target, where gdm runs as display-manager.service. -->
   <packages type="image" profiles="almalinux10-desktop-amd64">
     <package name="gdm"/>
+    <package name="gnome-initial-setup"/>
     <package name="gnome-shell"/>
     <package name="firefox"/>
     <package name="nautilus"/>

@@ -90,6 +90,54 @@ func productOwned(t *testing.T) []string {
 	return owned
 }
 
+func TestPackage_ProductDevelopmentRPMRequiresScriptletInterpreter(t *testing.T) {
+	raw := readRepo(t, "appliance/images/kiwi/product-dev.nfpm.yaml")
+	raw = raw[strings.Index(raw, "{"):]
+	var manifest struct {
+		Overrides map[string]struct {
+			Depends []string `json:"depends"`
+		} `json:"overrides"`
+	}
+	if err := json.Unmarshal([]byte(raw), &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(manifest.Overrides["rpm"].Depends, "/bin/sh") {
+		t.Fatal("the appliance development RPM may run its postinstall before bash is installed")
+	}
+}
+
+func TestPackage_NativeDebDeclaresApparmorForPostinstall(t *testing.T) {
+	var recipes struct {
+		Nfpms []struct {
+			ID        string `json:"id"`
+			Overrides map[string]struct {
+				Depends []string `json:"depends"`
+			} `json:"overrides"`
+		} `json:"nfpms"`
+	}
+	if err := json.Unmarshal([]byte(readRepo(t, "packaging/nfpm/packages.json")), &recipes); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, recipe := range recipes.Nfpms {
+		if recipe.ID != "olivares-nfpm" {
+			continue
+		}
+		found = true
+		if !slices.Contains(recipe.Overrides["deb"].Depends, "apparmor") {
+			t.Fatal("the deb postinst refuses without apparmor_parser: declare apparmor as a deb dependency")
+		}
+		for _, format := range []string{"rpm", "apk"} {
+			if slices.Contains(recipe.Overrides[format].Depends, "apparmor") {
+				t.Fatalf("the %s package declares apparmor; only the deb postinst requires it", format)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("packages.json has no olivares-nfpm recipe")
+	}
+}
+
 func TestPackage_ManifestInstallsTheUnitAndBinariesAndOwnsNoProductFile(t *testing.T) {
 	manifest := readManifest(t)
 	if manifest.Name != "olivares-appliance-base" || len(manifest.Depends) != 0 {
@@ -214,8 +262,8 @@ func TestPackage_SessionImageShipsWithItsContainerfile(t *testing.T) {
 
 func TestPackage_PostinstallHelpersAreShippedInPackagesAndFixtureImages(t *testing.T) {
 	const postinstall = "packaging/nfpm/postinstall.sh"
-	// Absolute shell-script paths in the maintainer script are package payload,
-	// including when a fixture installs the product's files without its package.
+	// Absolute shell-script paths in the maintainer script are package payload; the fixture
+	// images install the product from its development package, so they get them the same way.
 	var helpers []string
 	paths := regexp.MustCompile(`(?:^|[[:space:]"'])(/[a-zA-Z0-9_./-]+\.sh)(?:[[:space:]"']|$)`)
 	for line := range strings.SplitSeq(readRepo(t, postinstall), "\n") {
@@ -247,7 +295,6 @@ func TestPackage_PostinstallHelpersAreShippedInPackagesAndFixtureImages(t *testi
 		configs = append(configs, files...)
 	}
 	configs = append(configs, filepath.Join(repoRoot, "appliance/images/kiwi/product-dev.nfpm.yaml"))
-	sources := map[string]string{}
 	checked := 0
 	for _, config := range configs {
 		data, err := os.ReadFile(config)
@@ -287,7 +334,6 @@ func TestPackage_PostinstallHelpersAreShippedInPackagesAndFixtureImages(t *testi
 							found = content.Type == "" && content.FileInfo.Mode == 0o755 && content.Src != ""
 							if found {
 								readRepo(t, content.Src)
-								sources[helper] = content.Src
 							}
 							break
 						}
@@ -309,27 +355,19 @@ func TestPackage_PostinstallHelpersAreShippedInPackagesAndFixtureImages(t *testi
 		t.Fatal(err)
 	}
 	workflow := readRepo(t, ".github/workflows/appliance-a1.yml")
-	for _, fixture := range []struct{ file, job string }{
-		{"Containerfile", "fixture"}, {"almalinux/Containerfile", "fixture-almalinux"},
-	} {
+	for _, fixture := range []struct{ job, format string }{{"fixture", "deb"}, {"fixture-almalinux", "rpm"}} {
 		t.Run(fixture.job, func(t *testing.T) {
-			container := readRepo(t, "appliance/layer/base/fixture/"+fixture.file)
-			before, _, ok := strings.Cut(container, "RUN sh /tmp/olivares-postinstall.sh")
-			if !ok {
-				t.Fatal("fixture does not run the product postinstall script")
-			}
 			_, job, ok := strings.Cut(workflow, "\n  "+fixture.job+":\n")
 			if !ok {
 				t.Fatal("fixture workflow job is absent")
 			}
 			job, _, _ = strings.Cut(job, "\n  fixture-almalinux:\n")
-			for _, helper := range helpers {
-				source := sources[helper]
-				if source == "" || !strings.Contains(job, source+" ") {
-					t.Errorf("workflow does not stage the postinstall helper %s", helper)
-				}
-				if !strings.Contains(before, "\nCOPY --chmod=0755 "+filepath.Base(source)+" "+helper+"\n") {
-					t.Errorf("fixture does not install the postinstall helper %s before running postinstall", helper)
+			for _, want := range []string{
+				"--config appliance/images/kiwi/product-dev.nfpm.yaml --packager " + fixture.format + " --target dist/olivares." + fixture.format + "\n",
+				" dist/olivares." + fixture.format + " ",
+			} {
+				if !strings.Contains(job, want) {
+					t.Errorf("the %s job does not package and stage the product package: no %q", fixture.job, want)
 				}
 			}
 		})
@@ -374,8 +412,11 @@ func TestPackage_ShipsTheDropInDirectoryRecommendsSSHAndKeepsEnablementAcrossRei
 	if !strings.Contains(postremove, "systemctl daemon-reload") {
 		t.Fatal("no daemon-reload after the unit files are removed")
 	}
-	if !strings.Contains(readRepo(t, "appliance/layer/base/units/tty1-banner.txt"), "sudo appliance-firstboot status") {
-		t.Fatal("the banner sends a console user to a root-only command without sudo")
+	banner := readRepo(t, "appliance/layer/base/units/tty1-banner.txt")
+	// agetty's \4 is the address of the interface its console is on, which is loopback on tty1: the person is
+	// told to open an address nobody else can reach. The address lines are written from the host's addresses.
+	if !strings.Contains(banner, "headless server") || strings.Contains(banner, `\4`) || strings.Contains(banner, "127.0.0.1") {
+		t.Fatal("the static banner must say this is a headless server and name no address: the refresh writes them")
 	}
 }
 
@@ -474,6 +515,101 @@ func TestFixture_EachFamilyIsPinnedByDigestAndUsesOnlyItsOwnPackageTools(t *test
 	}
 }
 
+// Each fixture installs the base package with every dependency it declares already satisfied,
+// as a package manager would: the distribution's packages from the family's own repositories,
+// and the product from its development package (appliance/images/kiwi/product-dev.nfpm.yaml) in
+// the same transaction as the base package, never as loose files no package owns. The product
+// package carries VERSION verbatim, as the base package does, so its version satisfies the base
+// package's "olivares >= VERSION", and declares the release package's depends and deb-only files,
+// which the fixture satisfies too (apparmor, for the deb postinstall's profile load).
+func TestFixture_EachFamilySatisfiesEveryDependencyOfTheBasePackage(t *testing.T) {
+	for _, file := range []string{"packaging/nfpm/olivares-appliance-base.yaml", "appliance/images/kiwi/product-dev.nfpm.yaml"} {
+		raw := readRepo(t, file)
+		var schema struct {
+			VersionSchema string `json:"version_schema"`
+		}
+		if err := json.Unmarshal([]byte(raw[strings.Index(raw, "{"):]), &schema); err != nil {
+			t.Fatal(err)
+		}
+		if schema.VersionSchema != "none" {
+			t.Errorf("%s: version_schema %q, want none: nfpm's default makes 0.0.0-fixture 0.0.0~fixture, "+
+				"which is below the base package's olivares >= 0.0.0-fixture", file, schema.VersionSchema)
+		}
+	}
+	type nfpm struct {
+		PackageName string        `json:"package_name"`
+		Contents    []nfpmContent `json:"contents"`
+		Overrides   map[string]struct {
+			Depends []string `json:"depends"`
+		} `json:"overrides"`
+	}
+	read := func(file string) (m nfpm) {
+		raw := readRepo(t, file)
+		if err := json.Unmarshal([]byte(raw[strings.Index(raw, "{"):]), &m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	manifest, product := read("packaging/nfpm/olivares-appliance-base.yaml"), read("appliance/images/kiwi/product-dev.nfpm.yaml")
+	// The development product package declares what the release package declares per format: the same
+	// depends, and the deb-only AppArmor profile that the product's postinstall loads.
+	var releases struct{ Nfpms []nfpm }
+	if err := json.Unmarshal([]byte(readRepo(t, "packaging/nfpm/packages.json")), &releases); err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(releases.Nfpms, func(n nfpm) bool { return n.PackageName == "olivares" })
+	if i < 0 {
+		t.Fatal("packaging/nfpm/packages.json defines no olivares package")
+	}
+	release := releases.Nfpms[i]
+	for format, want := range release.Overrides {
+		if got := product.Overrides[format].Depends; !slices.Equal(got, want.Depends) {
+			t.Errorf("product-dev.nfpm.yaml: %s depends %q, the release package's are %q", format, got, want.Depends)
+		}
+	}
+	for _, content := range release.Contents {
+		if content.Packager == "deb" && !slices.ContainsFunc(product.Contents, func(c nfpmContent) bool {
+			return c.Dst == content.Dst && c.Src == content.Src && (c.Packager == "" || c.Packager == "deb")
+		}) {
+			t.Errorf("product-dev.nfpm.yaml does not ship the release deb's %s from %s", content.Dst, content.Src)
+		}
+	}
+	for _, family := range []struct{ format, file, system, install string }{
+		{"deb", "Containerfile", `apt-get install -y --no-install-recommends ([^\\\n]*)`, `RUN dpkg -i ([^&\n]*)`},
+		{"rpm", "almalinux/Containerfile", `(?s)dnf -y [^\n]*? install (.*?)&& dnf clean all`, `RUN rpm -i ([^&\n]*)`},
+	} {
+		container := readRepo(t, "appliance/layer/base/fixture/"+family.file)
+		system := regexp.MustCompile(family.system).FindStringSubmatch(container)
+		install := regexp.MustCompile(family.install).FindStringSubmatch(container)
+		if system == nil || install == nil {
+			t.Fatalf("%s: no system package list or no package install", family.file)
+		}
+		packages := strings.Fields(strings.ReplaceAll(system[1], "\\", " "))
+		staged := strings.Fields(install[1])
+		if !slices.Contains(staged, "/tmp/olivares-appliance-base."+family.format) {
+			t.Errorf("%s: %q does not install the base package", family.file, install[0])
+		}
+		depends := manifest.Overrides[family.format].Depends
+		if len(depends) == 0 {
+			t.Fatalf("the %s base package declares no depends", family.format)
+		}
+		depends = append(slices.Clone(depends), product.Overrides[family.format].Depends...)
+		for _, depend := range depends {
+			name, _, _ := strings.Cut(depend, " ")
+			switch {
+			case name == "olivares":
+				if !slices.Contains(staged, "/tmp/olivares."+family.format) {
+					t.Errorf("%s: %q installs the base package without the product package it depends on", family.file, install[0])
+				}
+			case strings.HasPrefix(name, "/"):
+				// A file dependency (the RPM's /bin/sh), which the family's base image provides.
+			case !slices.Contains(packages, name):
+				t.Errorf("%s does not install %s, a dependency of the %s base or product package", family.file, name, family.format)
+			}
+		}
+	}
+}
+
 // The battery removes the base package with the booted family's own tool, chosen by the
 // container's /etc/os-release: dpkg on Debian, rpm on AlmaLinux. Nowhere else does it remove it.
 func TestFixture_TheBatteryRemovesTheBasePackageWithTheFamilysOwnTool(t *testing.T) {
@@ -491,5 +627,51 @@ func TestFixture_TheBatteryRemovesTheBasePackageWithTheFamilysOwnTool(t *testing
 	}
 	if strings.Count(battery, "dpkg --remove") != 1 || strings.Count(battery, "rpm --erase") != 1 {
 		t.Error("the battery removes the base package outside remove_base")
+	}
+}
+
+// A scenario keeps its evidence in files, so boot retires the previous scenario's container before it starts the
+// next. With four still running, the Debian fixture's fifth (restart) ended at once with exit 255 and no output on
+// a shared runner. The battery's own boot runs here with only the docker command replaced by a log of its calls.
+func TestFixture_TheBatteryRunsOneSystemdContainerAtATime(t *testing.T) {
+	battery := readRepo(t, "appliance/layer/base/fixture/firstboot-battery.sh")
+	_, boot, ok := strings.Cut(battery, "\nboot() {\n")
+	if !ok {
+		t.Fatal("the battery has no boot function")
+	}
+	boot, _, _ = strings.Cut(boot, "\n}\n")
+	dockerLog := filepath.Join(t.TempDir(), "docker.log")
+	script := "boot() {\n" + boot + "\n}\n" +
+		"containers=(); hostname=h; image_id=i; boot_command=true\n" +
+		"docker() { printf '%s\\n' \"$*\" >> \"$DOCKER_LOG\"; }\n" +
+		"boot first; boot second; boot third\n"
+	cmd := exec.Command("bash", "-euo", "pipefail", "-c", script)
+	cmd.Env = append(os.Environ(), "DOCKER_LOG="+dockerLog)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("the battery's boot failed: %v\n%s", err, out)
+	}
+	calls, err := os.ReadFile(dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	running, peak := map[string]bool{}, 0
+	for _, line := range strings.Split(strings.TrimSpace(string(calls)), "\n") {
+		words := strings.Fields(line)
+		switch words[0] {
+		case "run":
+			i := slices.Index(words, "--name")
+			if i < 0 || i+1 >= len(words) {
+				t.Fatalf("a docker run without a container name: %s", line)
+			}
+			running[words[i+1]] = true
+			peak = max(peak, len(running))
+		case "rm":
+			for _, name := range words[2:] {
+				delete(running, name)
+			}
+		}
+	}
+	if peak != 1 {
+		t.Errorf("%d scenario containers ran at once, want 1; docker calls:\n%s", peak, calls)
 	}
 }

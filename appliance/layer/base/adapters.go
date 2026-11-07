@@ -64,6 +64,16 @@ const (
 	kernelCommandLine     = "/proc/cmdline"
 )
 
+// cloudInitUnitLinks are the links `systemctl enable` makes for cloud-init's units, each WantedBy=cloud-init.target
+// (cloud-init 24.4 on AlmaLinux 10.2, whose package enables these four). Each is one fixed path that first boot
+// only stats, so its policy needs no directory read.
+var cloudInitUnitLinks = []string{
+	"/etc/systemd/system/cloud-init.target.wants/cloud-init-local.service",
+	"/etc/systemd/system/cloud-init.target.wants/cloud-init.service",
+	"/etc/systemd/system/cloud-init.target.wants/cloud-config.service",
+	"/etc/systemd/system/cloud-init.target.wants/cloud-final.service",
+}
+
 // userdbDirs are systemd's drop-in directories of JSON user records, in the order nss-systemd(8)
 // lists them.
 var userdbDirs = []string{"/etc/userdb", "/run/userdb", "/run/host/userdb", "/usr/lib/userdb"}
@@ -190,6 +200,93 @@ func (s CloudInitHost) observe(ctx context.Context, in Input) (Effect, error) {
 		return "", err
 	}
 	return Effect(fmt.Sprintf("cloud-init done; hostname, UTC, NetworkManager and %d SSH key(s) verified; time servers delegated to cloud-init", len(in.Answers.SSHAuthorizedKeys))), nil
+}
+
+// LocalHost verifies the host settings of an install with no cloud-init seed, whose answers name the
+// appliance as their owner (host.owner local). It never applies a host setting.
+type LocalHost struct {
+	Host     Host
+	Network  NetworkReader
+	Networkd NetworkdReader
+}
+
+func (s LocalHost) Apply(ctx context.Context, in Input) (Effect, error) { return s.observe(ctx, in) }
+
+func (s LocalHost) Verify(ctx context.Context, in Input, recorded Effect) error {
+	return verifyAgain(ctx, s.observe, in, recorded, "the host settings changed after first boot verified them; "+
+		"run `appliance-firstboot reconcile` to verify them again before the product starts")
+}
+
+// observe reads files only: one owner, the hostname, UTC and NetworkManager's profiles.
+func (s LocalHost) observe(ctx context.Context, in Input) (Effect, error) {
+	if err := refuseEnabledCloudInit(s.Host); err != nil {
+		return "", err
+	}
+	hostname, err := os.ReadFile(s.Host.path("/proc/sys/kernel/hostname"))
+	if err != nil || strings.ToLower(strings.TrimSpace(string(hostname))) != in.Answers.Hostname {
+		return "", Refuse("the kernel hostname is not host.hostname")
+	}
+	if !(CloudInitHost{Host: s.Host}).utc() {
+		return "", Refuse("the host time zone is not UTC")
+	}
+	if err := verifyNetwork(ctx, s.Host, s.Network, s.Networkd, in, false); err != nil {
+		return "", err
+	}
+	return localHostSettings, nil
+}
+
+// refuseEnabledCloudInit refuses a cloud-init that can run at boot beside a local host owner: its
+// program is present or a link enables one of its units, and disabled() does not hold.
+func refuseEnabledCloudInit(h Host) error {
+	cloud := CloudInitHost{Host: h}
+	installed, err := cloud.installed()
+	if err != nil {
+		return Refuse("whether cloud-init is installed cannot be read")
+	}
+	if installed && !cloud.disabled() {
+		return Refuse("cloud-init is installed and enabled, but the answers name the appliance as the host owner")
+	}
+	return nil
+}
+
+// installed stats cloud-init's program and the links that enable its units, without following them.
+// A path that cannot be read is an error, not absence.
+func (s CloudInitHost) installed() (bool, error) {
+	for _, name := range append([]string{cloudInitProgram}, cloudInitUnitLinks...) {
+		_, err := os.Lstat(s.Host.path(name))
+		if err == nil {
+			return true, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return false, err
+		}
+	}
+	return false, nil
+}
+
+// localHostSettings is LocalHost's recorded effect. HandOverHostSettings recognizes a local host by
+// this exact text in the state record of every host already installed: never reword it.
+const localHostSettings = Effect("local host owner; hostname, UTC and NetworkManager verified")
+
+// HostByOwner verifies the host settings with the owner the answers name.
+type HostByOwner struct {
+	Cloud CloudInitHost
+	Local LocalHost
+}
+
+func (s HostByOwner) owner(in Input) Step {
+	if in.Answers.Owner == "local" {
+		return s.Local
+	}
+	return s.Cloud
+}
+
+func (s HostByOwner) Apply(ctx context.Context, in Input) (Effect, error) {
+	return s.owner(in).Apply(ctx, in)
+}
+
+func (s HostByOwner) Verify(ctx context.Context, in Input, recorded Effect) error {
+	return s.owner(in).Verify(ctx, in, recorded)
 }
 
 // cloudInitStatus is what cloud-init's status command derives from its status and result files:
@@ -418,10 +515,12 @@ func (s Storage) observe(context.Context, Input) (Effect, error) {
 // two ways, neither of which crosses the network or starts a service:
 //
 //   - /var/lib/olivares-appliance/setup-token, root-only (0600 in the unit's 0700 state
-//     directory): the plaintext, written once, at mint time;
-//   - the packaged console banner (units/tty1-banner.txt, /etc/issue.d), which names the
-//     setup address and where the token is. The banner is static and secret-free, so this
-//     seam writes no file under /etc.
+//     directory): the plaintext, written once, at mint time, staged under the fixed name
+//     setup-token.new (writeStaged) so the enforcing policy can give it a type of its own;
+//   - the repair console on tty1, which shows it after a qualified sign-in and a typed
+//     "show". The banner (units/tty1-banner.txt plus the addresses the portal layer's
+//     tty1-banner adds) only says where to go and holds no secret, so this seam writes no
+//     file under /etc.
 //
 // The engine accepts the token because it mints nothing when one already exists: its first
 // start sees the token file this stage created (owned by the product account, which is why
@@ -432,7 +531,7 @@ type SetupTokenDelivery struct{ Host Host }
 
 // Apply mints the token if none exists and delivers it once. A run interrupted after the
 // mint and before the record was persisted mints nothing on the way back (the token exists),
-// and the delivery file it wrote is the one observed.
+// and a matching regular staging file is verified and published without following a link.
 func (s SetupTokenDelivery) Apply(ctx context.Context, in Input) (Effect, error) {
 	tokenPath := s.Host.path(filepath.Join(ProductDataDir, "setup.token"))
 	uid, gid, ok := s.Host.accountIDs(productAccount)
@@ -452,11 +551,48 @@ func (s SetupTokenDelivery) Apply(ctx context.Context, in Input) (Effect, error)
 	if created {
 		// THE ONE DELIVERY. The plaintext exists only here; every later reader gets the
 		// root-only file, never a reprint.
-		if err := writeAtomic(s.Host.path(StateDir), setupTokenDeliveryFile, []byte(plaintext+"\n"), 0o600); err != nil {
+		if err := writeStaged(s.Host.path(StateDir), setupTokenDeliveryFile, []byte(plaintext+"\n"), 0o600); err != nil {
 			return "", Refuse("the setup token cannot be delivered to its root-only file in " + StateDir)
 		}
+	} else if err := recoverStagedSetupToken(s.Host, tokenPath); err != nil {
+		// An unrecoverable staging file keeps the existing refusal and operator remedy.
+		return s.observe(ctx, in)
 	}
 	return s.observe(ctx, in)
+}
+
+// recoverStagedSetupToken publishes a regular staging file left by an interrupted delivery,
+// after proving its plaintext against the product's record. It follows no link and reads only
+// the bounded token shape. A missing or unusable staging file leaves observation to its refusal.
+func recoverStagedSetupToken(h Host, tokenPath string) error {
+	delivered := h.path(filepath.Join(StateDir, setupTokenDeliveryFile))
+	if _, err := os.Lstat(delivered); err == nil {
+		return nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	staged, err := os.OpenFile(delivered+".new", os.O_RDWR|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer staged.Close()
+	if err := checkStagedFile(staged); err != nil {
+		return err
+	}
+	data, err := io.ReadAll(io.LimitReader(staged, 4096))
+	if err != nil {
+		return err
+	}
+	if !secure.NewSetupToken(tokenPath).Verify(strings.TrimSuffix(string(data), "\n")) {
+		return errors.New("the staged setup token does not match the product record")
+	}
+	if _, err := staged.Seek(0, 0); err != nil {
+		return err
+	}
+	return publish(staged, filepath.Dir(delivered), filepath.Base(delivered), data, 0o600)
 }
 
 // Verify refuses a delivery that changed after first boot recorded it.
@@ -623,7 +759,7 @@ func (r ProductReadiness) attempt(ctx context.Context) (Measurement, bool) {
 		Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}},
 	}
 	defer client.CloseIdleConnections()
-	healthy, foreign := r.probe(ctx, client)
+	healthy, foreign, setupRequired := r.probe(ctx, client)
 	switch {
 	case foreign:
 		return Measurement{Health: true, Detail: "the product serves a certificate that is not this instance's"}, true
@@ -641,23 +777,24 @@ func (r ProductReadiness) attempt(ctx context.Context) (Measurement, bool) {
 	if err != nil || !store.Mode().IsRegular() || store.Mode().Perm()&0o007 != 0 {
 		return Measurement{Health: true, Detail: "the product store olivares.db is missing or open to others"}, true
 	}
-	return Measurement{Health: true, Identity: true, Detail: "readyz ok over the instance certificate; store and identity files present"}, true
+	return Measurement{Health: true, Identity: true, Detail: fmt.Sprintf("readyz ok over the instance certificate; store and identity files present; setup_required=%t", setupRequired)}, true
 }
 
-func (r ProductReadiness) probe(ctx context.Context, client *http.Client) (healthy, foreign bool) {
+func (r ProductReadiness) probe(ctx context.Context, client *http.Client) (healthy, foreign, setupRequired bool) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, readinessURL, nil)
 	if err != nil {
-		return false, false
+		return false, false, false
 	}
 	resp, err := client.Do(req)
 	if err != nil {
 		var verification *tls.CertificateVerificationError
-		return false, errors.As(err, &verification)
+		return false, errors.As(err, &verification), false
 	}
 	defer resp.Body.Close()
 	var body struct {
-		Status string `json:"status"`
+		Status        string `json:"status"`
+		SetupRequired *bool  `json:"setup_required"`
 	}
 	ok := resp.StatusCode == http.StatusOK && json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&body) == nil
-	return ok && body.Status == "ok", false
+	return ok && body.Status == "ok" && body.SetupRequired != nil, false, body.SetupRequired != nil && *body.SetupRequired
 }

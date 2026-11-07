@@ -24,8 +24,19 @@ func validate(d *document) error {
 	default:
 		return invalid("$.source", "select exactly one supported provenance label")
 	}
-	if d.Host.Owner != "cloud-init" {
-		return invalid("$.host.owner", "only cloud-init ownership is supported; local host adapter is unimplemented")
+	switch d.Host.Owner {
+	case "cloud-init":
+	case "local":
+		// The installer writes these answers as a file; every other carrier implies cloud-init.
+		if d.Source != "file" {
+			return invalid("$.source", "expected file when host.owner is local")
+		}
+		// Olivares applies no SSH key on a host it owns; keys come only through cloud-init.
+		if len(d.Host.SSHAuthorizedKeys) != 0 {
+			return invalid("$.host.ssh_authorized_keys", "expected none when host.owner is local")
+		}
+	default:
+		return invalid("$.host.owner", "expected cloud-init or local")
 	}
 	if !kernelHostname(d.Host.Hostname) {
 		return invalid("$.host.hostname", "expected a DNS-shaped kernel hostname of at most 64 ASCII bytes with a nonnumeric final label")
@@ -50,7 +61,22 @@ func validate(d *document) error {
 	if sortAndHasDuplicate(d.Host.Time.Servers) {
 		return invalid("$.host.time.servers", "duplicate time server")
 	}
-	if len(d.Host.SSHAuthorizedKeys) < 1 {
+	if a := d.Host.Administrator; a != nil {
+		// deferred: no administrator yet, first boot creates one. installed: the installer created it
+		// and holds its credentials. Only the installer states either, in the document it labels source file.
+		if *a != "deferred" && *a != "installed" {
+			return invalid("$.host.administrator", "expected deferred or installed when present")
+		}
+		if d.Source != "file" {
+			return invalid("$.host.administrator", "deferred or installed only in a document labelled source file")
+		}
+		if *a == "deferred" && len(d.Host.SSHAuthorizedKeys) != 0 {
+			return invalid("$.host.ssh_authorized_keys", "expected none when host.administrator is deferred")
+		}
+	}
+	// No key means no SSH login until the console creates the deferred administrator, or none
+	// through these answers when the installer created the administrator. A local owner applies no key.
+	if len(d.Host.SSHAuthorizedKeys) < 1 && d.Host.Administrator == nil && d.Host.Owner == "cloud-init" {
 		return invalid("$.host.ssh_authorized_keys", "expected 1 to 16 SSH public keys")
 	}
 	for i, key := range d.Host.SSHAuthorizedKeys {

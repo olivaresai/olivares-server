@@ -25,6 +25,7 @@ import (
 // its data directories are not an operation journal. Run and PortAvailable are
 // the native OS seams. This source does not install a runtime or expose a task.
 type Compose struct {
+	App           string
 	Root          *os.Root
 	Run           func(context.Context, []string, int64) ([]byte, error)
 	PortAvailable func(context.Context, string) error
@@ -39,6 +40,10 @@ type State struct {
 }
 type nativeState struct {
 	ID, Image, Status, Restart string
+	Command                    []string
+	NetworkMode, User          string
+	ReadOnly                   bool
+	CapDrop, SecurityOpt       []string
 	Labels                     map[string]string
 	Running                    bool
 	Mounts                     []nativeMount
@@ -62,7 +67,7 @@ func (x Compose) Read(ctx context.Context) (State, error) {
 	if err := x.inputs(); err != nil {
 		return State{}, err
 	}
-	m, err := manifest()
+	m, err := manifestFor(x.App)
 	if err != nil {
 		return State{}, errors.New("input_refused")
 	}
@@ -81,10 +86,13 @@ func (x Compose) Read(ctx context.Context) (State, error) {
 	if len(named) == 0 {
 		return State{}, nil
 	}
-	format := `{"ID":{{json .Id}},"Image":{{json .Config.Image}},"Labels":{{json .Config.Labels}},"Running":{{json .State.Running}},"Status":{{json .State.Status}},"Restart":{{json .HostConfig.RestartPolicy.Name}},"Mounts":[{{range $i,$m := .Mounts}}{{if $i}},{{end}}{"Type":{{json $m.Type}},"Source":{{json $m.Source}},"Destination":{{json $m.Destination}},"RW":{{json $m.RW}}}{{end}}],"Ports":{{json .HostConfig.PortBindings}}}`
+	format := `{"ID":{{json .Id}},"Image":{{json .Config.Image}},"Labels":{{json .Config.Labels}},"Running":{{json .State.Running}},"Status":{{json .State.Status}},"Restart":{{json .HostConfig.RestartPolicy.Name}},"Command":{{if .Config.Cmd}}{{json .Config.Cmd}}{{else}}[]{{end}},"User":{{json .Config.User}},"NetworkMode":{{json .HostConfig.NetworkMode}},"ReadOnly":{{json .HostConfig.ReadonlyRootfs}},"CapDrop":{{if .HostConfig.CapDrop}}{{json .HostConfig.CapDrop}}{{else}}[]{{end}},"SecurityOpt":{{if .HostConfig.SecurityOpt}}{{json .HostConfig.SecurityOpt}}{{else}}[]{{end}},"Mounts":[{{range $i,$m := .Mounts}}{{if $i}},{{end}}{"Type":{{json $m.Type}},"Source":{{json $m.Source}},"Destination":{{json $m.Destination}},"RW":{{json $m.RW}}}{{end}}],"Ports":{{if .HostConfig.PortBindings}}{{json .HostConfig.PortBindings}}{{else}}{}{{end}}}`
 	data, err := x.call(ctx, "container", "inspect", "--format", format, named[0])
 	var native nativeState
 	if err != nil || hostops.DecodeClosed(data, &native) != nil || native.ID != named[0] || native.Image != app.Image || native.Labels["com.docker.compose.project"] != m.Name || native.Labels["com.docker.compose.service"] != "app" || native.Restart != app.Restart || !slices.Contains([]string{"running", "exited", "created"}, native.Status) || native.Running != (native.Status == "running") {
+		return State{}, errors.New("container_identity_changed")
+	}
+	if x.App == Cloudflared && (!slices.Equal(native.Command, app.Command) || native.NetworkMode != app.NetworkMode || native.User != app.User || native.ReadOnly != app.ReadOnly || !slices.Equal(native.CapDrop, app.CapDrop) || !slices.Equal(native.SecurityOpt, app.SecurityOpt)) {
 		return State{}, errors.New("container_identity_changed")
 	}
 	if len(native.Mounts) != len(app.Volumes) || len(native.Ports) != len(app.Ports) {
@@ -93,7 +101,7 @@ func (x Compose) Read(ctx context.Context) (State, error) {
 	for _, v := range app.Volumes {
 		matches := 0
 		for _, mount := range native.Mounts {
-			if mount.Type == v.Type && mount.Source == filepath.Join(x.Root.Name(), v.Source) && mount.Destination == v.Target && mount.RW {
+			if mount.Type == v.Type && mount.Source == filepath.Join(x.Root.Name(), v.Source) && mount.Destination == v.Target && mount.RW == !v.ReadOnly {
 				matches++
 			}
 		}
@@ -133,11 +141,14 @@ func (x Compose) apply(ctx context.Context, op string, expected *State) (hostops
 	if (op == "install" && before.Installed) || (op != "install" && !before.Installed) || (op == "start" && before.Running) || (op == "stop" && !before.Running) {
 		return refuse(errors.New("already_in_expected_state"))
 	}
-	m, err := manifest()
+	m, err := manifestFor(x.App)
 	if err != nil {
 		return refuse(errors.New("input_refused"))
 	}
 	if op == "install" || op == "start" {
+		if err := x.credentials(); err != nil {
+			return refuse(err)
+		}
 		if x.PortAvailable == nil {
 			return refuse(errors.New("consumer_unavailable"))
 		}
@@ -154,7 +165,7 @@ func (x Compose) apply(ctx context.Context, op string, expected *State) (hostops
 			return hostops.Observation{P1: "failed", MeasuredChange: prepared}, err
 		}
 	} else {
-		for _, name := range []string{"compose.yaml", "empty.env", "data", "letsencrypt"} {
+		for _, name := range append([]string{"compose.yaml", "empty.env"}, x.dataDirs()...) {
 			if _, err = x.Root.Lstat(name); err != nil {
 				return refuse(errors.New("retained_input_unavailable"))
 			}
@@ -190,12 +201,12 @@ func (x Compose) apply(ctx context.Context, op string, expected *State) (hostops
 	if after.Installed != wantInstalled || after.Running != wantRunning || x.inputs() != nil {
 		return hostops.Observation{P1: "partial", MeasuredChange: changed}, errors.New("optional_app_postcondition_missing")
 	}
-	for _, name := range []string{"data", "letsencrypt"} {
+	for _, name := range x.dataDirs() {
 		if info, err := x.Root.Lstat(name); err != nil || !info.IsDir() {
 			return hostops.Observation{P1: "partial", MeasuredChange: changed}, errors.New("optional_app_postcondition_missing")
 		}
 	}
-	return hostops.Observation{P1: "performed", MeasuredChange: changed, Postconditions: []string{"app=nginx-proxy-manager", "container_installed=" + strconv.FormatBool(after.Installed), "container_running=" + strconv.FormatBool(after.Running), "data_directories_retained=true"}}, nil
+	return hostops.Observation{P1: "performed", MeasuredChange: changed, Postconditions: []string{"app=" + x.slug(), "container_installed=" + strconv.FormatBool(after.Installed), "container_running=" + strconv.FormatBool(after.Running), "data_directories_retained=true"}}, nil
 }
 
 func (x Compose) available(ctx context.Context) error {
@@ -212,7 +223,7 @@ func (x Compose) available(ctx context.Context) error {
 	return nil
 }
 func (x Compose) inputs() error {
-	for name, expected := range map[string][]byte{"compose.yaml": nginxProxyManager, "empty.env": nil} {
+	for name, expected := range map[string][]byte{"compose.yaml": manifestBytes(x.App), "empty.env": nil} {
 		info, err := x.Root.Lstat(name)
 		if errors.Is(err, os.ErrNotExist) {
 			continue
@@ -225,7 +236,7 @@ func (x Compose) inputs() error {
 			return errors.New("retained_input_changed")
 		}
 	}
-	for _, name := range []string{"docker-config", "data", "letsencrypt"} {
+	for _, name := range append([]string{"docker-config"}, x.dataDirs()...) {
 		info, err := x.Root.Lstat(name)
 		if errors.Is(err, os.ErrNotExist) {
 			continue
@@ -255,7 +266,7 @@ func (x Compose) inputs() error {
 }
 func (x Compose) prepare() (bool, error) {
 	changed := false
-	for _, name := range []string{"docker-config", "data", "letsencrypt"} {
+	for _, name := range append([]string{"docker-config"}, x.dataDirs()...) {
 		err := x.Root.Mkdir(name, 0700)
 		if err == nil {
 			changed = true
@@ -263,7 +274,7 @@ func (x Compose) prepare() (bool, error) {
 			return changed, errors.New("retained_input_unavailable")
 		}
 	}
-	for name, data := range map[string][]byte{"compose.yaml": nginxProxyManager, "empty.env": nil} {
+	for name, data := range map[string][]byte{"compose.yaml": manifestBytes(x.App), "empty.env": nil} {
 		if _, err := x.Root.Lstat(name); err == nil {
 			continue
 		}
@@ -328,4 +339,34 @@ func PortAvailable(ctx context.Context, address string) error {
 		return errors.New("port_conflict")
 	}
 	return listener.Close()
+}
+
+func (x Compose) slug() string {
+	if x.App == "" {
+		return Slug
+	}
+	return x.App
+}
+func (x Compose) dataDirs() []string {
+	if x.App == Cloudflared {
+		return nil
+	}
+	return []string{"data", "letsencrypt"}
+}
+
+// credentials checks metadata only; token contents never enter the helper process.
+func (x Compose) credentials() error {
+	if x.App != Cloudflared {
+		return nil
+	}
+	info, err := x.Root.Lstat("tunnel-token")
+	if err != nil || !info.Mode().IsRegular() || !ownedByHelper(info) || info.Mode().Perm() != 0600 || info.Size() == 0 || info.Size() > 16384 {
+		return errors.New("protected_tunnel_token_required")
+	}
+	info, err = x.Root.Lstat("origin-ca.pem")
+	if err != nil || !info.Mode().IsRegular() || !ownedByHelper(info) || info.Mode().Perm() != 0600 || info.Size() == 0 || info.Size() > 256<<10 {
+		return errors.New("protected_origin_ca_required")
+	}
+
+	return nil
 }

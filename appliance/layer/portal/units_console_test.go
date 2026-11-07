@@ -5,8 +5,11 @@
 package portal
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -170,7 +173,7 @@ func TestPortalUnits_TheLastDoorIsOnTty1AndTheStackAdmitsOneGroup(t *testing.T) 
 			t.Errorf("service TTYVTDisallocate=%v, want no: the deallocation runs after the banner and wipes it", got)
 		}
 		clearScreen := `-/usr/bin/printf '\033[H\033[2J\033[3J'`
-		wantPre := []string{clearScreen, "-+/usr/sbin/agetty --show-issue tty1"}
+		wantPre := []string{clearScreen, "-+/usr/sbin/agetty --issue-file " + bannerFile + " --show-issue tty1"}
 		if got := console.values("Service", "ExecStartPre"); !slices.Equal(got, wantPre) {
 			t.Errorf("service ExecStartPre=%v, want %v: clear the screen, then print the banner outside the private network", got, wantPre)
 		}
@@ -248,4 +251,187 @@ func TestPortalUnits_TheLastDoorIsOnTty1AndTheStackAdmitsOneGroup(t *testing.T) 
 			t.Error("the AlmaLinux assertion accepts a stack that includes only common-auth and common-account")
 		}
 	})
+}
+
+// bannerFile is the one banner tty1 prints: the unit that refreshes it writes it, the console prints it.
+const bannerFile = "/run/olivares-banner/issue"
+
+// agetty prints /run/issue and /run/issue.d only when /etc/issue does not exist, and both supported
+// images ship /etc/issue. So tty1 names the generated file itself. The repair console is the only
+// process that writes to tty1: the banner service refreshes the file before each console start, and
+// nothing reprints it while the console may hold a prompt (a secret one among them).
+func TestTTY1Banner_UnitsRefreshTheFileTheConsolePrints(t *testing.T) {
+	console := readUnit(t, "units/olivares-repair-console.service")
+	wants := strings.Fields(strings.Join(console.values("Unit", "Wants"), " "))
+	if !slices.Contains(wants, "olivares-tty1-banner.service") {
+		t.Errorf("the repair console does not refresh the banner file before it starts: Wants=%v", wants)
+	}
+	if slices.Contains(wants, "olivares-tty1-banner.timer") {
+		t.Errorf("the repair console starts the banner timer, which reprints on tty1 while the console prompts: Wants=%v", wants)
+	}
+	// The console's ExecStartPre reads the file once, so the service that writes it runs first.
+	if after := strings.Join(console.values("Unit", "After"), " "); !slices.Contains(strings.Fields(after), "olivares-tty1-banner.service") {
+		t.Errorf("the repair console does not start after the banner service: After=%q", after)
+	}
+	service := readUnit(t, "units/olivares-tty1-banner.service")
+	// The banner service writes only its file: with DevicePolicy=closed and no DeviceAllow= the kernel refuses
+	// it tty1.
+	for key, want := range map[string][]string{"DevicePolicy": {"closed"}, "DeviceAllow": nil, "PrivateDevices": nil} {
+		if got := service.values("Service", key); !slices.Equal(got, want) {
+			t.Errorf("banner service %s=%v, want %v", key, got, want)
+		}
+	}
+	wantExec := "/usr/libexec/olivares/tty1-banner /etc/issue.d/olivares-appliance.issue " + bannerFile
+	for key, want := range map[string][]string{
+		"Type":                     {"oneshot"},
+		"ExecStart":                {wantExec},
+		"RuntimeDirectory":         {"olivares-banner"},
+		"RuntimeDirectoryPreserve": {"yes"},
+	} {
+		if got := service.values("Service", key); !slices.Equal(got, want) {
+			t.Errorf("banner service %s=%v, want %v", key, got, want)
+		}
+	}
+	for _, key := range []string{"ReadWritePaths", "ExecStartPost"} {
+		if got := service.values("Service", key); len(got) != 0 {
+			t.Errorf("banner service sets %s=%v: the banner's own writable path is its RuntimeDirectory", key, got)
+		}
+	}
+	if _, err := os.Stat("units/olivares-tty1-banner.timer"); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("a banner timer is still shipped (%v): nothing may reprint on tty1 while the console runs", err)
+	}
+	// The management-socket generator keeps its sandbox: the banner is no part of it.
+	sockets := readUnit(t, "units/olivares-portal-sockets.service")
+	if got := sockets.values("Service", "ReadWritePaths"); !slices.Equal(got, []string{"/run/systemd/system"}) {
+		t.Errorf("the socket generator's ReadWritePaths=%v, want only /run/systemd/system", got)
+	}
+	if got := sockets.values("Service", "ExecStartPost"); len(got) != 0 {
+		t.Errorf("the socket generator runs %v after it: ExecStartPost never runs when its ExecStart fails", got)
+	}
+	shipped := readPortalPackage(t).shipped()
+	for dst, src := range map[string]string{
+		"/usr/libexec/olivares/tty1-banner":                    "appliance/layer/portal/tty1-banner.sh",
+		"/usr/lib/systemd/system/olivares-tty1-banner.service": "appliance/layer/portal/units/olivares-tty1-banner.service",
+	} {
+		if shipped[dst] != src {
+			t.Errorf("the portal package ships %s from %q, want %s", dst, shipped[dst], src)
+		}
+	}
+	if src, ok := shipped["/usr/lib/systemd/system/olivares-tty1-banner.timer"]; ok {
+		t.Errorf("the portal package still ships the banner timer from %q", src)
+	}
+}
+
+// bannerRun runs tty1-banner with the given addresses behind a fake ip and a recording agetty, for a
+// server image, and returns the banner it wrote and the agetty invocations it made.
+func bannerRun(t *testing.T, dir, ipOutput string) (banner string, shown []string) {
+	t.Helper()
+	static := filepath.Join(dir, "static.issue")
+	if err := os.WriteFile(static, []byte("Olivares Server \\n\nThis is a headless server.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	record := filepath.Join(dir, "image")
+	if err := os.WriteFile(record, []byte("almalinux10-server-amd64\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return bannerRunOn(t, dir, ipOutput, static, record)
+}
+
+// bannerRunOn runs tty1-banner over the static banner and the image record given, with the addresses
+// behind a fake ip and a recording agetty.
+func bannerRunOn(t *testing.T, dir, ipOutput, static, record string) (banner string, shown []string) {
+	t.Helper()
+	bin := filepath.Join(dir, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("ip", "cat <<'EOF'\n"+ipOutput+"EOF\n")
+	log := filepath.Join(dir, "agetty.log")
+	write("agetty", "echo \"$*\" >>"+log+"\n")
+	out := filepath.Join(dir, "run", "issue")
+	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("sh", "tty1-banner.sh", static, out, record)
+	cmd.Env = append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"))
+	if got, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("tty1-banner: %v: %s", err, got)
+	}
+	data, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recorded, err := os.ReadFile(log); err == nil {
+		shown = strings.Split(strings.TrimSpace(string(recorded)), "\n")
+	}
+	return string(data), shown
+}
+
+// The banner names the host's reachable addresses, follows a new lease in its file, and never prints on a
+// terminal itself: only the repair console writes to tty1.
+func TestTTY1Banner_NamesTheRealAddressesAndPrintsNothingItself(t *testing.T) {
+	dir := t.TempDir()
+	lan := "2: eth0    inet 192.0.2.10/24 brd 192.0.2.255 scope global eth0\n"
+	bridges := "3: docker0    inet 172.17.0.1/16 scope global docker0\n4: br-1a2b    inet 172.18.0.1/16 scope global br-1a2b\n" +
+		"5: veth9    inet 172.19.0.1/16 scope global veth9\n6: podman0    inet 10.88.0.1/16 scope global podman0\n"
+	banner, shown := bannerRun(t, dir, bridges+lan)
+	for _, want := range []string{"Olivares Server \\n", "headless server", "https://192.0.2.10:8443/setup", "t to show the one-time setup token"} {
+		if !strings.Contains(banner, want) {
+			t.Errorf("the banner lacks %q:\n%s", want, banner)
+		}
+	}
+	for _, bad := range []string{"127.0.0.1", "172.17.0.1", "172.18.0.1", "172.19.0.1", "10.88.0.1", "\\4"} {
+		if strings.Contains(banner, bad) {
+			t.Errorf("the banner names %q, which nobody on the network can reach:\n%s", bad, banner)
+		}
+	}
+	moved, movedShown := bannerRun(t, dir, "2: eth0    inet 192.0.2.77/24 scope global eth0\n")
+	if !strings.Contains(moved, "https://192.0.2.77:8443/setup") || strings.Contains(moved, "192.0.2.10") {
+		t.Errorf("a new lease did not replace the address in the banner file:\n%s", moved)
+	}
+	none, noneShown := bannerRun(t, dir, bridges)
+	if !strings.Contains(none, "Waiting for a network address") || !strings.Contains(none, "choose q to show this screen again") || strings.Contains(none, "https://") {
+		t.Errorf("a host with no reachable address is not told to wait and how to see a new one:\n%s", none)
+	}
+	if printed := append(append(shown, movedShown...), noneShown...); len(printed) != 0 {
+		t.Errorf("the banner printed on a terminal itself: %q", printed)
+	}
+}
+
+// The image's own record names its variant, which config.sh writes. The desktop image runs GNOME, so its
+// banner must not call the machine a headless server; the server image keeps the static sentence. The static
+// banner is the real one the package installs.
+func TestTTY1Banner_SaysWhatTheImageIsFromItsOwnRecord(t *testing.T) {
+	const static = "../base/units/tty1-banner.txt"
+	lan := "2: eth0    inet 192.0.2.10/24 brd 192.0.2.255 scope global eth0\n"
+	for _, c := range []struct {
+		name, variant string
+		headless      bool
+	}{
+		{"server image", "almalinux10-server-amd64", true},
+		{"desktop image", "almalinux10-desktop-amd64", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			record := filepath.Join(dir, "image")
+			if err := os.WriteFile(record, []byte(c.variant+"\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			banner, _ := bannerRunOn(t, dir, lan, static, record)
+			if got := strings.Contains(banner, "headless server"); got != c.headless {
+				t.Errorf("the banner says headless server = %v, want %v:\n%s", got, c.headless, banner)
+			}
+			if !c.headless && !strings.Contains(banner, "desktop") {
+				t.Errorf("the desktop banner does not say what the image is:\n%s", banner)
+			}
+			if !strings.Contains(banner, "https://192.0.2.10:8443/setup") {
+				t.Errorf("the banner lost its address line:\n%s", banner)
+			}
+		})
+	}
 }

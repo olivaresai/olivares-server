@@ -108,7 +108,7 @@ func apply(stdout, stderr io.Writer) int {
 		Identities: func() ([]string, error) { return base.ProductIdentities("/") },
 		Seams: base.Seams{
 			Identity:      base.OSIdentity{Host: host},
-			HostSettings:  base.CloudInitHost{Host: host},
+			HostSettings:  base.HostByOwner{Cloud: base.CloudInitHost{Host: host}, Local: base.LocalHost{Host: host}},
 			HostHandoff:   base.HostSettingsHandoff{Host: host},
 			ProductConfig: base.ProductConfig{Host: host},
 			Storage:       base.Storage{Host: host},

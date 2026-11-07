@@ -1,0 +1,599 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+# The rules each native interface an access.tsv row calls expands to, so compare_rules needs no checkmodule
+# (the merge gate and the main suite run test_manifest without it). {d} is the row's domain. Measured
+# 2026-11-07 by compare_rules.expanded_interface in docker.io/library/almalinux@sha256:ba31c3299856068f77bc10574cad51b0a4f6a3dafb882668656e1639bee63db6
+# with selinux-policy-targeted and selinux-policy-devel 42.1.18-4.el10_2.4 and checkpolicy 3.10-1.el10;
+# test_compare_rules checks the table equals that expansion where checkmodule is installed.
+# Lines starting with # are comments.
+interface	kind	source	target	class	perms	condition	name	new
+auth_use_pam	allow	chkpwd_t	{d}	fd	use			
+auth_use_pam	allow	chkpwd_t	{d}	fifo_file	append			
+auth_use_pam	allow	chkpwd_t	{d}	fifo_file	getattr			
+auth_use_pam	allow	chkpwd_t	{d}	fifo_file	ioctl			
+auth_use_pam	allow	chkpwd_t	{d}	fifo_file	lock			
+auth_use_pam	allow	chkpwd_t	{d}	fifo_file	read			
+auth_use_pam	allow	chkpwd_t	{d}	fifo_file	write			
+auth_use_pam	allow	chkpwd_t	{d}	process	sigchld			
+auth_use_pam	allow	consolekit_t	{d}	dbus	send_msg			
+auth_use_pam	allow	dbusd_unconfined	{d}	dbus	send_msg			
+auth_use_pam	allow	fprintd_t	{d}	dbus	send_msg			
+auth_use_pam	allow	{d}	auth_cache_t	dir	getattr			
+auth_use_pam	allow	{d}	auth_cache_t	dir	open			
+auth_use_pam	allow	{d}	auth_cache_t	dir	search			
+auth_use_pam	allow	{d}	bin_t	dir	getattr			
+auth_use_pam	allow	{d}	bin_t	dir	open			
+auth_use_pam	allow	{d}	bin_t	dir	search			
+auth_use_pam	allow	{d}	bin_t	lnk_file	getattr			
+auth_use_pam	allow	{d}	bin_t	lnk_file	read			
+auth_use_pam	allow	{d}	cert_t	dir	getattr			
+auth_use_pam	allow	{d}	cert_t	dir	ioctl			
+auth_use_pam	allow	{d}	cert_t	dir	lock			
+auth_use_pam	allow	{d}	cert_t	dir	open			
+auth_use_pam	allow	{d}	cert_t	dir	read			
+auth_use_pam	allow	{d}	cert_t	dir	search			
+auth_use_pam	allow	{d}	cert_t	file	getattr			
+auth_use_pam	allow	{d}	cert_t	file	ioctl			
+auth_use_pam	allow	{d}	cert_t	file	lock			
+auth_use_pam	allow	{d}	cert_t	file	open			
+auth_use_pam	allow	{d}	cert_t	file	read			
+auth_use_pam	allow	{d}	cert_t	lnk_file	getattr			
+auth_use_pam	allow	{d}	cert_t	lnk_file	read			
+auth_use_pam	allow	{d}	chkpwd_exec_t	file	execute			
+auth_use_pam	allow	{d}	chkpwd_exec_t	file	getattr			
+auth_use_pam	allow	{d}	chkpwd_exec_t	file	ioctl			
+auth_use_pam	allow	{d}	chkpwd_exec_t	file	map			
+auth_use_pam	allow	{d}	chkpwd_exec_t	file	open			
+auth_use_pam	allow	{d}	chkpwd_exec_t	file	read			
+auth_use_pam	allow	{d}	chkpwd_t	process	transition			
+auth_use_pam	allow	{d}	client_packet_t	packet	recv	nis_enabled:true		
+auth_use_pam	allow	{d}	client_packet_t	packet	send	nis_enabled:true		
+auth_use_pam	allow	{d}	consolekit_t	dbus	send_msg			
+auth_use_pam	allow	{d}	dbusd_etc_t	dir	getattr			
+auth_use_pam	allow	{d}	dbusd_etc_t	dir	ioctl			
+auth_use_pam	allow	{d}	dbusd_etc_t	dir	lock			
+auth_use_pam	allow	{d}	dbusd_etc_t	dir	open			
+auth_use_pam	allow	{d}	dbusd_etc_t	dir	read			
+auth_use_pam	allow	{d}	dbusd_etc_t	dir	search			
+auth_use_pam	allow	{d}	dbusd_etc_t	file	getattr			
+auth_use_pam	allow	{d}	dbusd_etc_t	file	ioctl			
+auth_use_pam	allow	{d}	dbusd_etc_t	file	lock			
+auth_use_pam	allow	{d}	dbusd_etc_t	file	open			
+auth_use_pam	allow	{d}	dbusd_etc_t	file	read			
+auth_use_pam	allow	{d}	dbusd_unconfined	dbus	send_msg			
+auth_use_pam	allow	{d}	default_context_t	dir	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	default_context_t	dir	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	default_context_t	dir	search	kerberos_enabled:true		
+auth_use_pam	allow	{d}	device_t	dir	getattr			
+auth_use_pam	allow	{d}	device_t	dir	open			
+auth_use_pam	allow	{d}	device_t	dir	search			
+auth_use_pam	allow	{d}	ephemeral_port_t	tcp_socket	name_bind	nis_enabled:true		
+auth_use_pam	allow	{d}	ephemeral_port_t	tcp_socket	name_connect	nis_enabled:true		
+auth_use_pam	allow	{d}	ephemeral_port_t	udp_socket	name_bind	nis_enabled:true		
+auth_use_pam	allow	{d}	etc_t	dir	getattr			
+auth_use_pam	allow	{d}	etc_t	dir	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	etc_t	dir	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	etc_t	dir	open			
+auth_use_pam	allow	{d}	etc_t	dir	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	etc_t	dir	open	nis_enabled:true		
+auth_use_pam	allow	{d}	etc_t	dir	search			
+auth_use_pam	allow	{d}	etc_t	dir	search	kerberos_enabled:true		
+auth_use_pam	allow	{d}	etc_t	dir	search	nis_enabled:true		
+auth_use_pam	allow	{d}	faillog_t	dir	add_name			
+auth_use_pam	allow	{d}	faillog_t	dir	create			
+auth_use_pam	allow	{d}	faillog_t	dir	getattr			
+auth_use_pam	allow	{d}	faillog_t	dir	ioctl			
+auth_use_pam	allow	{d}	faillog_t	dir	link			
+auth_use_pam	allow	{d}	faillog_t	dir	lock			
+auth_use_pam	allow	{d}	faillog_t	dir	open			
+auth_use_pam	allow	{d}	faillog_t	dir	read			
+auth_use_pam	allow	{d}	faillog_t	dir	remove_name			
+auth_use_pam	allow	{d}	faillog_t	dir	rename			
+auth_use_pam	allow	{d}	faillog_t	dir	reparent			
+auth_use_pam	allow	{d}	faillog_t	dir	rmdir			
+auth_use_pam	allow	{d}	faillog_t	dir	search			
+auth_use_pam	allow	{d}	faillog_t	dir	setattr			
+auth_use_pam	allow	{d}	faillog_t	dir	unlink			
+auth_use_pam	allow	{d}	faillog_t	dir	watch			
+auth_use_pam	allow	{d}	faillog_t	dir	watch_reads			
+auth_use_pam	allow	{d}	faillog_t	dir	write			
+auth_use_pam	allow	{d}	faillog_t	file	append			
+auth_use_pam	allow	{d}	faillog_t	file	create			
+auth_use_pam	allow	{d}	faillog_t	file	getattr			
+auth_use_pam	allow	{d}	faillog_t	file	ioctl			
+auth_use_pam	allow	{d}	faillog_t	file	link			
+auth_use_pam	allow	{d}	faillog_t	file	lock			
+auth_use_pam	allow	{d}	faillog_t	file	open			
+auth_use_pam	allow	{d}	faillog_t	file	read			
+auth_use_pam	allow	{d}	faillog_t	file	rename			
+auth_use_pam	allow	{d}	faillog_t	file	setattr			
+auth_use_pam	allow	{d}	faillog_t	file	unlink			
+auth_use_pam	allow	{d}	faillog_t	file	watch			
+auth_use_pam	allow	{d}	faillog_t	file	watch_reads			
+auth_use_pam	allow	{d}	faillog_t	file	write			
+auth_use_pam	allow	{d}	file_context_t	dir	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	dir	ioctl	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	dir	lock	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	dir	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	dir	read	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	dir	search	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	file	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	file	ioctl	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	file	lock	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	file	map	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	file	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	file	read	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	lnk_file	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	file_context_t	lnk_file	read	kerberos_enabled:true		
+auth_use_pam	allow	{d}	fprintd_t	dbus	send_msg			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	accept			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	append			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	bind			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	connect			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	getattr			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	getopt			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	ioctl			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	listen			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	lock			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	read			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	setattr			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	setopt			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	shutdown			
+auth_use_pam	allow	{d}	init_t	unix_stream_socket	write			
+auth_use_pam	allow	{d}	init_var_run_t	dir	getattr			
+auth_use_pam	allow	{d}	init_var_run_t	dir	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	init_var_run_t	dir	open			
+auth_use_pam	allow	{d}	init_var_run_t	dir	open	nis_enabled:true		
+auth_use_pam	allow	{d}	init_var_run_t	dir	search			
+auth_use_pam	allow	{d}	init_var_run_t	dir	search	nis_enabled:true		
+auth_use_pam	allow	{d}	krb5_conf_t	file	getattr			
+auth_use_pam	allow	{d}	krb5_conf_t	file	ioctl			
+auth_use_pam	allow	{d}	krb5_conf_t	file	lock			
+auth_use_pam	allow	{d}	krb5_conf_t	file	open			
+auth_use_pam	allow	{d}	krb5_conf_t	file	read			
+auth_use_pam	allow	{d}	krb5_home_t	file	getattr			
+auth_use_pam	allow	{d}	krb5_home_t	file	ioctl			
+auth_use_pam	allow	{d}	krb5_home_t	file	lock			
+auth_use_pam	allow	{d}	krb5_home_t	file	open			
+auth_use_pam	allow	{d}	krb5_home_t	file	read			
+auth_use_pam	allow	{d}	krb5_host_rcache_t	dir	add_name	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	dir	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	dir	ioctl	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	dir	lock	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	dir	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	dir	read	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	dir	remove_name	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	dir	search	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	dir	write	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	append	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	create	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	ioctl	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	link	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	lock	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	read	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	rename	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	setattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	unlink	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	watch	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	watch_reads	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_host_rcache_t	file	write	kerberos_enabled:true		
+auth_use_pam	allow	{d}	krb5_keytab_t	dir	getattr			
+auth_use_pam	allow	{d}	krb5_keytab_t	dir	ioctl			
+auth_use_pam	allow	{d}	krb5_keytab_t	dir	lock			
+auth_use_pam	allow	{d}	krb5_keytab_t	dir	open			
+auth_use_pam	allow	{d}	krb5_keytab_t	dir	read			
+auth_use_pam	allow	{d}	krb5_keytab_t	dir	search			
+auth_use_pam	allow	{d}	krb5_keytab_t	file	getattr			
+auth_use_pam	allow	{d}	krb5_keytab_t	file	ioctl			
+auth_use_pam	allow	{d}	krb5_keytab_t	file	lock			
+auth_use_pam	allow	{d}	krb5_keytab_t	file	open			
+auth_use_pam	allow	{d}	krb5_keytab_t	file	read			
+auth_use_pam	allow	{d}	lastlog_t	file	append			
+auth_use_pam	allow	{d}	lastlog_t	file	create			
+auth_use_pam	allow	{d}	lastlog_t	file	getattr			
+auth_use_pam	allow	{d}	lastlog_t	file	ioctl			
+auth_use_pam	allow	{d}	lastlog_t	file	lock			
+auth_use_pam	allow	{d}	lastlog_t	file	open			
+auth_use_pam	allow	{d}	lastlog_t	file	read			
+auth_use_pam	allow	{d}	lastlog_t	file	setattr			
+auth_use_pam	allow	{d}	lastlog_t	file	write			
+auth_use_pam	allow	{d}	local_login_home_t	dir	getattr			
+auth_use_pam	allow	{d}	local_login_home_t	dir	open			
+auth_use_pam	allow	{d}	local_login_home_t	dir	search			
+auth_use_pam	allow	{d}	local_login_home_t	file	getattr			
+auth_use_pam	allow	{d}	net_conf_t	dir	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	dir	ioctl	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	dir	lock	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	dir	open	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	dir	read	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	dir	search	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	file	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	file	ioctl	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	file	lock	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	file	open	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	file	read	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	lnk_file	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	net_conf_t	lnk_file	read	nis_enabled:true		
+auth_use_pam	allow	{d}	netif_t	netif	egress	nis_enabled:true		
+auth_use_pam	allow	{d}	netif_t	netif	ingress	nis_enabled:true		
+auth_use_pam	allow	{d}	netif_t	netif	tcp_recv	nis_enabled:true		
+auth_use_pam	allow	{d}	netif_t	netif	tcp_send	nis_enabled:true		
+auth_use_pam	allow	{d}	netif_t	netif	udp_recv	nis_enabled:true		
+auth_use_pam	allow	{d}	netif_t	netif	udp_send	nis_enabled:true		
+auth_use_pam	allow	{d}	node_t	node	recvfrom	nis_enabled:true		
+auth_use_pam	allow	{d}	node_t	node	sendto	nis_enabled:true		
+auth_use_pam	allow	{d}	node_t	node	tcp_recv	nis_enabled:true		
+auth_use_pam	allow	{d}	node_t	node	tcp_send	nis_enabled:true		
+auth_use_pam	allow	{d}	node_t	node	udp_recv	nis_enabled:true		
+auth_use_pam	allow	{d}	node_t	node	udp_send	nis_enabled:true		
+auth_use_pam	allow	{d}	node_t	tcp_socket	node_bind	nis_enabled:true		
+auth_use_pam	allow	{d}	node_t	udp_socket	node_bind	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	capability	audit_write			
+auth_use_pam	allow	{d}	{d}	capability	net_bind_service	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	dbus	send_msg			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	append			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	bind			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	connect			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	create			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	getattr			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	getopt			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	ioctl			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	lock			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	nlmsg_read			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	nlmsg_relay			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	nlmsg_tty_audit			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	read			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	setattr			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	setopt			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	shutdown			
+auth_use_pam	allow	{d}	{d}	netlink_audit_socket	write			
+auth_use_pam	allow	{d}	{d}	process	setfscreate	kerberos_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	accept	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	append	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	bind	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	connect	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	create	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	getopt	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	ioctl	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	listen	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	lock	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	read	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	setattr	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	setopt	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	shutdown	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	tcp_socket	write	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	append	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	bind	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	connect	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	create	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	getopt	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	ioctl	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	lock	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	read	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	setattr	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	setopt	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	shutdown	nis_enabled:true		
+auth_use_pam	allow	{d}	{d}	udp_socket	write	nis_enabled:true		
+auth_use_pam	allow	{d}	pam_exec_t	file	execute			
+auth_use_pam	allow	{d}	pam_exec_t	file	execute_no_trans			
+auth_use_pam	allow	{d}	pam_exec_t	file	getattr			
+auth_use_pam	allow	{d}	pam_exec_t	file	ioctl			
+auth_use_pam	allow	{d}	pam_exec_t	file	lock			
+auth_use_pam	allow	{d}	pam_exec_t	file	map			
+auth_use_pam	allow	{d}	pam_exec_t	file	open			
+auth_use_pam	allow	{d}	pam_exec_t	file	read			
+auth_use_pam	allow	{d}	pcscd_t	unix_stream_socket	connectto			
+auth_use_pam	allow	{d}	pcscd_var_run_t	dir	getattr			
+auth_use_pam	allow	{d}	pcscd_var_run_t	dir	open			
+auth_use_pam	allow	{d}	pcscd_var_run_t	dir	search			
+auth_use_pam	allow	{d}	pcscd_var_run_t	file	getattr			
+auth_use_pam	allow	{d}	pcscd_var_run_t	file	ioctl			
+auth_use_pam	allow	{d}	pcscd_var_run_t	file	lock			
+auth_use_pam	allow	{d}	pcscd_var_run_t	file	open			
+auth_use_pam	allow	{d}	pcscd_var_run_t	file	read			
+auth_use_pam	allow	{d}	pcscd_var_run_t	sock_file	append			
+auth_use_pam	allow	{d}	pcscd_var_run_t	sock_file	getattr			
+auth_use_pam	allow	{d}	pcscd_var_run_t	sock_file	open			
+auth_use_pam	allow	{d}	pcscd_var_run_t	sock_file	write			
+auth_use_pam	allow	{d}	pidfile	dir	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	pidfile	dir	open	nis_enabled:true		
+auth_use_pam	allow	{d}	pidfile	dir	search	nis_enabled:true		
+auth_use_pam	allow	{d}	port_t	tcp_socket	name_bind	nis_enabled:true		
+auth_use_pam	allow	{d}	port_t	tcp_socket	name_connect	nis_enabled:true		
+auth_use_pam	allow	{d}	port_t	udp_socket	name_bind	nis_enabled:true		
+auth_use_pam	allow	{d}	port_type	tcp_socket	recv_msg	nis_enabled:true		
+auth_use_pam	allow	{d}	port_type	tcp_socket	send_msg	nis_enabled:true		
+auth_use_pam	allow	{d}	port_type	udp_socket	recv_msg	nis_enabled:true		
+auth_use_pam	allow	{d}	port_type	udp_socket	send_msg	nis_enabled:true		
+auth_use_pam	allow	{d}	portmap_client_packet_t	packet	recv	nis_enabled:true		
+auth_use_pam	allow	{d}	portmap_client_packet_t	packet	send	nis_enabled:true		
+auth_use_pam	allow	{d}	portmap_port_t	tcp_socket	name_connect	nis_enabled:true		
+auth_use_pam	allow	{d}	random_device_t	chr_file	getattr			
+auth_use_pam	allow	{d}	random_device_t	chr_file	ioctl			
+auth_use_pam	allow	{d}	random_device_t	chr_file	lock			
+auth_use_pam	allow	{d}	random_device_t	chr_file	open			
+auth_use_pam	allow	{d}	random_device_t	chr_file	read			
+auth_use_pam	allow	{d}	reserved_port_type	tcp_socket	name_connect	nis_enabled:true		
+auth_use_pam	allow	{d}	rpc_port_type	tcp_socket	name_bind	nis_enabled:true		
+auth_use_pam	allow	{d}	rpc_port_type	udp_socket	name_bind	nis_enabled:true		
+auth_use_pam	allow	{d}	samba_etc_t	dir	getattr			
+auth_use_pam	allow	{d}	samba_etc_t	dir	ioctl			
+auth_use_pam	allow	{d}	samba_etc_t	dir	lock			
+auth_use_pam	allow	{d}	samba_etc_t	dir	open			
+auth_use_pam	allow	{d}	samba_etc_t	dir	read			
+auth_use_pam	allow	{d}	samba_etc_t	dir	search			
+auth_use_pam	allow	{d}	samba_etc_t	file	getattr			
+auth_use_pam	allow	{d}	samba_etc_t	file	ioctl			
+auth_use_pam	allow	{d}	samba_etc_t	file	lock			
+auth_use_pam	allow	{d}	samba_etc_t	file	open			
+auth_use_pam	allow	{d}	samba_etc_t	file	read			
+auth_use_pam	allow	{d}	samba_var_t	dir	getattr			
+auth_use_pam	allow	{d}	samba_var_t	dir	open			
+auth_use_pam	allow	{d}	samba_var_t	dir	search			
+auth_use_pam	allow	{d}	security_t	dir	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	dir	ioctl	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	dir	lock	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	dir	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	dir	read	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	dir	search	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	file	append	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	file	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	file	ioctl	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	file	lock	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	file	map	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	file	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	file	read	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	file	write	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	lnk_file	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	lnk_file	read	kerberos_enabled:true		
+auth_use_pam	allow	{d}	security_t	security	check_context	kerberos_enabled:true		
+auth_use_pam	allow	{d}	selinux_config_t	dir	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	selinux_config_t	dir	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	selinux_config_t	dir	search	kerberos_enabled:true		
+auth_use_pam	allow	{d}	server_packet_t	packet	recv	nis_enabled:true		
+auth_use_pam	allow	{d}	server_packet_t	packet	send	nis_enabled:true		
+auth_use_pam	allow	{d}	smbd_var_run_t	dir	getattr			
+auth_use_pam	allow	{d}	smbd_var_run_t	dir	open			
+auth_use_pam	allow	{d}	smbd_var_run_t	dir	search			
+auth_use_pam	allow	{d}	sysfs_t	dir	getattr			
+auth_use_pam	allow	{d}	sysfs_t	dir	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	sysfs_t	dir	ioctl			
+auth_use_pam	allow	{d}	sysfs_t	dir	lock			
+auth_use_pam	allow	{d}	sysfs_t	dir	open			
+auth_use_pam	allow	{d}	sysfs_t	dir	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	sysfs_t	dir	read			
+auth_use_pam	allow	{d}	sysfs_t	dir	search			
+auth_use_pam	allow	{d}	sysfs_t	dir	search	kerberos_enabled:true		
+auth_use_pam	allow	{d}	sysfs_t	file	getattr			
+auth_use_pam	allow	{d}	sysfs_t	file	ioctl			
+auth_use_pam	allow	{d}	sysfs_t	file	lock			
+auth_use_pam	allow	{d}	sysfs_t	file	open			
+auth_use_pam	allow	{d}	sysfs_t	file	read			
+auth_use_pam	allow	{d}	sysfs_t	filesystem	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	sysfs_t	lnk_file	getattr			
+auth_use_pam	allow	{d}	sysfs_t	lnk_file	read			
+auth_use_pam	allow	{d}	system_dbusd_t	dbus	send_msg			
+auth_use_pam	allow	{d}	system_dbusd_t	unix_stream_socket	connectto			
+auth_use_pam	allow	{d}	system_dbusd_var_lib_t	dir	getattr			
+auth_use_pam	allow	{d}	system_dbusd_var_lib_t	dir	open			
+auth_use_pam	allow	{d}	system_dbusd_var_lib_t	dir	search			
+auth_use_pam	allow	{d}	system_dbusd_var_lib_t	file	getattr			
+auth_use_pam	allow	{d}	system_dbusd_var_lib_t	file	ioctl			
+auth_use_pam	allow	{d}	system_dbusd_var_lib_t	file	lock			
+auth_use_pam	allow	{d}	system_dbusd_var_lib_t	file	open			
+auth_use_pam	allow	{d}	system_dbusd_var_lib_t	file	read			
+auth_use_pam	allow	{d}	system_dbusd_var_lib_t	lnk_file	getattr			
+auth_use_pam	allow	{d}	system_dbusd_var_lib_t	lnk_file	read			
+auth_use_pam	allow	{d}	system_dbusd_var_run_t	dir	getattr			
+auth_use_pam	allow	{d}	system_dbusd_var_run_t	dir	open			
+auth_use_pam	allow	{d}	system_dbusd_var_run_t	dir	search			
+auth_use_pam	allow	{d}	system_dbusd_var_run_t	sock_file	append			
+auth_use_pam	allow	{d}	system_dbusd_var_run_t	sock_file	getattr			
+auth_use_pam	allow	{d}	system_dbusd_var_run_t	sock_file	open			
+auth_use_pam	allow	{d}	system_dbusd_var_run_t	sock_file	write			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	dir	getattr			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	dir	ioctl			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	dir	lock			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	dir	open			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	dir	read			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	dir	search			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	fifo_file	write			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	file	getattr			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	file	ioctl			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	file	lock			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	file	open			
+auth_use_pam	allow	{d}	systemd_logind_sessions_t	file	read			
+auth_use_pam	allow	{d}	systemd_logind_t	dbus	send_msg			
+auth_use_pam	allow	{d}	systemd_logind_t	fd	use			
+auth_use_pam	allow	{d}	tmp_t	dir	add_name	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmp_t	dir	getattr			
+auth_use_pam	allow	{d}	tmp_t	dir	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmp_t	dir	ioctl	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmp_t	dir	lock	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmp_t	dir	open			
+auth_use_pam	allow	{d}	tmp_t	dir	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmp_t	dir	read	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmp_t	dir	remove_name	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmp_t	dir	search			
+auth_use_pam	allow	{d}	tmp_t	dir	search	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmp_t	dir	write	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmp_t	lnk_file	getattr			
+auth_use_pam	allow	{d}	tmp_t	lnk_file	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmp_t	lnk_file	read			
+auth_use_pam	allow	{d}	tmp_t	lnk_file	read	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmpfs_t	dir	getattr			
+auth_use_pam	allow	{d}	tmpfs_t	dir	getattr	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmpfs_t	dir	open			
+auth_use_pam	allow	{d}	tmpfs_t	dir	open	kerberos_enabled:true		
+auth_use_pam	allow	{d}	tmpfs_t	dir	search			
+auth_use_pam	allow	{d}	tmpfs_t	dir	search	kerberos_enabled:true		
+auth_use_pam	allow	{d}	unconfined_service_t	dbus	send_msg			
+auth_use_pam	allow	{d}	unreserved_port_t	tcp_socket	name_bind	nis_enabled:true		
+auth_use_pam	allow	{d}	unreserved_port_t	tcp_socket	name_connect	nis_enabled:true		
+auth_use_pam	allow	{d}	unreserved_port_t	udp_socket	name_bind	nis_enabled:true		
+auth_use_pam	allow	{d}	updpwd_exec_t	file	execute			
+auth_use_pam	allow	{d}	updpwd_exec_t	file	getattr			
+auth_use_pam	allow	{d}	updpwd_exec_t	file	ioctl			
+auth_use_pam	allow	{d}	updpwd_exec_t	file	map			
+auth_use_pam	allow	{d}	updpwd_exec_t	file	open			
+auth_use_pam	allow	{d}	updpwd_exec_t	file	read			
+auth_use_pam	allow	{d}	updpwd_t	process	transition			
+auth_use_pam	allow	{d}	urandom_device_t	chr_file	getattr			
+auth_use_pam	allow	{d}	urandom_device_t	chr_file	ioctl			
+auth_use_pam	allow	{d}	urandom_device_t	chr_file	lock			
+auth_use_pam	allow	{d}	urandom_device_t	chr_file	open			
+auth_use_pam	allow	{d}	urandom_device_t	chr_file	read			
+auth_use_pam	allow	{d}	user_tmp_t	dir	getattr			
+auth_use_pam	allow	{d}	user_tmp_t	dir	open			
+auth_use_pam	allow	{d}	user_tmp_t	dir	search			
+auth_use_pam	allow	{d}	var_lib_t	dir	getattr			
+auth_use_pam	allow	{d}	var_lib_t	dir	open			
+auth_use_pam	allow	{d}	var_lib_t	dir	search			
+auth_use_pam	allow	{d}	var_log_t	dir	add_name			
+auth_use_pam	allow	{d}	var_log_t	dir	getattr			
+auth_use_pam	allow	{d}	var_log_t	dir	ioctl			
+auth_use_pam	allow	{d}	var_log_t	dir	lock			
+auth_use_pam	allow	{d}	var_log_t	dir	open			
+auth_use_pam	allow	{d}	var_log_t	dir	read			
+auth_use_pam	allow	{d}	var_log_t	dir	remove_name			
+auth_use_pam	allow	{d}	var_log_t	dir	search			
+auth_use_pam	allow	{d}	var_log_t	dir	write			
+auth_use_pam	allow	{d}	var_run_t	dir	getattr			
+auth_use_pam	allow	{d}	var_run_t	dir	open			
+auth_use_pam	allow	{d}	var_run_t	dir	search			
+auth_use_pam	allow	{d}	var_run_t	lnk_file	getattr			
+auth_use_pam	allow	{d}	var_run_t	lnk_file	read			
+auth_use_pam	allow	{d}	var_t	dir	getattr			
+auth_use_pam	allow	{d}	var_t	dir	open			
+auth_use_pam	allow	{d}	var_t	dir	search			
+auth_use_pam	allow	{d}	var_t	lnk_file	getattr			
+auth_use_pam	allow	{d}	var_t	lnk_file	read			
+auth_use_pam	allow	{d}	var_yp_t	dir	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	dir	ioctl	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	dir	lock	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	dir	open	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	dir	read	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	dir	search	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	file	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	file	ioctl	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	file	lock	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	file	open	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	file	read	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	lnk_file	getattr	nis_enabled:true		
+auth_use_pam	allow	{d}	var_yp_t	lnk_file	read	nis_enabled:true		
+auth_use_pam	allow	{d}	winbind_t	unix_stream_socket	connectto			
+auth_use_pam	allow	{d}	winbind_var_run_t	dir	getattr			
+auth_use_pam	allow	{d}	winbind_var_run_t	dir	open			
+auth_use_pam	allow	{d}	winbind_var_run_t	dir	search			
+auth_use_pam	allow	{d}	winbind_var_run_t	sock_file	append			
+auth_use_pam	allow	{d}	winbind_var_run_t	sock_file	getattr			
+auth_use_pam	allow	{d}	winbind_var_run_t	sock_file	open			
+auth_use_pam	allow	{d}	winbind_var_run_t	sock_file	write			
+auth_use_pam	allow	{d}	wtmp_t	file	append			
+auth_use_pam	allow	{d}	wtmp_t	file	getattr			
+auth_use_pam	allow	{d}	wtmp_t	file	ioctl			
+auth_use_pam	allow	{d}	wtmp_t	file	lock			
+auth_use_pam	allow	{d}	wtmp_t	file	open			
+auth_use_pam	allow	{d}	wtmp_t	file	read			
+auth_use_pam	allow	system_dbusd_t	{d}	dbus	send_msg			
+auth_use_pam	allow	systemd_logind_t	{d}	dbus	send_msg			
+auth_use_pam	allow	systemd_logind_t	{d}	dir	getattr			
+auth_use_pam	allow	systemd_logind_t	{d}	dir	ioctl			
+auth_use_pam	allow	systemd_logind_t	{d}	dir	lock			
+auth_use_pam	allow	systemd_logind_t	{d}	dir	open			
+auth_use_pam	allow	systemd_logind_t	{d}	dir	read			
+auth_use_pam	allow	systemd_logind_t	{d}	dir	search			
+auth_use_pam	allow	systemd_logind_t	{d}	file	getattr			
+auth_use_pam	allow	systemd_logind_t	{d}	file	ioctl			
+auth_use_pam	allow	systemd_logind_t	{d}	file	lock			
+auth_use_pam	allow	systemd_logind_t	{d}	file	open			
+auth_use_pam	allow	systemd_logind_t	{d}	file	read			
+auth_use_pam	allow	systemd_logind_t	{d}	lnk_file	getattr			
+auth_use_pam	allow	systemd_logind_t	{d}	lnk_file	read			
+auth_use_pam	allow	systemd_logind_t	{d}	process	getattr			
+auth_use_pam	allow	systemd_logind_t	{d}	process	signal			
+auth_use_pam	allow	unconfined_service_t	{d}	dbus	send_msg			
+auth_use_pam	allow	updpwd_t	{d}	fd	use			
+auth_use_pam	allow	updpwd_t	{d}	fifo_file	append			
+auth_use_pam	allow	updpwd_t	{d}	fifo_file	getattr			
+auth_use_pam	allow	updpwd_t	{d}	fifo_file	ioctl			
+auth_use_pam	allow	updpwd_t	{d}	fifo_file	lock			
+auth_use_pam	allow	updpwd_t	{d}	fifo_file	read			
+auth_use_pam	allow	updpwd_t	{d}	fifo_file	write			
+auth_use_pam	allow	updpwd_t	{d}	process	sigchld			
+auth_use_pam	dontaudit	{d}	defined_port_type	tcp_socket	name_bind	nis_enabled:true		
+auth_use_pam	dontaudit	{d}	defined_port_type	udp_socket	name_bind	nis_enabled:true		
+auth_use_pam	dontaudit	{d}	{d}	capability	net_bind_service	nis_enabled:true		
+auth_use_pam	dontaudit	{d}	port_type	tcp_socket	name_bind	nis_enabled:true		
+auth_use_pam	dontaudit	{d}	port_type	udp_socket	name_bind	nis_enabled:true		
+auth_use_pam	dontaudit	{d}	shadow_t	file	getattr			
+auth_use_pam	dontaudit	{d}	shadow_t	file	ioctl			
+auth_use_pam	dontaudit	{d}	shadow_t	file	lock			
+auth_use_pam	dontaudit	{d}	shadow_t	file	open			
+auth_use_pam	dontaudit	{d}	shadow_t	file	read			
+auth_use_pam	type_transition	{d}	chkpwd_exec_t	process				chkpwd_t
+auth_use_pam	type_transition	{d}	updpwd_exec_t	process				updpwd_t
+auth_use_pam	type_transition	{d}	var_log_t	file			btmp	faillog_t
+auth_use_pam	type_transition	{d}	var_log_t	file			faillog	faillog_t
+auth_use_pam	type_transition	{d}	var_log_t	file			lastlog	lastlog_t
+auth_use_pam	type_transition	{d}	var_log_t	file			tallylog	faillog_t
+init_read_utmp	allow	{d}	initrc_var_run_t	file	getattr			
+init_read_utmp	allow	{d}	initrc_var_run_t	file	ioctl			
+init_read_utmp	allow	{d}	initrc_var_run_t	file	lock			
+init_read_utmp	allow	{d}	initrc_var_run_t	file	open			
+init_read_utmp	allow	{d}	initrc_var_run_t	file	read			
+init_read_utmp	allow	{d}	var_run_t	dir	getattr			
+init_read_utmp	allow	{d}	var_run_t	dir	ioctl			
+init_read_utmp	allow	{d}	var_run_t	dir	lock			
+init_read_utmp	allow	{d}	var_run_t	dir	open			
+init_read_utmp	allow	{d}	var_run_t	dir	read			
+init_read_utmp	allow	{d}	var_run_t	dir	search			
+init_read_utmp	allow	{d}	var_run_t	lnk_file	getattr			
+init_read_utmp	allow	{d}	var_run_t	lnk_file	read			
+init_read_utmp	allow	{d}	var_t	dir	getattr			
+init_read_utmp	allow	{d}	var_t	dir	open			
+init_read_utmp	allow	{d}	var_t	dir	search			
+init_read_utmp	allow	{d}	var_t	lnk_file	getattr			
+init_read_utmp	allow	{d}	var_t	lnk_file	read			
+logging_send_audit_msgs	allow	{d}	{d}	capability	audit_write			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	append			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	bind			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	connect			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	create			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	getattr			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	getopt			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	ioctl			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	lock			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	nlmsg_read			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	nlmsg_relay			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	nlmsg_tty_audit			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	read			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	setattr			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	setopt			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	shutdown			
+logging_send_audit_msgs	allow	{d}	{d}	netlink_audit_socket	write			
+usermanage_domtrans_useradd	allow	{d}	bin_t	dir	getattr			
+usermanage_domtrans_useradd	allow	{d}	bin_t	dir	open			
+usermanage_domtrans_useradd	allow	{d}	bin_t	dir	search			
+usermanage_domtrans_useradd	allow	{d}	bin_t	lnk_file	getattr			
+usermanage_domtrans_useradd	allow	{d}	bin_t	lnk_file	read			
+usermanage_domtrans_useradd	allow	{d}	useradd_exec_t	file	execute			
+usermanage_domtrans_useradd	allow	{d}	useradd_exec_t	file	getattr			
+usermanage_domtrans_useradd	allow	{d}	useradd_exec_t	file	ioctl			
+usermanage_domtrans_useradd	allow	{d}	useradd_exec_t	file	map			
+usermanage_domtrans_useradd	allow	{d}	useradd_exec_t	file	open			
+usermanage_domtrans_useradd	allow	{d}	useradd_exec_t	file	read			
+usermanage_domtrans_useradd	allow	{d}	useradd_t	process	transition			
+usermanage_domtrans_useradd	allow	useradd_t	{d}	fd	use			
+usermanage_domtrans_useradd	allow	useradd_t	{d}	fifo_file	append			
+usermanage_domtrans_useradd	allow	useradd_t	{d}	fifo_file	getattr			
+usermanage_domtrans_useradd	allow	useradd_t	{d}	fifo_file	ioctl			
+usermanage_domtrans_useradd	allow	useradd_t	{d}	fifo_file	lock			
+usermanage_domtrans_useradd	allow	useradd_t	{d}	fifo_file	read			
+usermanage_domtrans_useradd	allow	useradd_t	{d}	fifo_file	write			
+usermanage_domtrans_useradd	allow	useradd_t	{d}	process	sigchld			
+usermanage_domtrans_useradd	type_transition	{d}	useradd_exec_t	process				useradd_t

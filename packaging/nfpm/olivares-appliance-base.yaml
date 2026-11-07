@@ -154,6 +154,8 @@
   "overrides": {
     "rpm": {
       "depends": [
+        "podman",
+        "olivares >= ${VERSION}",
         "NetworkManager",
         "polkit",
         "udisks2",
@@ -163,6 +165,8 @@
     },
     "deb": {
       "depends": [
+        "podman",
+        "olivares (>= ${VERSION})",
         "network-manager",
         "polkitd",
         "udisks2",

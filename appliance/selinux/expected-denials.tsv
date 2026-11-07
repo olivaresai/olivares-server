@@ -7,3 +7,9 @@
 # Lines starting with # are comments.
 deny	source	target	class	perm	name	reason
 N-CMD-HOME-WRITE	olivares_cmd_t	olivares_tool_home_t	dir	write	shell-snapshots	Claude Code's Bash tool has bash write its shell snapshot into the account's configuration; it stays refused and Bash runs without it
+N-ENGINE-USERBUS	olivares_t	session_dbusd_tmp_t	sock_file	getattr	/run/user/999/bus	the engine's lookup of the user manager's D-Bus socket (confine.UserBusDirs); the refusal is how it learns it has none. The audit record carries path=, not name=
+N-ENGINE-USERMGR	olivares_t	user_tmp_t	sock_file	getattr	/run/user/999/systemd/private	the engine's lookup of the user manager's private socket (confine.UserBusDirs); the refusal is how it learns it has none. The audit record carries path=, not name=
+N-FBOOT-VMTOOLS-CONF	olivares_firstboot_t	vmtools_unconfined_exec_t	dir	search	vmware-tools	the guestinfo carrier's vmtoolsd --cmd looks up /etc/vmware-tools/tools.conf; the search stays refused and the query is answered on the tools' defaults
+N-RCON-SETUID	olivares_repair_console_t	olivares_repair_console_t	capability	setuid		pam_unix's forked helper child calls setuid(0) before it execs unix_chkpwd or unix_update; at uid 0 the kernel logs the check and keeps the uid, so the helper runs and the console holds no setuid
+N-RCON-DAC-OVERRIDE	olivares_repair_console_t	olivares_repair_console_t	capability	dac_override		pam_unix probes the mode-0000 /etc/shadow in process; the refusal hands the work to unix_chkpwd and unix_update, the distribution's own helpers
+N-RCON-DAC-READ	olivares_repair_console_t	olivares_repair_console_t	capability	dac_read_search		pam_unix probes the mode-0000 /etc/shadow in process; the refusal hands the work to unix_chkpwd and unix_update, the distribution's own helpers

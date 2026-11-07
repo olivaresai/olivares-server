@@ -8,6 +8,8 @@ package identityengine
 
 import (
 	"context"
+	"errors"
+	"github.com/olivaresai/olivares/core/auth"
 	"net"
 	"sync"
 	"time"
@@ -108,6 +110,10 @@ func (s *Server) serveConnection(ctx context.Context, c *net.UnixConn) {
 	}()
 	answer, err := s.authorize(ctx, original.UID(), req)
 	if err != nil || broker.Check(ctx) != nil || original.Check(ctx) != nil {
+		if errors.Is(err, auth.ErrExposureNeedsStepUp) && broker.Check(ctx) == nil && original.Check(ctx) == nil {
+			_ = localframe.WriteExposureRefusal(c)
+			return
+		}
 		_ = localframe.WriteAuthorityRefusal(c)
 		return
 	}

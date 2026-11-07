@@ -14,12 +14,14 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/olivaresai/olivares/appliance/layer/entitled"
+	"github.com/olivaresai/olivares/appliance/layer/updates"
 	"github.com/olivaresai/olivares/core/license/dnfrefresh"
 )
 
@@ -31,6 +33,12 @@ const reportLimit = 64 << 10
 
 // live is the environment of an installed appliance.
 func live() env {
+	volume := updates.LiveDataVolume(hostSnapshotRun)
+	volume.ProductActive = productActive
+	volume.StopProduct = stopProduct
+	volume.StartProduct = startProduct
+	volume.VerifyPackages = verifyPrevious
+	volume.InstallPackages = installPrevious
 	return env{
 		HandoffDir: dnfrefresh.HandoffDir,
 		RepoDir:    "/etc/yum.repos.d",
@@ -43,16 +51,26 @@ func live() env {
 		Chown:      os.Lchown,
 		RunProduct: runProduct,
 
-		Installed:     installed,
-		Swap:          dnfSwap,
-		ProductActive: productActive,
-		StartProduct:  startProduct,
+		Installed:   installed,
+		Swap:        dnfSwap,
+		SwapOffered: dnfSwapOffered,
+		Snapshot: func(ctx context.Context) (point, error) {
+			p, err := volume.Before(ctx)
+			return &p, err
+		},
+		UpgradeAvailable: dnfUpgradeAvailable,
+		Upgrade:          dnfUpgrade,
+		RetainPrevious:   retainPrevious,
+		Rollback:         volume.Rollback,
+		ProductActive:    productActive,
+		StartProduct:     startProduct,
 	}
 }
 
 // The host tools, by absolute path; tests point them at stubs.
 var (
 	rpmPath       = "/usr/bin/rpm"
+	rpmkeysPath   = "/usr/bin/rpmkeys"
 	dnfPath       = "/usr/bin/dnf"
 	systemctlPath = "/usr/bin/systemctl"
 )
@@ -86,6 +104,108 @@ func hostCommand(ctx context.Context, name string, args ...string) (int, error) 
 	return -1, err
 }
 
+func hostSnapshotRun(ctx context.Context, argv []string, _ int64) ([]byte, error) {
+	_, err := hostCommand(ctx, argv[0], argv[1:]...)
+	return nil, err
+}
+
+// dnfUpgradeAvailable is dnf's own answer: check-upgrade exits 100 when a newer package is offered and 0 when none is.
+func dnfUpgradeAvailable(ctx context.Context) (bool, error) {
+	code, err := hostCommand(ctx, dnfPath, "--refresh", "check-upgrade", "olivares*")
+	switch code {
+	case 0:
+		return false, nil
+	case 100:
+		return true, nil
+	}
+	return false, err
+}
+
+func dnfUpgrade(ctx context.Context) error {
+	_, err := hostCommand(ctx, dnfPath, "--assumeyes", "--setopt=install_weak_deps=False", "upgrade", "olivares*")
+	return err
+}
+
+// retainPrevious downloads into dir the installed version of every Olivares package, the set the update's
+// `dnf upgrade olivares*` may replace: dnf's reinstall --downloadonly fetches them from the channel the update reads
+// and installs nothing. A set the channel no longer offers whole is not kept at all, so the rollback refuses rather
+// than reinstall half of it. The rollback verifies the set before any use.
+func retainPrevious(ctx context.Context, dir string) error {
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		return err
+	}
+	if _, err := hostCommand(ctx, dnfPath, "--assumeyes", "--downloadonly", "--downloaddir="+dir, "reinstall", "olivares*"); err != nil {
+		return errors.Join(err, os.RemoveAll(dir))
+	}
+	return nil
+}
+
+// verifyPrevious requires every kept file to pass rpm's signature check against the host's keyring, the level its
+// reinstall enforces, and to be a version of a package installed now; then rpm's own test transaction proves that
+// the kept versions replace the installed ones with every dependency met. Nothing has stopped yet.
+func verifyPrevious(ctx context.Context, paths []string) error {
+	for _, path := range paths {
+		if _, err := hostCommand(ctx, rpmkeysPath, "--define", "_pkgverify_level signature", "--checksig", "--", path); err != nil {
+			return fmt.Errorf("signature check of %s: %w", filepath.Base(path), err)
+		}
+	}
+	changed, err := changedPackages(ctx, paths)
+	if err != nil || len(changed) == 0 {
+		return err
+	}
+	if _, err := hostCommand(ctx, rpmPath, append([]string{"-U", "--oldpackage", "--test", "--define", "_pkgverify_level signature", "--"}, changed...)...); err != nil {
+		return fmt.Errorf("rpm's test transaction: %w", err)
+	}
+	return nil
+}
+
+// installPrevious reinstalls the kept packages in one rpm transaction, signature required, allowing older versions.
+// A rollback run again after its reinstall finds those versions installed and installs nothing.
+func installPrevious(ctx context.Context, paths []string) error {
+	changed, err := changedPackages(ctx, paths)
+	if err != nil || len(changed) == 0 {
+		return err
+	}
+	_, err = hostCommand(ctx, rpmPath, append([]string{"-U", "--oldpackage", "--define", "_pkgverify_level signature", "--"}, changed...)...)
+	return err
+}
+
+// changedPackages returns the kept files whose version is not the one installed now; a kept file of a package that
+// is not installed is refused.
+func changedPackages(ctx context.Context, paths []string) ([]string, error) {
+	var changed []string
+	for _, path := range paths {
+		kept, err := hostOutput(ctx, rpmPath, "-qp", "--queryformat", "%{NAME} %{NEVRA}", "--", path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", filepath.Base(path), err)
+		}
+		name, nevra, _ := strings.Cut(kept, " ")
+		current, err := hostOutput(ctx, rpmPath, "-q", "--queryformat", "%{NEVRA}", "--", name)
+		if err != nil {
+			return nil, fmt.Errorf("%s is kept, and %s is not installed", filepath.Base(path), name)
+		}
+		if current != nevra {
+			changed = append(changed, path)
+		}
+	}
+	return changed, nil
+}
+
+// hostOutput runs a host tool for its answer on standard output; its errors go to the journal.
+func hostOutput(ctx context.Context, name string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = hostEnv
+	cmd.Dir = "/"
+	cmd.Stderr = os.Stderr
+	out, err := cmd.Output()
+	return strings.TrimSpace(string(out)), err
+}
+
+func stopProduct(ctx context.Context) error {
+	_, err := hostCommand(ctx, systemctlPath, "stop", "olivares.service")
+	return err
+}
+
 // installed asks rpm by package name, the tool's own answer: 0 installed, 1 not installed. A provider of the
 // name does not count, so olivares-business, which provides olivares, does not read as Community. rpm's own
 // message goes to the journal. A database that cannot be read answers like a missing package, which makes both
@@ -108,11 +228,28 @@ func installed(ctx context.Context, pkg string) (bool, error) {
 // entitled repositories are left out of it; the way to Business comes from the entitled repository, which enables itself.
 func dnfSwap(ctx context.Context, s entitled.Swap) error {
 	args := []string{"--assumeyes", "--setopt=install_weak_deps=False", "--setopt=clean_requirements_on_remove=False"}
-	if s.To == entitled.CommunityPackage {
-		args = append(args, "--disablerepo="+entitledRepos, "--enablerepo="+publicRepo)
-	}
-	_, err := hostCommand(ctx, dnfPath, append(args, "swap", s.From, s.To)...)
+	_, err := hostCommand(ctx, dnfPath, append(append(args, swapRepos(s)...), "swap", s.From, s.To)...)
 	return err
+}
+
+// dnfSwapOffered asks the repositories the swap reads, with fresh metadata, for the package it installs: dnf's list
+// exits 0 when one is offered and 1 when none is (or a repository cannot be read, which dnf names in the journal).
+func dnfSwapOffered(ctx context.Context, s entitled.Swap) (bool, error) {
+	code, err := hostCommand(ctx, dnfPath, append(swapRepos(s), "--refresh", "list", "--available", s.To)...)
+	switch code {
+	case 0:
+		return true, nil
+	case 1:
+		return false, nil
+	}
+	return false, err
+}
+
+func swapRepos(s entitled.Swap) []string {
+	if s.To == entitled.CommunityPackage {
+		return []string{"--disablerepo=" + entitledRepos, "--enablerepo=" + publicRepo}
+	}
+	return nil
 }
 
 // publicRepo is the id of the public product repository the image ships in olivares.repo, disabled. entitledRepos

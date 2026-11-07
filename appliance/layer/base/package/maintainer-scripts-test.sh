@@ -78,6 +78,8 @@ sandbox() {
   for s in postinstall preremove postremove; do
     text=$(sed -e "s#/var/lib/olivares-appliance#$root/var/lib/olivares-appliance#g" \
       -e "s#/etc/olivares-portal#$root/etc/olivares-portal#g" \
+      -e "s#/etc/systemd/system/olivares.service.d#$root/etc/systemd/system/olivares.service.d#g" \
+      -e "s#/usr/libexec/olivares/session-image#$root/usr/libexec/olivares/session-image#g" \
       -e "s#/run/systemd/system#$root/run/systemd/system#g" "$scripts/$s.sh")
     # Past the shebang, the only absolute paths left must be the sandbox's and /dev/null.
     if sed '1d' <<< "$text" | grep -v '^[[:space:]]*#' | sed -e "s#$root/[^[:space:]\"']*##g" -e 's#/dev/null##g' |

@@ -256,16 +256,6 @@ journal_of() { printf '%s\n' "${1%serial.log}journal.log"; }
 # The deadline bounds the wait, and either one that never comes fails at the deadline.
 booted() { reached_target "$(journal_of "$1")" && shows_the_label "$1"; }
 
-# installer_handed_over LOG — the installer's end: KIWI's kiwi-dump-reboot-system.sh (KIWI 11.0.4,
-# dracut module 59kiwi-dump-reboot) kexecs into the installed system once the dump and its check
-# have passed, when the type sets none of oem-reboot, oem-shutdown and their interactive forms, as
-# this recipe's does not. Nothing resets, so no firmware and no GRUB print; the installed system's
-# kernel prints "Linux version" after the installer mounted its medium at /run/install. A failed
-# dump or check ends in `reboot -f`, which under -no-reboot ends QEMU without that kernel.
-installer_handed_over() {
-  awk '/\/run\/install/ { medium = 1 } medium && /Linux version/ { found = 1 } END { exit !found }' "$1" 2>/dev/null
-}
-
 # base_args NAME [secure] — the arguments every guest of this battery shares, in QEMU_ARGS:
 # no screen, one serial console captured to a file, no reboot, so a machine that decides to
 # reboot ends the run instead of looping. "secure" adds what a Secure Boot firmware needs -
@@ -359,22 +349,29 @@ case_iso_install() {
   "$qemu_img" create -f qcow2 "$target" 24G > "$dir/qemu-img.txt" 2>&1 ||
     { unable "iso-install: the target disk could not be created"; return; }
 
-  # The medium installs itself: oem-unattended writes the disk image to the only disk it finds,
-  # checks it, and kexecs into the installed system. The case ends on that hand-over, stops the
-  # guest and waits for its process; a guest stopped at the deadline, or one that exited before
-  # the hand-over, is no finished installer, whatever the disk holds.
-  base_args iso-install secure
-  with_ovmf iso-install "$ovmf_secboot_code" "$ovmf_ms_vars"
-  QEMU_ARGS+=(-drive "if=virtio,format=qcow2,file=$target"
-    -drive "if=none,id=medium,format=raw,readonly=on,file=$iso_artifact"
-    -device ide-cd,drive=medium,bootindex=0)
-  local log
-  log=$(run_guest_until iso-install "$install_deadline" hand-over installer_handed_over - -- "${QEMU_ARGS[@]}")
-  # The disk the installer wrote holds a partition table; the counterfeit is a blank disk. The
-  # assertion that matters most is the next one, because a disk that boots to the label was
-  # written correctly.
+  # The default path asks for the disk and erasure confirmation; the driver checks no write happened
+  # before it answers. The second path requests unattended installation explicitly through KIWI's
+  # native rd.kiwi.oem.installdevice and must not ask at all.
+  # The driver's exit: 0 the installed system took over, 1 a guest ran and did not finish (a deadline, an exit or a
+  # refusal: the appliance's failure, which installer_finished reads from the driver's qemu-exit.txt), 2 no guest could
+  # be run here, which measures nothing.
+  local rc=0
+  python3 "$repo/appliance/test/install_interactive.py" --deadline "$install_deadline" "$iso_artifact" "$target" \
+    "$dir/serial.log" || rc=$?
+  [ "$rc" -ne 2 ] || { unable "iso-install: no installer guest could be run"; return; }
   check iso_medium_ran_the_installer installer_finished "$dir" "$target"
   control iso_medium_ran_the_installer installer_finished "$dir" "$(counterfeit_blank_disk)"
+  [ "$rc" -eq 0 ] || return # an install that did not finish leaves no installed system to boot
+
+  local unattended="$dir/installed-unattended.qcow2"
+  rm -f "$unattended"
+  "$qemu_img" create -f qcow2 "$unattended" 24G >"$dir/qemu-img-unattended.txt" 2>&1 ||
+    { unable "iso-install: the unattended target could not be created"; return; }
+  python3 "$repo/appliance/test/install_interactive.py" --unattended --deadline "$install_deadline" "$iso_artifact" \
+    "$unattended" "$dir/serial-unattended.log" || rc=$?
+  [ "$rc" -ne 2 ] || { unable "iso-install: no unattended installer guest could be run"; return; }
+  check iso_unattended_install_finishes test "$rc" -eq 0
+  [ "$rc" -eq 0 ] || return
 
   # What it installed is what an owner boots, under the same firmware.
   base_args iso-install-boot secure

@@ -11,7 +11,8 @@ import (
 	"strings"
 )
 
-// Network describes host settings cloud-init must have rendered. Build validates it;
+// Network describes the host network the host owner (cloud-init, or the installer for a local host)
+// must have rendered. Build validates it;
 // constructing this value directly does not establish validation or authorize an effect.
 type Network struct {
 	Mode       string             `json:"mode"`

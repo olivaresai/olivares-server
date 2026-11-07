@@ -56,7 +56,7 @@ func Invokers() []Invoker { return []Invoker{RepairConsole, Portal, NetGuard} }
 // has none.
 func Account(helper string) string {
 	switch helper {
-	case HelperPower, HelperUnits, HelperStorage, HelperFirewall, HelperApt, HelperApps, HelperCert, HelperFirewallLocal:
+	case HelperPower, HelperUnits, HelperStorage, HelperFirewall, HelperApt, HelperApps, HelperCert, HelperFirewallLocal, HelperSystem:
 		return "root"
 	case HelperSupportBundle:
 		return "olivares-support-bundle"
@@ -81,6 +81,14 @@ func PowerRules() []Rule {
 	return []Rule{
 		{Subcommand: PowerReboot, Mutating: true, Invokers: []Invoker{RepairConsole}},
 		{Subcommand: PowerShutdown, Mutating: true, Invokers: []Invoker{RepairConsole}},
+	}
+}
+
+// SystemRules is olivares-portal-system's admission: host-user status and creation for tty1 alone.
+func SystemRules() []Rule {
+	return []Rule{
+		{Subcommand: "status", Mutating: false, Invokers: []Invoker{RepairConsole}},
+		{Subcommand: "create", Mutating: true, Invokers: []Invoker{RepairConsole}},
 	}
 }
 

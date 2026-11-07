@@ -23,8 +23,10 @@ import (
 	"crypto/rand"
 	"os"
 	"os/user"
+	"strings"
 	"time"
 
+	"github.com/olivaresai/olivares/appliance/layer/hostusers"
 	"github.com/olivaresai/olivares/appliance/layer/netguard"
 	"github.com/olivaresai/olivares/appliance/layer/portal/auth"
 	"github.com/olivaresai/olivares/appliance/layer/portal/helperclient"
@@ -44,9 +46,16 @@ func main() {
 		WithNetwork(netclient.Client{}).
 		WithAuthority(tui.Authority{Stack: localpam.Stack{}, Accounts: tui.SystemAccounts(), Terminal: tui.SelfTerminal(),
 			Now: time.Now, Random: rand.Reader}).
+		WithHostRecord(tui.UserDBHostRecord("/etc/userdb/olivares.user")).
+		WithAccountRecovery(tui.NativeAccountRecovery{}).
+		WithAdministratorCreator(administratorCreator()).
 		WithCertificateFingerprint(certificateFingerprint).
 		WithPortalPAM(repair.PortalPAM{Pristine: repair.PristinePortalPAM, Dir: "/etc/pam.d", Name: auth.PAMService,
 			GroupExists: groupExists}).
+		WithSetupToken(func() (string, error) {
+			data, err := os.ReadFile("/var/lib/olivares-appliance/setup-token")
+			return strings.TrimSpace(string(data)), err
+		}).
 		WithPowerAdmission(repair.Admission{
 			Invoker:    tui.SelfTerminal().Attest,
 			Serializer: repair.HostHold{LifecycleDir: localsession.LifecycleDirectory, RecordsDir: localsession.OperationDirectory},
@@ -61,6 +70,17 @@ func main() {
 		}).
 		WithBootID(repair.CurrentBoot)
 	os.Exit(console.Run(os.Stdin, os.Stdout, os.Stderr))
+}
+
+// administratorCreator composes the fixed host-user helper without a local account or file-effect fallback.
+func administratorCreator() tui.AdministratorCreator {
+	return tui.NativeAdministratorCreation{
+		Creator:  hostusers.CreateTask{Helper: helperclient.Client{}},
+		Accounts: tui.SystemAccounts(),
+		Record:   tui.UserDBHostRecord("/etc/userdb/olivares.user"),
+		Recovery: tui.NativeAccountRecovery{},
+		Random:   rand.Reader,
+	}
 }
 
 // guardStatus asks the network guard for its status, as the console's network verb does.

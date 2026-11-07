@@ -3,9 +3,10 @@
 // Additional terms under AGPL-3.0-only section 7(a) disclaim warranty and limit liability: see DISCLAIMER.md at the repository root.
 
 // Package localpam opens transactions on the host's own sign-in services for the repair console on
-// tty1. The conversation is the host library's own terminal conversation on the console's standard
-// input and output, so the operator's credential goes from the keyboard to the host's services and
-// never through this program's memory as a value it holds.
+// tty1. The conversation is the adapter's own, on the console's terminal: prompts and the services'
+// messages go to standard output, answers come from standard input (a secret one with echo off), so
+// the operator's credential goes from the keyboard to the host's services in a C buffer that is wiped,
+// never as a Go value, and nothing typed is logged. Each answer waits at most conversationTimeout.
 //
 // The adapter needs the host's sign-in library, so it is built only with cgo and the olivares_pam
 // build tag, on Linux; the repair console's package build sets both. Built without them, Start

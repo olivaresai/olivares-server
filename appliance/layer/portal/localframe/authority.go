@@ -6,6 +6,7 @@ package localframe
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"time"
 )
@@ -13,9 +14,11 @@ import (
 // AuthorityRequest carries an exact act, never an identity claim. Its one FD
 // is the original accepted human socket, verified independently by the engine.
 type AuthorityRequest struct {
-	Task         string `json:"task"`
-	Target       string `json:"target"`
-	IntentDigest string `json:"intent_digest"`
+	Task            string          `json:"task"`
+	Target          string          `json:"target"`
+	IntentDigest    string          `json:"intent_digest"`
+	ReserveExposure bool            `json:"reserve_exposure,omitempty"`
+	Inputs          json.RawMessage `json:"inputs,omitempty"`
 }
 
 // AuthorityReply names the current actor for this exact act and finite window.
@@ -40,7 +43,7 @@ func validAuthorityRequest(r AuthorityRequest) bool {
 }
 
 func validAuthorityReply(r AuthorityReply) bool {
-	return validAuthorityRequest(AuthorityRequest{r.Task, r.Target, r.IntentDigest}) &&
+	return validAuthorityRequest(AuthorityRequest{Task: r.Task, Target: r.Target, IntentDigest: r.IntentDigest}) &&
 		validAuthorityText(r.Actor, 256) && r.Mode == "product-up" && !r.ValidUntil.IsZero()
 }
 

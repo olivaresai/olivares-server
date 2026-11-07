@@ -191,16 +191,30 @@ func AdmitEdge(p helperschema.Peer, action string) error {
 	return errors.New("network_peer_not_admitted")
 }
 
+// CodeUnselected is the status a guard answers while no management interface is selected: it guards
+// nothing, so no network window exists. It is not "ok": it claims no working guard.
+const CodeUnselected = "network_unselected"
+
 // Edge has no product authorization authority. Its production mutating composition
 // remains closed until lifecycle, caller authorization and probe receipt consumers are
 // supplied together. Engine remains the same library used by the guest fixture.
-type Edge struct{ Engine *Engine }
+// Unselected, set only on the edge a guard serves with no engine because nothing is selected,
+// answers a status request with CodeUnselected, this boot's identity and no window.
+type Edge struct {
+	Engine     *Engine
+	Unselected Clock
+}
 
 func (e Edge) Handle(ctx context.Context, peer helperschema.Peer, request EdgeRequest) EdgeResponse {
 	if err := AdmitEdge(peer, request.Action); err != nil {
 		return EdgeResponse{Code: err.Error()}
 	}
 	if e.Engine == nil {
+		if e.Unselected != nil && request.Action == "status" && request.OperationID == "" {
+			if boot, now, err := e.Unselected.Now(); err == nil {
+				return EdgeResponse{Code: CodeUnselected, BootID: boot, ObservedBootTime: int64(now)}
+			}
+		}
 		return EdgeResponse{Code: "network_guard_unavailable"}
 	}
 	if request.Action != "status" {

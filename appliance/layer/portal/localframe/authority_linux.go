@@ -55,6 +55,9 @@ func NextAuthorityReply(c *net.UnixConn, e Expect, onRange func() error) (Author
 		return AuthorityReply{}, err
 	}
 	if r.Type == "error" {
+		if r.Code == "exposure_requires_step_up" {
+			return AuthorityReply{}, fault(r.Code)
+		}
 		return AuthorityReply{}, fault("mode_refused")
 	}
 	var reply AuthorityReply
@@ -77,4 +80,9 @@ func WriteAuthorityReply(c *net.UnixConn, r AuthorityReply) error {
 
 func WriteAuthorityRefusal(c *net.UnixConn) error {
 	return writeRecord(c, Record{Type: "error", Op: "authority.resolve", Status: 403, Code: "mode_refused"}, parseAuthorityRecord, -1)
+}
+
+// WriteExposureRefusal is a fixed actionable refusal, never an engine error body.
+func WriteExposureRefusal(c *net.UnixConn) error {
+	return writeRecord(c, Record{Type: "error", Op: "authority.resolve", Status: 409, Code: "exposure_requires_step_up"}, parseAuthorityRecord, -1)
 }

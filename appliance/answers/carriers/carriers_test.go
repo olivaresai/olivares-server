@@ -72,13 +72,13 @@ func cloudInitWrites(t *testing.T, userData []byte, path string) []byte {
 	return nil
 }
 
-// ovfEnvironment answers the two VMware tool invocations the guestinfo carrier makes.
+// ovfEnvironment answers the VMware tools invocation the guestinfo carrier makes.
 func ovfEnvironment(env []byte, argv *[]string) carriers.Runner {
 	return func(_ context.Context, name string, args ...string) ([]byte, error) {
 		if argv != nil {
 			*argv = append(*argv, append([]string{name}, args...)...)
 		}
-		if name == "vmware-rpctool" && len(args) == 1 && args[0] == "info-get guestinfo.ovfEnv" {
+		if name == "vmtoolsd" && len(args) == 2 && args[0] == "--cmd" && args[1] == "info-get guestinfo.ovfEnv" {
 			return env, nil
 		}
 		return nil, errors.New("no such tool")
@@ -230,7 +230,7 @@ func TestCarriers_SecretsAreReferencesNeverLiteralsInStatusArgvOrLogs(t *testing
 	if _, ok, err := (carriers.GuestInfoCarrier{Run: ovfEnvironment(env, &argv)}).Read(context.Background()); !ok || err != nil {
 		t.Fatalf("guestinfo read: %v %v", ok, err)
 	}
-	if strings.Join(argv, " ") != "vmware-rpctool info-get guestinfo.ovfEnv" {
+	if strings.Join(argv, " ") != "vmtoolsd --cmd info-get guestinfo.ovfEnv" {
 		t.Fatalf("unexpected argv %q", argv)
 	}
 	for _, arg := range argv {

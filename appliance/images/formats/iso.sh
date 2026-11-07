@@ -6,7 +6,7 @@
 # iso.sh — the installer medium, checked and named.
 #
 # KIWI builds it: the type declares installiso="true", so the hybrid medium carries the disk
-# image and installs it unattended. This assembly does not make a boot chain - making one by
+# image and installs it only after the person chooses a disk and confirms its erasure. This assembly does not make a boot chain - making one by
 # hand outside the recipe is exactly the mistake this directory exists to prevent - it checks
 # that the medium KIWI left really is bootable BOTH ways, gives it the published name, holds
 # it to the ceiling and writes its manifest.

@@ -8,6 +8,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -21,6 +23,7 @@ type host struct {
 	path                       string
 	args                       []string
 	fail, unmeasured           bool
+	failOn                     string
 }
 
 func (h *host) Account(context.Context, string) (hostusers.Account, bool, error) {
@@ -39,7 +42,7 @@ func (h *host) Run(_ context.Context, path string, args []string) error {
 		h.exists, h.homeExists = true, true
 		h.account = hostusers.Account{Name: "alice", UID: "1002", GID: "1001", Home: "/home/alice"}
 	}
-	if h.fail {
+	if h.fail || path == h.failOn {
 		return errors.New("command failed with sensitive stderr")
 	}
 	return nil
@@ -63,6 +66,17 @@ func TestHostUser_CreateMeasuresFixedUseraddAndHome(t *testing.T) {
 		t.Fatalf("recovery: %+v", got)
 	}
 }
+func TestHostUser_SupplementalGroupUsesTheSameNativePath(t *testing.T) {
+	h := &host{}
+	x := hostusers.Provisioner{Host: h, SupplementalGroup: "olivares-admins"}
+	input := json.RawMessage(`{"account":"alice","home":"/home/alice","group":"wheel"}`)
+	obs := x.Apply(context.Background(), hostops.Command{}, input)
+	want := []string{"--append", "--groups", "olivares-admins", "--", "alice"}
+	if obs.P1 != "performed" || h.path != "/usr/sbin/usermod" || !reflect.DeepEqual(h.args, want) {
+		t.Fatalf("observation %+v command %s %v", obs, h.path, h.args)
+	}
+}
+
 func TestHostUser_RefusesPathsReservedAccountsAndExistingHomes(t *testing.T) {
 	for _, input := range []string{
 		`{"account":"root","home":"/home/root","group":"staff"}`,
@@ -95,5 +109,17 @@ func TestHostUser_FailedOrUnmeasuredEffectIsNeverSuccess(t *testing.T) {
 		if obs.P1 == "performed" {
 			t.Fatalf("false success: %+v", obs)
 		}
+	}
+}
+
+func TestHostUser_AFailedSupplementalGroupSavesNoAdministratorRecord(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "olivares.user")
+	x := hostusers.Provisioner{Host: &host{failOn: "/usr/sbin/usermod"}, Record: hostusers.UserdbRecord(record), SupplementalGroup: "olivares-admins"}
+	obs := x.Apply(context.Background(), hostops.Command{}, json.RawMessage(`{"account":"alice","home":"/home/alice","group":"wheel"}`))
+	if obs.P1 == "performed" {
+		t.Fatalf("a failed usermod reported success: %+v", obs)
+	}
+	if _, err := os.Stat(record); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a failed usermod saved the administrator record: %v", err)
 	}
 }

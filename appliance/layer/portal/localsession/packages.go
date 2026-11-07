@@ -89,7 +89,8 @@ func OpenWithPackages(ctx context.Context, dir string, descriptors []hostops.Des
 	// asked at plan and apply, so an absent helper is a refused act, not a missing task.
 	for _, d := range optionalapps.Descriptors() {
 		if serves(d.ID) {
-			tasks[d.ID] = optionalapps.LifecycleTask{Op: d.Verb, Helper: helper}
+			task := optionalapps.LifecycleTask{App: d.Module, Op: d.Verb, Helper: helper}
+			tasks[d.ID] = task
 		}
 	}
 	// The firewall's app-row act is adopted the same way, with the rows each optional app gives for itself.

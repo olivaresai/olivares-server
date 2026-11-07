@@ -85,11 +85,41 @@ func (s *Acts) prepare(ctx context.Context, module, verb, surface string, inputs
 	if t == nil {
 		return Descriptor{}, nil, "", "", errors.New("act_not_adopted")
 	}
+	body, err := canonicalTaskInput(d, inputs)
+	if err != nil {
+		return Descriptor{}, nil, "", "", err
+	}
+
+	if target == "" {
+		target, err = t.Prepare(ctx, body)
+		if err != nil {
+			return Descriptor{}, nil, "", "", refuse("inputs")
+		}
+	}
+	if !validTarget(target) {
+		return Descriptor{}, nil, "", "", refuse("inputs")
+	}
+	return d, t, target, taskIntentDigest(d, target, body), nil
+}
+
+// TaskIntentDigest verifies the same descriptor input and canonical digest as
+// the effect owner. Native authority uses it to corroborate firewall removals.
+func TaskIntentDigest(d Descriptor, target string, inputs json.RawMessage) (string, error) {
+	body, err := canonicalTaskInput(d, inputs)
+	if err != nil || !validTarget(target) {
+		return "", refuse("inputs")
+	}
+	return taskIntentDigest(d, target, body), nil
+}
+func canonicalTaskInput(d Descriptor, inputs json.RawMessage) (json.RawMessage, error) {
+	if d.ValidateInput(inputs) != nil {
+		return nil, refuse("inputs")
+	}
 	// Decode into scalar values so whitespace, key order and string escapes have
 	// one canonical digest. Integer decoding preserves integer precision.
 	var values map[string]json.RawMessage
 	if DecodeClosed(inputs, &values) != nil {
-		return Descriptor{}, nil, "", "", refuse("inputs")
+		return nil, refuse("inputs")
 	}
 	canonical := make(map[string]any, len(values))
 	for k, v := range values {
@@ -109,21 +139,27 @@ func (s *Acts) prepare(ctx context.Context, module, verb, surface string, inputs
 		}
 	}
 	body, _ := json.Marshal(canonical)
-	if target == "" {
-		target, err = t.Prepare(ctx, body)
-		if err != nil {
-			return Descriptor{}, nil, "", "", refuse("inputs")
-		}
-	}
-	if !validTarget(target) {
-		return Descriptor{}, nil, "", "", refuse("inputs")
-	}
+	return body, nil
+}
+func taskIntentDigest(d Descriptor, target string, body json.RawMessage) string {
 	data, _ := json.Marshal(struct {
 		Task, Target, Verb, Audience string
 		Inputs                       json.RawMessage
 	}{d.ID, target, d.ActVerb, d.Audience, body})
 	hash := sha256.Sum256(data)
-	return d, t, target, hex.EncodeToString(hash[:]), nil
+	return hex.EncodeToString(hash[:])
+}
+
+type authorityInputsKey struct{}
+
+func withAuthorityInputs(ctx context.Context, inputs json.RawMessage) context.Context {
+	return context.WithValue(ctx, authorityInputsKey{}, inputs)
+}
+
+// AuthorityInputs are the exact closed task inputs bound by the intent digest.
+func AuthorityInputs(ctx context.Context) json.RawMessage {
+	inputs, _ := ctx.Value(authorityInputsKey{}).(json.RawMessage)
+	return inputs
 }
 
 // Plan checks current authority without recording or executing an operation.
@@ -136,14 +172,36 @@ func (s *Acts) Plan(ctx context.Context, module, verb, surface string, inputs js
 	if authority == nil {
 		return p, nil
 	}
+	ctx = withAuthorityInputs(ctx, inputs)
 	caller, err := authority.Authorize(ctx, d, target, digest)
 	if err == nil && validCaller(caller, d) {
 		p.Digest = confirmationDigest(caller, digest)
 		p.Permissions = Permissions{Read: true, Plan: true, Apply: true}
 	} else {
 		p.Permissions.Code = "mode_refused"
+		if err != nil && err.Error() == "exposure_requires_step_up" {
+			p.Permissions.Code = err.Error()
+		}
 	}
 	return p, nil
+}
+
+// ExposureAuthority reserves protection only after the operator's confirmation.
+// A plan must never mutate the product's settings.
+type ExposureAuthority interface {
+	ReserveExposure(context.Context, Descriptor, string, string) (Caller, error)
+}
+
+// ManagedExposureKind identifies existing acts that can expose a public listener.
+// Native authority corroborates firewall removal inputs before waiving protection.
+func ManagedExposureKind(d Descriptor) string {
+	if (d.Module == "cloudflared" || d.Module == "nginx-proxy-manager") && (d.Verb == "install" || d.Verb == "start") {
+		return d.Module
+	}
+	if d.Module == "firewall" && d.Verb == "app-row" {
+		return "firewall"
+	}
+	return ""
 }
 
 // Confirmation belongs to the identity that reviewed the plan. A different
@@ -182,14 +240,32 @@ func (s *Acts) Apply(ctx context.Context, r ApplyRequest, authority Authority) (
 	if err != nil {
 		return Record{}, 422, err
 	}
+	ctx = withAuthorityInputs(ctx, r.Inputs)
 	caller, authErr := authority.Authorize(ctx, d, target, digest)
+	intentDigest := digest
 	digest = confirmationDigest(caller, digest)
 	event := ActEvent{Caller: caller, OperationID: r.OperationID, TaskID: d.ID, Target: target, Digest: digest, Surface: r.Surface, Outcome: "refused"}
 	if authErr != nil || !validCaller(caller, d) || r.Confirmation != digest {
 		if err := s.audit.Append(event); err != nil {
 			return Record{}, 503, errors.New("consumer_unavailable")
 		}
+		if authErr != nil && authErr.Error() == "exposure_requires_step_up" {
+			return Record{}, 409, authErr
+		}
 		return Record{}, 403, errors.New("mode_refused")
+	}
+	if ManagedExposureKind(d) != "" {
+		reserve, ok := authority.(ExposureAuthority)
+		if !ok {
+			return Record{}, 503, errors.New("consumer_unavailable")
+		}
+		reserved, err := reserve.ReserveExposure(ctx, d, target, intentDigest)
+		if err != nil {
+			return Record{}, 409, err
+		}
+		if reserved != caller {
+			return Record{}, 403, errors.New("mode_refused")
+		}
 	}
 	if ctx.Err() != nil {
 		return Record{}, 503, errors.New("consumer_unavailable")

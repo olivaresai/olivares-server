@@ -57,7 +57,14 @@ func OpenWithCatalog(dir string, catalog *Catalog) (*Engine, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := shareWithOperationsGroup(f); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
 	if err := f.Close(); err != nil {
+		return nil, err
+	}
+	if err := shareRecords(dir); err != nil {
 		return nil, err
 	}
 	return &Engine{dir: dir, catalog: catalog}, nil
@@ -238,7 +245,7 @@ func (e *Engine) read(final string) (Record, bool, error) {
 }
 
 func (e *Engine) create(final string, stored diskRecord) error {
-	f, err := os.OpenFile(final, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0o600)
+	f, err := os.OpenFile(final, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0o640)
 	if err != nil {
 		return err
 	}
@@ -263,4 +270,41 @@ func (e *Engine) create(final string, stored diskRecord) error {
 	}
 	defer dir.Close()
 	return dir.Sync()
+}
+
+// The repair console's power verb reads this store too (repair.HostHold holds store.lock, and
+// repair.RecordsGate reads every record), through the host-operations group the portal runs as. So
+// store.lock and the records are 0640, whatever the umask. A file an earlier release left 0600 is
+// brought to that mode through its own descriptor, never by a path that could follow a link. The
+// group needs no call here, and the unit's SystemCallFilter forbids chown: Group= gives new files
+// the operations group, and StateDirectory= gives the leaf's existing files that group on upgrade.
+func shareWithOperationsGroup(f *os.File) error {
+	return f.Chmod(0o640)
+}
+
+// shareRecords brings every record already in dir to the operations group's mode.
+func shareRecords(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		id, ok := strings.CutSuffix(entry.Name(), ".json")
+		if !ok || !isHex(id, 32) || !entry.Type().IsRegular() {
+			continue
+		}
+		f, err := os.OpenFile(filepath.Join(dir, entry.Name()), os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+		if err != nil {
+			return err
+		}
+		shareErr := shareWithOperationsGroup(f)
+		closeErr := f.Close()
+		if shareErr != nil {
+			return shareErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+	}
+	return nil
 }

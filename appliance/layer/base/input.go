@@ -18,6 +18,7 @@ import (
 // Answers holds the validated public settings first boot verifies and applies. The answers
 // module normalizes them; this package reads its canonical plan and never re-validates.
 type Answers struct {
+	Owner             string // host.owner: cloud-init, or local when the appliance owns the host settings
 	Network           answers.Network
 	Hostname          string
 	Timezone          string
@@ -59,6 +60,7 @@ func NewInput(source, selected string, document []byte) (Input, error) {
 	var view struct {
 		Answers struct {
 			Host struct {
+				Owner    string          `json:"owner"`
 				Hostname string          `json:"hostname"`
 				Network  answers.Network `json:"network"`
 				Time     struct {
@@ -90,6 +92,7 @@ func NewInput(source, selected string, document []byte) (Input, error) {
 		Source: source,
 		Digest: hex.EncodeToString(sum[:]),
 		Answers: Answers{
+			Owner:                host.Owner,
 			Network:              host.Network,
 			Hostname:             host.Hostname,
 			Timezone:             host.Time.Timezone,

@@ -62,6 +62,10 @@ func (networkIdentity) Authorize(_ context.Context, d hostops.Descriptor, target
 	return hostops.Caller{Actor: "operator", Mode: "product-up"}, nil
 }
 
+func (a networkIdentity) ReserveExposure(ctx context.Context, d hostops.Descriptor, target, digest string) (hostops.Caller, error) {
+	return a.Authorize(ctx, d, target, digest)
+}
+
 // The firewall's app-row act is an adopted act of the portal's local socket: the served catalog
 // carries it, a plan reads the firewall helper's status and offers the apply, and the apply is
 // confirmed by the operator's digest, recorded on the network target and not repeated on reopening.

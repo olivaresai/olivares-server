@@ -586,3 +586,37 @@ func TestRecoveryPower_ConflictingOperationCannotRaceAdmission(t *testing.T) {
 		refusedBy(t, gated(missing, lifecycle, s).Recover(context.Background(), plan, plan.Digest(), signedIn, e.run), "", e, s)
 	})
 }
+
+// With no management interface selected the guard answers status with network_unselected: no window
+// can exist, so the power verb's window gate admits it, but only of this boot and with no window, and
+// never as the pending window a recovery reboot names. A missing or unknown status still refuses.
+func TestWindowGate_UnselectedGuardIsNoWindowOnly(t *testing.T) {
+	const unselected = "network_unselected"
+	exempt := PendingNetwork{OperationID: networkID, BootID: bootID, WindowGeneration: generation,
+		StatusDigest: StatusDigest(pendingStatus())}
+	for name, c := range map[string]struct {
+		guard  guard
+		exempt PendingNetwork
+		admit  bool
+	}{
+		"unselected, this boot, no window":   {guard: guard{code: unselected, boot: bootID}, admit: true},
+		"ok, this boot, no window (control)": {guard: guard{boot: bootID}, admit: true},
+		"unselected with an open window":     {guard: guard{code: unselected, boot: bootID, windows: []netguard.Status{pendingStatus()}}},
+		"unselected of another boot":         {guard: guard{code: unselected, boot: oldBootID}},
+		"unselected for a recovery reboot":   {guard: guard{code: unselected, boot: bootID}, exempt: exempt},
+		"missing status":                     {guard: guard{err: errors.New("network_guard_unavailable")}},
+		"unavailable guard":                  {guard: guard{code: "network_guard_unavailable", boot: bootID}},
+		"unknown code":                       {guard: guard{code: "network_unselected_v2", boot: bootID}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := WindowGate{Status: c.guard.Status, Boot: currentBoot}.Check(context.Background(), c.exempt)
+			if c.admit && err != nil {
+				t.Fatalf("refused: %v", err)
+			}
+			var refusal *Refusal
+			if !c.admit && (!errors.As(err, &refusal) || refusal.Gate != gateWindow) {
+				t.Fatalf("not refused by the window gate: %v", err)
+			}
+		})
+	}
+}

@@ -20,13 +20,21 @@ evaluated is refused.
 Usage:
   compare_rules.py cil --module MODULE.cil --baseline DECLARATIONS.cil [--access access.tsv]
   compare_rules.py policy --policy /etc/selinux/targeted/policy/policy.N [--access access.tsv] [--denied denied.tsv]
+  compare_rules.py base --policy /etc/selinux/targeted/policy/policy.N [--te olivares.te]
+
+base mode reads the binary policy of the distribution the image installs (selinux-policy-targeted and
+container-selinux at the versions of toolchain/almalinux10/input-lock.json, without this module) and refuses every
+type or attribute olivares.te requires that it does not declare: semodule would refuse the whole module.
 Exit 0: equal. Exit 1: a difference, each printed. Exit 2: usage or unreadable input.
 """
 import argparse
 from functools import cache
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -57,15 +65,89 @@ INTERFACE_RULES = {
 }
 
 
+MEASURED_COLUMNS = ("interface", "kind", "source", "target", "class", "perms", "condition", "name", "new")
+
+
+def measured_interfaces(path):
+    """The native interfaces' rules as interface-rules.tsv records them, measured once on the pinned policy, so
+    expanding a row needs no checkmodule. {d} is the row's domain."""
+    spec = {}
+    for r in generate.read_table(path, MEASURED_COLUMNS):
+        rules = spec.setdefault(r["interface"], {"allow": [], "type_transition": [], "role": [], "dontaudit": []})
+        if r["kind"] in ("allow", "dontaudit"):
+            rules[r["kind"]].append((r["source"], r["target"], r["class"], r["perms"], r["condition"]))
+        elif r["kind"] == "type_transition":
+            rules["type_transition"].append((r["source"], r["target"], r["class"], r["name"], r["new"]))
+        elif r["kind"] == "role":
+            rules["role"].append((r["source"], r["target"]))
+        else:
+            raise ValueError(f"{path}: {r['interface']}: kind {r['kind']!r} is not allow, dontaudit, type_transition or role")
+    return spec
+
+
+INTERFACE_RULES.update(measured_interfaces(os.path.join(HERE, "interface-rules.tsv")))
+
+# Interfaces expanded by compiling against the distribution Makefile (checkmodule). None: every interface a row
+# calls is in INTERFACE_RULES, and test_compare_rules compares the table with expanded_interface where it can.
+DYNAMIC_INTERFACES = ()
+
+
+def expanded_interface(r):
+    """Expand one native interface through the distribution Makefile, with and without its call."""
+    if shutil.which("checkmodule") is None:
+        raise ValueError(f"{r['id']}: checkmodule is required to expand {r['perms']}")
+    module = os.path.join(HERE, "olivares.te")
+    with open(module, encoding="utf-8") as handle:
+        text = handle.read()
+    args = r["source"] if r["target"] == "-" else f"{r['source']}, {r['target']}"
+    call = f"{r['perms']}({args})"
+    if text.count(call) != 1:
+        raise ValueError(f"{r['id']}: expected one {r['perms']} call in olivares.te")
+
+    def compile_cil(work, source):
+        os.mkdir(work)
+        for extension in ("if", "fc"):
+            shutil.copyfile(os.path.join(HERE, "olivares." + extension),
+                            os.path.join(work, "olivares." + extension))
+        with open(os.path.join(work, "olivares.te"), "w", encoding="utf-8") as handle:
+            handle.write(source)
+        subprocess.run(["make", "-f", "/usr/share/selinux/devel/Makefile", "olivares.pp"], cwd=work,
+                       check=True, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(["/usr/libexec/selinux/hll/pp", os.path.join(work, "olivares.pp")],
+                                check=True, capture_output=True, text=True, timeout=120)
+        return result.stdout
+
+    declarations = f"type {r['source']};\n"
+    if r["target"] != "-":
+        declarations += f"type {r['target']};\n"
+    requires = generate.INTERFACE_REQUIRES.get(r["perms"], "")
+    invocation = (f"optional_policy(`\nrequire {{\n{requires}\n}}\n\t{call}\n')\n" if requires else call + "\n")
+    module = "policy_module(olivares, 1.0.0)\n" + declarations
+    with tempfile.TemporaryDirectory(prefix="interface-expand-") as work:
+        expanded = compile_cil(os.path.join(work, "expanded"), module + invocation)
+        baseline = compile_cil(os.path.join(work, "baseline"), module)
+        atoms = cil_atoms(parse_cil(expanded)) - cil_atoms(parse_cil(baseline))
+    allows = [atom[1:] for atom in atoms if atom[0] in ("allow", "auditallow")]
+    dontaudits = [atom[1:] for atom in atoms if atom[0] == "dontaudit"]
+    transitions = [(atom[1], atom[2], atom[3], atom[4], atom[5]) for atom in atoms if atom[0] == "type_transition"]
+    roles = [(atom[1], atom[2]) for atom in atoms if atom[0] == "role"]
+    return allows, transitions, roles, dontaudits
+
+
 def interface_rules(r):
     """The rules an interface row stands for, its two arguments filled in."""
+    if r["perms"] in DYNAMIC_INTERFACES:
+        return expanded_interface(r)
     spec = INTERFACE_RULES.get(r["perms"])
     if spec is None:
         raise ValueError(f"{r['id']}: no rules are known for interface {r['perms']}")
     fill = lambda x: x.format(d=r["source"], e=r["target"])  # noqa: E731
-    return ([tuple(fill(x) for x in rule) for rule in spec["allow"]],
-            [tuple(fill(x) for x in rule) for rule in spec["type_transition"]],
-            [tuple(fill(x) for x in rule) for rule in spec["role"]])
+    # A rule written by hand has no condition or transition name; a measured one carries both fields.
+    allows = [tuple(fill(x) for x in rule) + (("",) if len(rule) == 4 else ()) for rule in spec["allow"]]
+    transitions = [tuple(fill(x) for x in (rule[:3] + ("",) + rule[3:] if len(rule) == 4 else rule))
+                   for rule in spec["type_transition"]]
+    return (allows, transitions, [tuple(fill(x) for x in rule) for rule in spec["role"]],
+            [tuple(fill(x) for x in rule) for rule in spec.get("dontaudit", [])])
 
 
 # --- CIL ----------------------------------------------------------------------------------------------------
@@ -152,10 +234,11 @@ def row_atoms(rows):
             atoms.add(("role", r["source"], r["target"], "", "", ""))
             continue
         if r["kind"] == "interface":
-            allows, transitions, roles = interface_rules(r)
-            for s, t, c, perms in allows:
-                atoms |= {("allow", s, t, c, p, "") for p in perms.split()}
-            atoms |= {("type_transition", s, t, c, "", new, "") for s, t, c, new in transitions}
+            allows, transitions, roles, dontaudits = interface_rules(r)
+            for kind, rules in (("allow", allows), ("dontaudit", dontaudits)):
+                for s, t, c, perms, cond in rules:
+                    atoms |= {(kind, s, t, c, p, cond) for p in perms.split()}
+            atoms |= {("type_transition", s, t, c, name, new, "") for s, t, c, name, new in transitions}
             atoms |= {("role", role, t, "", "", "") for role, t in roles}
             continue
         cond = f"{r['condition']}:true" if r["condition"] else ""
@@ -188,6 +271,39 @@ def describe(atom):
         kind, s, t, c, p, cond = atom
         text = f"{kind} {s} {t}:{c} {p}"
     return text + (f" under {cond}" if cond else "")
+
+
+# --- the base policy's names ------------------------------------------------------------------------------------
+def required_names(te_text):
+    """The (kind, name) pairs olivares.te takes from the base policy: its gen_require and require blocks."""
+    blocks = (re.findall(r"gen_require\(`(.*?)'\)", te_text, re.S)
+              + re.findall(r"^require \{\n(.*?)^\}", te_text, re.S | re.M))
+    names = set()
+    for block in blocks:
+        for kind, body in re.findall(r"^\s*(type|attribute) ([^;]+);", block, re.M):
+            names.update((kind, name.strip()) for name in body.split(","))
+    return names
+
+
+def missing_from_base(names, declared):
+    """Each required name the base policy does not declare. semodule refuses the whole module at the first one, and
+    an optional block that requires one is left out without a word."""
+    return sorted(f"{kind} {name}" for kind, name in names if not declared(kind, name))
+
+
+def base_declares(path):
+    """declared(kind, name) for the binary policy at path, aliases included, through setools."""
+    import setools  # pylint: disable=import-outside-toplevel
+    policy = setools.SELinuxPolicy(path)
+    lookups = {"type": policy.lookup_type, "attribute": policy.lookup_typeattr}
+
+    def declared(kind, name):
+        try:
+            lookups[kind](name)
+        except setools.exception.InvalidSymbol:
+            return False
+        return True
+    return declared
 
 
 # --- the installed policy -------------------------------------------------------------------------------------
@@ -234,12 +350,31 @@ class SetoolsView:
         """Every allow rule that applies to source, target and class, conditional or not, as setools returns it."""
         return list(self._rules("allow", source, target, cls))
 
+    def matches_condition(self, rule, condition):
+        expression, separator, branch = condition.rpartition(":")
+        if not separator:
+            expression, branch = condition, "true"
+        cond, block = condition_of(rule)
+        if expression:
+            return cond is not None and str(cond) == expression and block == (branch == "true")
+        return cond is None
+
+
+    def has_access(self, kind, source, target, cls, perm, condition):
+        for rule in self._rules(kind, source, target, cls):
+            if perm not in {str(p) for p in rule.perms}:
+                continue
+            cond, _ = condition_of(rule)
+            if self.matches_condition(rule, condition):
+                return True
+        return False
+
     def has_transition(self, source, target, cls, name, new_type, condition):
         for rule in self._rules("type_transition", source, target, cls, default=new_type):
             if str(getattr(rule, "filename", "") or "") != name:
                 continue
             cond, _ = condition_of(rule)
-            if bool(condition) == (cond is not None):
+            if self.matches_condition(rule, condition):
                 return True
         return False
 
@@ -356,15 +491,23 @@ def compare_policy(view, rows, denied):
                 failures.append(f"{r['id']}: the policy has no type_transition {r['source']} {r['target']}:{r['class']} "
                                 f"{r['perms']}")
         elif r["kind"] == "interface":
-            allows, transitions, roles = interface_rules(r)
-            for s, t, c, perms in allows:
+            allows, transitions, roles, dontaudits = interface_rules(r)
+            for s, t, c, perms, cond in allows:
+                if cond:
+                    if not view.has_access("allow", s, t, c, perms, cond):
+                        failures.append(f"{r['id']}: the policy does not grant {perms} on {t}:{c} to {s} under {cond} ({r['perms']})")
+                    continue
                 held = unconditional_perms(view, s, t, c)
                 for p in perms.split():
                     if p not in held:
                         failures.append(f"{r['id']}: the policy does not grant {p} on {t}:{c} to {s} ({r['perms']})")
-            for s, t, c, new in transitions:
-                if not view.has_transition(s, t, c, "", new, ""):
-                    failures.append(f"{r['id']}: the policy has no type_transition {s} {t}:{c} {new} ({r['perms']})")
+            for s, t, c, perms, cond in dontaudits:
+                if not view.has_access("dontaudit", s, t, c, perms, cond):
+                    failures.append(f"{r['id']}: the policy lacks dontaudit {perms} on {t}:{c} to {s} under {cond} ({r['perms']})")
+            for s, t, c, name, new in transitions:
+                if not view.has_transition(s, t, c, name, new, ""):
+                    failures.append(f"{r['id']}: the policy has no type_transition {s} {t}:{c} {new}"
+                                    + (f' "{name}"' if name else "") + f" ({r['perms']})")
             for role, t in roles:
                 if not view.role_has_type(role, t):
                     failures.append(f"{r['id']}: role {role} does not hold {t} ({r['perms']})")
@@ -412,11 +555,25 @@ def main(argv=None):
     q.add_argument("--policy", required=True)
     q.add_argument("--access", default=os.path.join(HERE, "access.tsv"))
     q.add_argument("--denied", default=os.path.join(HERE, "denied.tsv"))
+    b = sub.add_parser("base")
+    b.add_argument("--policy", required=True)
+    b.add_argument("--te", default=os.path.join(HERE, "olivares.te"))
     try:
         args = p.parse_args(argv)
     except SystemExit as e:
         return 2 if e.code else 0
     try:
+        if args.mode == "base":
+            with open(args.te, encoding="utf-8") as f:
+                names = required_names(f.read())
+            if not names:
+                print(f"FAIL no required names read from {args.te}: the check would hold nothing")
+                return 1
+            missing = missing_from_base(names, base_declares(args.policy))
+            for name in missing:
+                print(f"FAIL the base policy does not declare the required {name}")
+            print(f"RESULT {'PASS' if not missing else 'FAIL'}: {len(names)} required names, {len(missing)} missing")
+            return 1 if missing else 0
         rows = generate.read_table(args.access, generate.ACCESS_COLUMNS)
         if args.mode == "cil":
             with open(args.module, encoding="utf-8") as f:
@@ -434,7 +591,7 @@ def main(argv=None):
             return 1 if extra or missing else 0
         denied = read_denied(args.denied)
         failures = compare_policy(SetoolsView(args.policy), rows, denied)
-    except (OSError, ValueError, SystemExit) as e:
+    except (OSError, ValueError, SystemExit, ImportError) as e:
         print(f"compare_rules.py: {e}", file=sys.stderr)
         return 2
     for f in failures:

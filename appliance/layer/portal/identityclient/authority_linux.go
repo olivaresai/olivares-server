@@ -20,6 +20,12 @@ import (
 )
 
 func (a authority) Authorize(ctx context.Context, d hostops.Descriptor, target, digest string) (hostops.Caller, error) {
+	return a.authorize(ctx, d, target, digest, false)
+}
+func (a authority) ReserveExposure(ctx context.Context, d hostops.Descriptor, target, digest string) (hostops.Caller, error) {
+	return a.authorize(ctx, d, target, digest, true)
+}
+func (a authority) authorize(ctx context.Context, d hostops.Descriptor, target, digest string, reserve bool) (hostops.Caller, error) {
 	if ctx == nil || ctx.Err() != nil || a.held == nil || a.held.Err() != nil || a.uid == 0 {
 		return hostops.Caller{}, refused
 	}
@@ -82,11 +88,14 @@ func (a authority) Authorize(ctx context.Context, d hostops.Descriptor, target, 
 	if err != nil || ready.Type != "ready" || ready.Version != 1 || engine.Check(ctx) != nil || check() != nil {
 		return hostops.Caller{}, refused
 	}
-	request := localframe.AuthorityRequest{Task: d.ID, Target: target, IntentDigest: digest}
+	request := localframe.AuthorityRequest{Task: d.ID, Target: target, IntentDigest: digest, ReserveExposure: reserve, Inputs: hostops.AuthorityInputs(ctx)}
 	if localframe.WriteAuthorityRequest(c, request, fd) != nil {
 		return hostops.Caller{}, refused
 	}
 	reply, err := localframe.NextAuthorityReply(c, expect, check)
+	if err != nil && err.Error() == "exposure_requires_step_up" && engine.Check(ctx) == nil && check() == nil {
+		return hostops.Caller{}, err
+	}
 	if err != nil || engine.Check(ctx) != nil || check() != nil || reply.Task != request.Task || reply.Target != request.Target ||
 		reply.IntentDigest != request.IntentDigest || reply.Mode != "product-up" || reply.Actor == "" ||
 		!reply.ValidUntil.After(time.Now()) || reply.ValidUntil.After(until) {

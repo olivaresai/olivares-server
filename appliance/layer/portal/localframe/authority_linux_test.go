@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -72,7 +73,7 @@ func TestAuthorityFrameTransfersOriginalSocketWithoutChangingLegacyProtocol(t *t
 		t.Fatal(err)
 	}
 	got, fd, err := NextAuthorityRequest(b, expect, nil)
-	if err != nil || fd < 0 || got != req {
+	if err != nil || fd < 0 || !reflect.DeepEqual(got, req) {
 		t.Fatalf("held socket handoff: fd=%d err=%v", fd, err)
 	}
 	defer syscall.Close(fd)

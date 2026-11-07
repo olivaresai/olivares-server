@@ -159,17 +159,17 @@ func (u *TUI) Frame() string {
 		lines = []string{u.descriptor.Title, "The installed read-only task has no input fields.", "Next reads its plan; no host setting changes."}
 	case 4:
 		title = "Plan"
-		lines = []string{u.plan.Descriptor.Title, u.plan.Descriptor.Consequence, "Command: " + u.plan.Descriptor.EquivalentCommand, "Changes: disabled (" + u.plan.Permissions.Code + ")"}
+		lines = []string{u.plan.Descriptor.Title, u.plan.Descriptor.Consequence, "Command: " + u.plan.Descriptor.EquivalentCommand, "Changes: disabled (" + permissionReason(u.plan.Permissions.Code) + ")"}
 	case 5:
 		title = "Summary"
 		lines = []string{u.plan.Descriptor.Title, u.plan.Descriptor.Consequence, "Confirmation: " + u.plan.Descriptor.Confirmation, "Command: " + u.plan.Descriptor.EquivalentCommand}
 	case 6:
 		title = "Confirmation"
-		lines = []string{"Changes are disabled: " + u.plan.Permissions.Code, "Reads and plans remain available.", "A terminal login alone does not authorize an operation."}
+		lines = []string{"Changes are disabled: " + permissionReason(u.plan.Permissions.Code), "Reads and plans remain available.", "A terminal login alone does not authorize an operation."}
 	case 7:
 		title = "Operation"
 		r := u.view.Record
-		lines = []string{"ID: " + r.OperationID, "Task: " + r.TaskID, "Target: " + r.Target, "State: " + r.State, "Mode: " + r.Mode, "Changes: disabled (" + u.view.Permissions.Code + ")", r.LogRef}
+		lines = []string{"ID: " + r.OperationID, "Task: " + r.TaskID, "Target: " + r.Target, "State: " + r.State, "Mode: " + r.Mode, "Changes: disabled (" + permissionReason(u.view.Permissions.Code) + ")", r.LogRef}
 		lines = append(lines, r.Postconditions...)
 	}
 	rows := make([]string, 24)

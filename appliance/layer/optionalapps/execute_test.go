@@ -18,6 +18,7 @@ import (
 )
 
 type dockerHost struct {
+	app       string
 	root      *os.Root
 	installed bool
 	running   bool
@@ -44,7 +45,7 @@ func newDockerHost(t *testing.T) *dockerHost {
 }
 
 func (h *dockerHost) executor() Compose {
-	return Compose{Root: h.root, Run: h.run, PortAvailable: h.port}
+	return Compose{App: h.app, Root: h.root, Run: h.run, PortAvailable: h.port}
 }
 
 func (h *dockerHost) port(_ context.Context, address string) error {
@@ -64,6 +65,7 @@ func (h *dockerHost) run(_ context.Context, argv []string, limit int64) ([]byte,
 		return nil, errors.New("not the fixed local native Docker command")
 	}
 	args := argv[len(prefix):]
+	expected, _ := manifestFor(h.app)
 	if args[0] == "container" {
 		if h.lostRead && len(h.effects) > 0 {
 			return nil, errors.New("daemon answer lost")
@@ -78,17 +80,17 @@ func (h *dockerHost) run(_ context.Context, argv []string, limit int64) ([]byte,
 			return nil, nil
 		}
 		if args[1] == "inspect" {
-			m, err := manifest()
+			m, err := manifestFor(h.app)
 			if err != nil {
 				return nil, err
 			}
 			app := m.Services["app"]
-			state := nativeState{ID: strings.Repeat("c", 64), Image: app.Image, Labels: map[string]string{"com.docker.compose.project": m.Name, "com.docker.compose.service": "app"}, Running: h.running, Status: "exited", Restart: "unless-stopped", Ports: map[string][]nativePort{}}
+			state := nativeState{ReadOnly: app.ReadOnly, CapDrop: app.CapDrop, SecurityOpt: app.SecurityOpt, Command: app.Command, User: app.User, NetworkMode: app.NetworkMode, ID: strings.Repeat("c", 64), Image: app.Image, Labels: map[string]string{"com.docker.compose.project": m.Name, "com.docker.compose.service": "app"}, Running: h.running, Status: "exited", Restart: "unless-stopped", Ports: map[string][]nativePort{}}
 			if h.running {
 				state.Status = "running"
 			}
 			for _, v := range app.Volumes {
-				state.Mounts = append(state.Mounts, nativeMount{Type: "bind", Source: filepath.Join(h.root.Name(), v.Source), Destination: v.Target, RW: true})
+				state.Mounts = append(state.Mounts, nativeMount{Type: "bind", Source: filepath.Join(h.root.Name(), v.Source), Destination: v.Target, RW: !v.ReadOnly})
 			}
 			for _, p := range app.Ports {
 				state.Ports[portKey(p)] = []nativePort{{HostIP: p.HostIP, HostPort: p.Published}}
@@ -108,9 +110,9 @@ func (h *dockerHost) run(_ context.Context, argv []string, limit int64) ([]byte,
 			// rather than fabricating the helper's selected JSON response.
 			raw := map[string]any{
 				"Id":         state.ID,
-				"Config":     map[string]any{"Image": state.Image, "Labels": state.Labels, "Env": []string{"fixture-secret-must-not-appear"}},
+				"Config":     map[string]any{"Image": state.Image, "Labels": state.Labels, "Cmd": state.Command, "User": state.User, "Env": []string{"fixture-secret-must-not-appear"}},
 				"State":      map[string]any{"Running": state.Running, "Status": state.Status},
-				"HostConfig": map[string]any{"RestartPolicy": map[string]any{"Name": state.Restart}, "PortBindings": state.Ports},
+				"HostConfig": map[string]any{"RestartPolicy": map[string]any{"Name": state.Restart}, "PortBindings": state.Ports, "NetworkMode": state.NetworkMode, "ReadonlyRootfs": state.ReadOnly, "CapDrop": state.CapDrop, "SecurityOpt": state.SecurityOpt},
 				"Mounts":     state.Mounts,
 			}
 			if len(args) != 5 || args[2] != "--format" || args[4] != state.ID {
@@ -137,7 +139,7 @@ func (h *dockerHost) run(_ context.Context, argv []string, limit int64) ([]byte,
 	if args[0] != "compose" {
 		return nil, errors.New("unexpected native operation")
 	}
-	for _, value := range []string{"--file", filepath.Join(h.root.Name(), "compose.yaml"), "--project-directory", h.root.Name(), "--project-name", "olivares-nginx-proxy-manager", "--env-file", filepath.Join(h.root.Name(), "empty.env")} {
+	for _, value := range []string{"--file", filepath.Join(h.root.Name(), "compose.yaml"), "--project-directory", h.root.Name(), "--project-name", expected.Name, "--env-file", filepath.Join(h.root.Name(), "empty.env")} {
 		if !slices.Contains(args, value) {
 			return nil, errors.New("native project input was not fixed")
 		}
@@ -155,7 +157,7 @@ func (h *dockerHost) run(_ context.Context, argv []string, limit int64) ([]byte,
 	}
 	if command == "config" {
 		data, err := h.root.ReadFile("compose.yaml")
-		if err != nil || !strings.Contains(string(data), "docker.io/jc21/nginx-proxy-manager@sha256:4393e642e233e5efd5adeb7f10918d4aaea71c9ed875b94190273fc8e87f9594") || strings.Contains(string(data), "latest") {
+		if err != nil || !bytes.Equal(data, manifestBytes(h.app)) || strings.Contains(string(data), "latest") {
 			return nil, errors.New("official image was not pinned")
 		}
 		return nil, nil

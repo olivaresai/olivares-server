@@ -27,7 +27,7 @@ func selectionVerdict(selection portal.Selection, reason string) (done bool, cod
 		return true, 1, "network management selection unavailable: " + reason
 	}
 	if len(selection.ManagementInterfaces) == 0 {
-		return true, 0, "no management interface is selected: nothing to guard; requests are refused as network_guard_unavailable until a selection names one"
+		return true, 0, "no management interface is selected: nothing to guard; status answers network_unselected and other requests are refused as network_guard_unavailable until a selection names one"
 	}
 	return false, 0, ""
 }
@@ -44,8 +44,15 @@ func managementSelected() (bool, string) {
 }
 
 // unguarded is the edge served while nothing is selected: with no engine it refuses every admitted request as
-// network_guard_unavailable, so no change is made unguarded.
-var unguarded = netguard.Edge{}
+// network_guard_unavailable, so no change is made unguarded, except status, which it answers network_unselected of
+// this boot with no window. A boot identity it cannot read leaves status refused as well.
+func unguarded() netguard.Edge {
+	clock, err := netguard.NewBootClock()
+	if err != nil {
+		return netguard.Edge{}
+	}
+	return netguard.Edge{Unselected: clock}
+}
 
 // acceptedConnectionDeadline is the deadline Edge.Serve gives each connection it accepted (serve_linux.go). Serve does
 // not wait for them when it returns, so the guard waits this long before it exits and each still gets its reply.
@@ -78,7 +85,7 @@ func serveUntilSelected(ctx context.Context, listener net.Listener, read func() 
 			}
 		}
 	}()
-	if err := unguarded.Serve(ctx, listener); err != nil && ctx.Err() == nil {
+	if err := unguarded().Serve(ctx, listener); err != nil && ctx.Err() == nil {
 		return err
 	}
 	time.Sleep(acceptedConnectionDeadline)

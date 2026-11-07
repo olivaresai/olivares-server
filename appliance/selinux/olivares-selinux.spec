@@ -10,7 +10,7 @@
 
 Name:           olivares-selinux
 Version:        1.0.0
-Release:        28%{?dist}
+Release:        33%{?dist}
 Summary:        SELinux policy module of the Olivares AI appliance
 License:        AGPL-3.0-only
 URL:            https://github.com/olivaresai/olivares
@@ -52,8 +52,16 @@ install -D -p -m 0644 %{modulename}.if %{buildroot}%{_datadir}/selinux/devel/inc
 
 %post
 %selinux_modules_install -s %{selinuxtype} %{_datadir}/selinux/packages/%{selinuxtype}/%{modulename}.pp.bz2
+# The macro ignores semodule's exit status. A module semodule refused (its error is printed above) leaves the
+# appliance with no Olivares domain, so the scriptlet fails, which rpm reports, and the image build's check stops.
+# shortcut: an upgrade whose new module is refused keeps the previous one at 200 and passes here; compare the stored
+# module (semodule -E) with the shipped one once the image carries bzip2 and diffutils.
+if ! %{_sbindir}/semodule -s %{selinuxtype} -lfull | grep -Eq '^200 %{modulename}[[:space:]]'; then
+echo "olivares-selinux: the policy module %{modulename} is not installed at priority 200 (semodule -lfull): the appliance has no Olivares domain" >&2
+exit 1
+fi
 # Without a loaded policy (an image build, a container) semanage writes the store and does not reload (-N). A failed
-# import is named on stderr and the scriptlet still exits 0, as every scriptlet must; the next upgrade repairs it.
+# import is named on stderr and the scriptlet still exits 0; the next upgrade repairs it.
 if selinuxenabled; then reload=; else reload=-N; fi
 if [ "$1" -eq 1 ]; then
 # First install. One transaction for the seven ports. port -m changes only a record the policy holds for exactly
@@ -109,9 +117,11 @@ fi
 
 %posttrans
 %selinux_relabel_post -s %{selinuxtype}
-# An existing Claude installation predates its dedicated executable type; the upgrade must label it before the next session.
-if [ -d /var/lib/olivares/tools/claude ]; then
-%{_sbindir}/restorecon -R /var/lib/olivares/tools/claude || echo "olivares-selinux: could not label Claude Code; re-execution stays refused until restorecon -R /var/lib/olivares/tools/claude runs" >&2
+# The diff-only macro skips unchanged contexts. Repair state left with old labels too,
+# including account homes, workspaces, tool scratch and installed executables.
+# Preserve the managed Ollama container's runtime labels on its model storage.
+if [ -d /var/lib/olivares ]; then
+%{_sbindir}/restorecon -R -e /var/lib/olivares/ollama /var/lib/olivares || echo "olivares-selinux: could not label engine state; some engine state may keep an old label; run restorecon -R -e /var/lib/olivares/ollama /var/lib/olivares" >&2
 fi
 # The native context path is /usr/lib/systemd/system, but the packaged directory is in /etc.
 # Relabel its physical path too: the policy macro's canonical-path walk cannot reach the alias.
@@ -125,6 +135,21 @@ fi
 %ghost %verify(not md5 size mode mtime) %{_sharedstatedir}/selinux/%{selinuxtype}/active/modules/200/%{modulename}
 
 %changelog
+* Thu Nov 05 2026 Olivares.AI <enterprise@olivares.ai> - 1.0.0-33
+- Permit the repair console's distribution PAM login, read-only utmp and audit path; credentials change only through the distribution's PAM password helper.
+- Add the fixed host-user helper that creates the first administrator from tty1 and records it in /etc/userdb.
+- Permit that helper's NoNewPrivileges transition into the distribution's useradd domain.
+- Permit the repair console's password service to read the cracklib dictionary.
+- Let systemd-userdbd read the administrator record the host-user helper writes in /etc/userdb.
+- Let the repair console's power verb hold the lifecycle lock shared and the operation store's lock exclusive, and let the portal share that lock's mode with the host-operations group.
+* Thu Nov 05 2026 Olivares.AI <enterprise@olivares.ai> - 1.0.0-32
+- Fail the install scriptlet, naming the module, when the policy module is not in the store after the install macro, which ignores semodule's exit status.
+* Mon Nov 02 2026 Olivares.AI <enterprise@olivares.ai> - 1.0.0-31
+- Give the delivered one-time setup token its own type, set by a file-name transition on its staging name, and let the signed-in repair console read that type only, without write or removal and without reading the rest of the first-boot state directory.
+* Wed Nov 04 2026 Olivares.AI <enterprise@olivares.ai> - 1.0.0-30
+- Relabel existing engine state after the policy package transaction.
+* Wed Nov 04 2026 Olivares.AI <enterprise@olivares.ai> - 1.0.0-29
+- Separate engine command processes from tool command inspection.
 * Sun Nov 01 2026 Olivares.AI <enterprise@olivares.ai> - 1.0.0-28
 - Permit the container session's measured hook, shell and device accesses, MCS-constrained.
 - Permit Claude Code's reflink of its own configuration backup.

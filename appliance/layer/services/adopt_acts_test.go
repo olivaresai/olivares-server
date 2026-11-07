@@ -19,7 +19,7 @@ import (
 )
 
 // updateUnits are the units of the Updates page: the acts on them are the reason the class table names them.
-var updateUnits = []string{"olivares-appliance-update.service", "dnf-automatic-install.service", "dnf-automatic-install.timer"}
+var updateUnits = []string{"olivares-appliance-update.service", "olivares-appliance-rollback.service", "dnf-automatic-install.service", "dnf-automatic-install.timer"}
 
 func TestUnits_TheUpdateUnitsAreManagedBecauseTheirActsAreAdopted(t *testing.T) {
 	for _, unit := range updateUnits {

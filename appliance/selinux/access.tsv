@@ -69,6 +69,7 @@ PORTAL-36	allow	olivares_portal_t	var_lib_t	dir	search			reaches /var/lib/olivar
 PORTAL-37	allow	olivares_portal_t	olivares_portal_var_lib_t	dir	search			the root-owned parent of the leaf: search only, so the leaf's stat succeeds and nothing is created beside it
 PORTAL-38	allow	olivares_portal_t	olivares_portal_ops_t	dir	add_name create getattr open read remove_name search write			the operations leaf: create its private audit subdirectory, stat, create store.lock and records, list the records, remove a record whose write failed, rename a rewritten record into place and fsync the directory (fsync has no SELinux permission)
 PORTAL-39	allow	olivares_portal_t	olivares_portal_ops_t	file	append create getattr lock open read rename unlink write			store.lock (created once, flock exclusive), hostop/v1 records and the audit spool: create, read, write, append (O_APPEND), fsync, rename over a record (unlink of the replaced inode); records and lock only, never an authority store
+PORTAL-55	allow	olivares_portal_t	olivares_portal_ops_t	file	setattr			the engine sets store.lock and every record to 0640 when it opens, through each file's descriptor (fchmod; no chown: the unit filters it), so the repair console's group reaches them
 RCON-10	allow	olivares_repair_console_t	tty_device_t	chr_file	getattr ioctl read write			the console's standard input and output are /dev/tty1, opened by PID 1
 RCON-11	allow	olivares_repair_console_t	var_run_t	dir	search			reaches /run/olivares-helpers
 RCON-12	allow	olivares_repair_console_t	olivares_helper_run_t	dir	search			reaches the helpers' socket directory
@@ -393,6 +394,61 @@ RCON-19	allow	olivares_repair_console_t	olivares_helper_netprobe_sock_t	sock_fil
 RCON-20	allow	olivares_repair_console_t	olivares_helper_netprobe_t	unix_stream_socket	connectto			netprobe admits the console on tty1 (RCON-11, -12 and -15 give /run, the helper directory and its client socket)
 RCON-21	allow	olivares_repair_console_t	olivares_helper_netrestore_sock_t	sock_file	getattr write			connects to netrestore.sock (RCON-11, -12 and -15 give /run, the helper directory and its client socket)
 RCON-22	allow	olivares_repair_console_t	olivares_helper_netrestore_t	unix_stream_socket	connectto			netrestore admits the console on tty1 (RCON-11, -12 and -15 give /run, the helper directory and its client socket)
+RCON-23	interface	olivares_repair_console_t	-	-	auth_use_pam			the distro PAM login path: passwd/group reads and unix_chkpwd (its helper child's setuid check is refused: N-RCON-SETUID), never a permissive repair-console domain
+RCON-24	interface	olivares_repair_console_t	-	-	init_read_utmp			the distro's read-only utmp interface for the login session
+RCON-25	interface	olivares_repair_console_t	-	-	logging_send_audit_msgs			the distro audit interface for the PAM sign-in, including its netlink audit socket
+RCON-29	allow	olivares_repair_console_t	etc_t	dir	getattr search			reaches /etc/userdb/olivares.user without listing unrelated entries
+RCON-30	allow	olivares_repair_console_t	olivares_userdb_t	file	getattr open read			reads only the administrator record in /etc/userdb/olivares.user
+SYS-24	allow	olivares_helper_system_t	etc_t	dir	add_name remove_name write			creates the userdb directory and fixed staging name, then renames it without listing unrelated entries
+SYS-25	allow	olivares_helper_system_t	olivares_userdb_t	file	create getattr open read rename setattr unlink write			writes the measured administrator record atomically
+SYS-26	type_transition	olivares_helper_system_t	etc_t	file	olivares_userdb_t "olivares.user"			only the fixed administrator record gets the userdb label; shadow temporaries never inherit it
+SYS-27	type_transition	olivares_helper_system_t	etc_t	file	olivares_userdb_t "olivares.user.new"			only the fixed staging record gets the userdb label
+SYS-28	allow	olivares_helper_system_t	etc_t	dir	create			creates the userdb directory when no administrator was recorded
+SYS-29	allow	olivares_helper_system_t	olivares_appliance_etc_t	dir	search remove_name write			searches the deferral directory and removes its marker after recording
+RCON-35	allow	olivares_repair_console_t	olivares_helper_system_sock_t	sock_file	getattr write			lstat of the host-user socket, then connect
+RCON-36	allow	olivares_repair_console_t	olivares_helper_system_t	unix_stream_socket	connectto			the host-user helper admits tty1 by its attested peer
+RCON-37	allow	olivares_repair_console_t	olivares_appliance_etc_t	dir	getattr search			reaches the installer deferral marker only
+RCON-38	allow	olivares_repair_console_t	olivares_appliance_etc_t	file	getattr			stats the deferral marker before any creation request
+RCON-39	allow	olivares_repair_console_t	crack_db_t	dir	search			pam_pwquality reaches /usr/share/cracklib to check a new password against the distribution's dictionary
+RCON-40	allow	olivares_repair_console_t	crack_db_t	file	getattr open read			pam_pwquality reads the dictionary, so a weak password is named and a good one is not reported as unchecked
+RCON-41	allow	olivares_repair_console_t	olivares_lifecycle_run_t	dir	search			the power verb reaches lifecycle.lock (repair.HostHold); no add_name, remove_name or write, as the portal's PORTAL-34
+RCON-42	allow	olivares_repair_console_t	olivares_lifecycle_lock_t	file	getattr lock open read			a read-only open and flock(LOCK_SH|LOCK_NB) of lifecycle.lock, as the portal's PORTAL-35; the console never writes or removes it
+RCON-43	allow	olivares_repair_console_t	olivares_portal_var_lib_t	dir	search			reaches the operations leaf through root's protected parent; no write in it
+RCON-44	allow	olivares_repair_console_t	olivares_portal_ops_t	dir	getattr open read search			enters and lists the 0750 operations leaf through the olivares-operations group: repair.RecordsGate reads every record; no write in it
+RCON-45	allow	olivares_repair_console_t	olivares_portal_ops_t	file	getattr lock open read			a read-only open and exclusive flock of store.lock, and the reads of the 0640 records; the console never writes the store
+RCON-46	allow	olivares_repair_console_t	rpm_var_lib_t	dir	search			the power verb's PackageGate reaches rpm's transaction lock (repair.lockHeld, layer/repair/lock_linux.go:25); the search was refused on an enforcing desktop, 2026-11-07
+RCON-47	allow	olivares_repair_console_t	rpm_var_lib_t	file	getattr lock open read			a read-only open, fstat and F_OFD_GETLK query of /usr/lib/sysimage/rpm/.rpm.lock (lock_linux.go:25-38); no write or map. The type also covers the rpmdb, whose package list is not secret
+RCON-48	allow	olivares_repair_console_t	system_dbusd_var_run_t	dir	search			StorageGate reaches the system bus (repair.UDisksJobs, layer/repair/storage.go:28), as the power helper's HPWR-22
+RCON-49	allow	olivares_repair_console_t	system_dbusd_var_run_t	sock_file	write			connects to the system bus, as HPWR-23
+RCON-50	allow	olivares_repair_console_t	system_dbusd_t	unix_stream_socket	connectto			connects to the system bus daemon, as HPWR-24
+RCON-51	allow	olivares_repair_console_t	system_dbusd_t	dbus	send_msg			bus Hello and NameHasOwner to the bus daemon only (storage.go:39, :50); no service on the bus, udisks included, as HPWR-25
+RCON-52	allow	system_dbusd_t	olivares_repair_console_t	dbus	send_msg			the bus daemon's replies, as HPWR-26
+SYS-01	allow	init_t	olivares_helper_system_t	process	transition		init_daemon_domain	systemd executes the fixed host-user helper
+SYS-02	allow	olivares_helper_system_t	olivares_helper_system_exec_t	file	entrypoint execute getattr map open read		init_daemon_domain	the fixed host-user helper binary is the only entry point
+SYS-03	type_transition	init_t	olivares_helper_system_exec_t	process	olivares_helper_system_t		init_daemon_domain	entry transition for the fixed host-user helper
+SYS-04	allow	init_t	olivares_helper_system_t	process2	nnp_transition nosuid_transition		init_nnp_daemon_domain	NoNewPrivileges= requires the explicit transition
+SYS-05	allow	olivares_helper_system_t	init_t	fd	use			the passed socket and journal descriptors
+SYS-11	allow	init_t	olivares_helper_system_sock_t	sock_file	create getattr setattr unlink write			PID 1 binds and sets custody of system.sock
+SYS-12	allow	olivares_helper_system_t	olivares_helper_system_t	unix_stream_socket	getattr getopt read shutdown write			accepted connection and peer credentials
+SYS-13	allow	olivares_helper_system_t	proc_t	dir	search			reaches /proc for pidfd attestation
+SYS-14	allow	olivares_helper_system_t	olivares_helper_system_t	file	getattr open read			reads the pidfd's fdinfo
+SYS-15	allow	olivares_helper_system_t	olivares_repair_console_t	dir	search			attests the repair-console invoker
+SYS-16	allow	olivares_helper_system_t	olivares_repair_console_t	file	getattr open read			reads the invoker's cgroup and status
+SYS-17	allow	olivares_helper_system_t	olivares_repair_console_t	process	signull			checks invoker liveness with signal 0
+SYS-18	allow	olivares_helper_system_t	etc_t	dir	getattr search			reaches the native account databases
+SYS-19	allow	olivares_helper_system_t	passwd_file_t	file	getattr open read			reads native account records for preflight
+SYS-21	allow	olivares_helper_system_t	home_root_t	dir	getattr search			checks /home custody before creation
+SYS-22	allow	olivares_helper_system_t	user_home_dir_t	dir	getattr search			checks the prospective account home without writing it directly
+SYS-23	interface	olivares_helper_system_t	-	-	usermanage_domtrans_useradd			the distribution's confined useradd/usermod path for the fixed helper
+SYS-30	allow	olivares_helper_system_t	olivares_appliance_etc_t	file	unlink			removes the installer deferral marker only after the administrator is recorded
+SYS-31	type_transition	olivares_helper_system_t	home_root_t	dir	user_home_dir_t			the operator's new home gets the native user-home label at creation
+SYS-32	allow	olivares_helper_system_t	user_home_dir_t	dir	create setattr			creates the new home and sets its ownership and mode
+SYS-33	allow	olivares_helper_system_t	useradd_t	process2	nnp_transition			the helper unit sets NoNewPrivileges, so its exec of the distribution's useradd and usermod (SYS-23) is an NNP transition
+SYS-34	allow	systemd_userdbd_t	olivares_userdb_t	file	getattr open read			systemd-userdbd serves the administrator record the host-user helper writes in /etc/userdb; read only, nothing else in the record's type
+GORT-43	allow	olivares_helper_system_t	cgroup_t	dir	search			the Go runtime reads process cgroup limits
+GORT-44	allow	olivares_helper_system_t	sysfs_t	file	open read			the Go runtime reads the transparent huge page size
+RCON-26	allow	olivares_repair_console_t	olivares_appliance_var_lib_t	dir	getattr search			reaches the state directory to look up the setup token by name; it lists nothing and opens no other file there
+RCON-27	allow	olivares_repair_console_t	olivares_setup_plaintext_t	file	getattr open read			reads /var/lib/olivares-appliance/setup-token only after local sign-in and confirmation; no other file of the state directory, no write or removal
 FBOOT-74	type_transition	olivares_firstboot_t	etc_t	file	olivares_cloud_owner_t			a file first boot creates in an etc_t directory, the host-owner drop-in and its random temporary, gets its own type; first boot creates no other file there
 FBOOT-75	allow	olivares_firstboot_t	etc_t	dir	add_name remove_name write			adds the temporary to /etc/cloud/cloud.cfg.d and renames it into place; no etc_t file is written, replaced or removed (N-FBOOT-ETC-WRITE, N-FBOOT-ETC-UNLINK)
 FBOOT-76	allow	olivares_firstboot_t	olivares_cloud_owner_t	file	create getattr open read rename setattr unlink write			creates, chmods 0644, writes, fsyncs and renames the drop-in, removes a failed temporary, and verifies it
@@ -537,7 +593,12 @@ FBOOT-101	allow	init_t	olivares_firstboot_cred_t	file	create getattr open read r
 FBOOT-99	allow	olivares_firstboot_t	systemd_unit_file_t	file	getattr			systemctl is-enabled and is-active nftables.service see the unit to tell disabled, masked or absent; the second-owner check measures it instead of reading it as absent; no unit read or mutation
 FBOOT-102	type_transition	olivares_firstboot_t	olivares_portal_etc_t	file	olivares_portal_key_t "tls.key.new"			console-certificate stages the console's key as tls.key.new and renames it to tls.key, which keeps the label C19 gives that name; only this name takes the type, so selection.json, tls.crt and the random staging files stay olivares_portal_etc_t
 FBOOT-103	allow	olivares_firstboot_t	olivares_portal_key_t	file	create getattr open read rename write			console-certificate creates the staged key O_NOFOLLOW 0600 (reusing a leftover with O_TRUNC), renames it into place, lstats it and reads it to certify it again; no unlink, setattr or append, and no other domain gains the key
-FBOOT-104	allow	olivares_firstboot_t	olivares_firstboot_t	netlink_route_socket	bind create getattr nlmsg_read read write			secure.LocalLANAddresses lists the host's interfaces and addresses over rtnetlink (net.Interfaces), as the engine does for its own leaf; the unit's RestrictAddressFamilies=AF_NETLINK allows only that family; no route or link change
+FBOOT-104	allow	olivares_firstboot_t	olivares_firstboot_t	netlink_route_socket	bind create getattr nlmsg_read read write			secure.LocalLANAddresses lists the host's interfaces and addresses over rtnetlink (net.Interfaces), as the engine does for its own leaf; only console-certificate reads them, and its unit, olivares-console-certificate.service, sets RestrictAddressFamilies=AF_NETLINK and IPAddressDeny=any (the first-boot unit sets no RestrictAddressFamilies); no route or link change
+FBOOT-105	type_transition	olivares_firstboot_t	olivares_appliance_var_lib_t	file	olivares_setup_plaintext_t "setup-token.new"			setup-token delivery stages the plaintext as setup-token.new and renames it to setup-token, which keeps the label C109 gives that name; only this name takes the type, so state.json, ready, apply.lock and the random staging files stay olivares_appliance_var_lib_t
+FBOOT-106	allow	olivares_firstboot_t	olivares_setup_plaintext_t	file	create getattr open read rename setattr unlink write			setup-token delivery creates the staged plaintext O_EXCL O_NOFOLLOW 0600, writes, syncs and renames it; removes a failed staging file; and reads it back to verify the delivery
+FBOOT-107	allow	olivares_firstboot_t	vmtools_exec_t	file	execute execute_no_trans getattr map open read			the guestinfo carrier runs vmtoolsd --cmd (vmtools.fc) in the first-boot domain and never enters the tools' own domain (N-FBOOT-VMTOOLS-DOMAIN); vmtools.fc gives /usr/bin/VGAuthService the same type, so the rule admits it in place too, and the carriers' closed program list runs vmtoolsd and never VGAuthService; measured: AVC in permissive in the first-boot unit, selinux-policy-targeted 42.1.18-4.el10_2.4, open-vm-tools 13.0.10-1.el10, 2026-11-06
+FBOOT-108	allow	olivares_firstboot_t	olivares_firstboot_t	vsock_socket	bind connect create read write			vmtoolsd sends its one info-get over the vsock channel to the hypervisor before it falls back to the backdoor; the unit's capability bounding set has no CAP_NET_BIND_SERVICE, so the source port is unprivileged; create, bind and connect measured: AVC in permissive in the first-boot unit, selinux-policy-targeted 42.1.18-4.el10_2.4, open-vm-tools 13.0.10-1.el10, 2026-11-06; read and write are the channel's send and recv once the hypervisor answers
+FBOOT-109	allow	olivares_firstboot_t	systemd_unit_file_t	lnk_file	getattr			a local host owner stats the links in /etc/systemd/system/cloud-init.target.wants that enable cloud-init's units (aliased to /usr/lib/systemd/system); it never reads or follows them
 PORTAL-52	allow	init_t	olivares_portal_cred_t	dir	add_name create getattr open read remove_name rmdir search setattr write			systemd creates the fixed unit credential directory, writes entries, sets its read-only service ACL and removes failed or stopped-unit copies
 PORTAL-53	allow	init_t	olivares_portal_cred_t	file	create getattr open read rename setattr unlink write			write_credential opens each of the three private copies O_RDWR, chmods it, applies the read-only service ACL and renames it from its temporary name into place; failed or stopped-unit copies are unlinked; no private source-key or engine-file write
 PORTAL-54	allow	init_t	olivares_firewall_run_t	file	read			olivares-portal-sockets.path watches /run/olivares-firewall/measured.json (PathChanged); an inotify watch checks read on the file without opening it; no write
@@ -843,10 +904,11 @@ RUN-07	allow	olivares_cmd_t	olivares_run_t	file	getattr open read			and read its
 TOOL-93	allow	olivares_tool_t	olivares_tool_home_t	dir	watch			Claude Code watches its configuration folder for changes (inotify)
 TOOL-94	allow	olivares_tool_t	olivares_tmp_t	file	watch			Claude Code probes inotify on a file in its TMPDIR before it watches
 EGIT-01	allow	olivares_t	bin_t	file	execute getattr open read			the engine finds git (exec.LookPath's faccessat X_OK is checked as execute) and runs it for session Git and worktree sessions; the exec enters the command domain (EGIT-02)
-EGIT-02	type_transition	olivares_t	bin_t	process	olivares_cmd_t			a generic program the engine executes (git) runs in the command domain, never in the engine's (the regression)
-EGIT-03	allow	olivares_t	olivares_cmd_t	process	transition			the engine's exec of git enters the command domain
-EGIT-04	allow	olivares_t	olivares_cmd_t	process2	nnp_transition			the engine unit sets NoNewPrivileges, so its exec into the command domain is an NNP transition
+EGIT-02	type_transition	olivares_t	bin_t	process	olivares_engine_cmd_t			a generic program the engine executes runs in its own command domain, separate from tool commands
+EGIT-03	allow	olivares_t	olivares_engine_cmd_t	process	transition			the engine's exec of git enters the command domain
+EGIT-04	allow	olivares_t	olivares_engine_cmd_t	process2	nnp_transition			the engine unit sets NoNewPrivileges, so its exec into the command domain is an NNP transition
 EGIT-05	allow	olivares_cmd_t	olivares_t	fifo_file	getattr ioctl read write			git writes its output and errors to the pipes the engine reads (exec.Cmd)
+ECMD-FIFO	allow	olivares_engine_cmd_t	olivares_t	fifo_file	getattr ioctl read write			git writes its output and errors to the pipes the engine reads (exec.Cmd)
 GNET-01	allow	olivares_t	olivares_t	process	setexec			the engine names the domain of its network git's next exec (core/runtime/confine.StartInDomain); the generator pins the domains it may enter
 GPUB-01	allow	olivares_t	olivares_gitpub_t	process	transition			gitpublish's git enters its own domain
 GPUB-02	allow	olivares_t	olivares_gitpub_t	process2	nnp_transition			the engine unit sets NoNewPrivileges, so that exec is an NNP transition
@@ -977,10 +1039,14 @@ CHOOK-32	allow	olivares_container_hook_t	container_file_t	dir	getattr			lstat fi
 CHOOK-33	allow	olivares_container_hook_t	sysfs_t	lnk_file	read			rs/xid's package init follows /sys/class/dmi/id when the session image has no /etc/machine-id; the root-only product_uuid behind it stays unreadable
 DOCK-05	allow	olivares_t	olivares_container_hook_exec_t	file	getattr			the engine reads the hook binary's label before mounting it; this is not execution
 TOOL-101	allow	olivares_t	olivares_hook_t	process	sigkill signal			the PEP hook is in the same process group, so a session stop and the guard reach it too instead of leaving it to its own deadline
-DOCK-01	allow	olivares_t	container_runtime_exec_t	file	execute getattr			the engine looks the Docker client up (exec.LookPath: stat, then faccessat X_OK) to offer isolation=container (container_detect.go)
-DOCK-02	allow	olivares_t	container_runtime_exec_t	file	execute_no_trans map open read			and runs it in its own domain for a container session (docker run, docker rm -f; container_runner.go), as HAPP-22 for the apps helper
-DOCK-03	allow	olivares_t	container_var_run_t	sock_file	write			the client connects to the daemon's socket node, /run/docker.sock
-DOCK-04	allow	olivares_t	container_runtime_t	unix_stream_socket	connectto			the client reaches the local daemon, which runs the session's container. shortcut: olivares_t reaching docker.sock is root-equivalent (rootful Docker), and so is the engine user's docker group membership that opens the socket (config.sh); upgrade when a rootless runtime runs container sessions
+DOCK-01	allow	olivares_t	container_runtime_exec_t	file	execute getattr			the engine looks the container client up (podman on the Server image; the Docker client has the same label) (exec.LookPath: stat, then faccessat X_OK) to offer isolation=container (container_detect.go)
+DOCK-02	allow	olivares_t	container_runtime_exec_t	file	execute_no_trans map open read			and runs it in its own domain for a container session (podman run, podman rm -f; container_runner.go), as a client of the engine user's podman socket (CONTAINER_HOST), as HAPP-22 for the apps helper
+PODM-01	allow	olivares_t	user_tmp_t	dir	getattr search			the engine's podman client looks up /run/user and walks it to /run/user/<uid>/podman/podman.sock, the engine user's podman socket (CONTAINER_HOST)
+PODM-02	allow	olivares_t	proc_t	file	getattr open read			the podman client opens and reads /proc/stat at start (the Go runtime and podman's own host reading), and the engine's host metrics read /proc/stat, /proc/loadavg and /proc/meminfo; os.ReadFile stats each file it opens
+PODM-03	allow	olivares_t	cgroup_t	filesystem	getattr			the podman client asks the type of /sys/fs/cgroup (statfs) to know it runs on cgroup v2
+PODM-04	allow	olivares_t	syslogd_var_run_t	dir	open read search			the podman client looks for the journal under /run/log to choose its event logger; it lists the directory and never reads a journal file
+PODM-05	allow	olivares_t	user_tmp_t	sock_file	write			the podman client connects to the socket node /run/user/<uid>/podman/podman.sock of the engine user's podman service (CONTAINER_HOST); the engine reaches no other socket of that directory for lack of connectto, and none of the Docker daemon (N-ENGINE-DOCKER-SOCK)
+PODM-06	allow	olivares_t	container_runtime_t	unix_stream_socket	connectto			the client reaches the engine user's podman service, whose socket carries the runtime's label (rootless podman runs in container_runtime_t). The Docker daemon has the same label, but its socket node is closed to the engine (N-ENGINE-DOCKER-SOCK), so this reaches the user's service alone. shortcut: the API can disable container labels, use host networking and bind olivares-owned paths outside olivares_t; ceiling: the dedicated UID and subordinate range, never host root; upgrade trigger: per-request enforcement of container options at the API boundary
 CTR-01	allow	container_runtime_t	olivares_tool_t	process	transition			the daemon (runc) starts a session's container in the tool's own domain, the label the engine asks for (container_runner.go); container_t, every other container's domain, gets no row
 CTR-02	allow	container_runtime_t	olivares_tool_t	process2	nnp_transition nosuid_transition			the container starts with no_new_privileges (the runner's --security-opt no-new-privileges), as TOOL-72
 CTR-03	allow	olivares_tool_t	container_file_t	file	execute getattr map open read			inside its container the tool runs the session image's shell and programs (the daemon labels the image's root container_file_t)
@@ -1070,3 +1136,18 @@ HSTA-24	allow	olivares_t	olivares_image_etc_t	file	getattr open read			detect im
 HSTA-25	allow	olivares_helper_storage_t	olivares_appliance_etc_t	dir	getattr search			reach the exact neutral marker without reading private firstboot files
 HSTA-26	allow	olivares_t	olivares_appliance_etc_t	dir	getattr search			reach the exact neutral marker without reading private firstboot files
 HSTA-27	allow	olivares_helper_storage_t	init_t	system	status			systemd Subscribe requires read-only manager status to observe the fixed growth job; measured method_subscribe denial on the enforcing image
+ECMD-73	allow	olivares_engine_cmd_t	shell_exec_t	file	entrypoint execute execute_no_trans getattr map open read		command_domain	engine command: a shell is an entry point of the command domain, and a command runs another shell in place
+ECMD-74	allow	olivares_engine_cmd_t	bin_t	file	entrypoint execute execute_no_trans getattr map open read		command_domain	engine command: a generic program is an entry point of the command domain, and a command runs the next one in place
+ECMD-75	role	system_r	olivares_engine_cmd_t	-	-			the engine's exec computes system_u:system_r:olivares_engine_cmd_t; domain_type authorizes no role
+ECMD-79	allow	olivares_engine_cmd_t	olivares_var_lib_t	dir	getattr search			engine command: a command passes through the data directory to its session folder and TMPDIR
+ECMD-80	allow	olivares_engine_cmd_t	olivares_workspace_t	dir	add_name create getattr open read remove_name rename rmdir search setattr watch write			engine command: a command works in its session's folder as the tool does
+ECMD-81	allow	olivares_engine_cmd_t	olivares_workspace_t	file	append create execute execute_no_trans getattr ioctl link lock map open read rename setattr unlink write			engine command: a command writes files in its session's folder and runs what it builds there, in its own domain; git links each new object before it renames it
+ECMD-82	allow	olivares_engine_cmd_t	olivares_tmp_t	dir	add_name create getattr open read remove_name rmdir search write			engine command: a command uses its TMPDIR
+ECMD-83	allow	olivares_engine_cmd_t	olivares_tmp_t	file	append create execute execute_no_trans getattr ioctl map open read rename setattr unlink write			an engine command uses its TMPDIR with the same file operations as a tool command
+ECMD-85	allow	olivares_engine_cmd_t	passwd_file_t	file	getattr open read			engine command: the shell reads /etc/passwd to name its user
+ECMD-86	allow	olivares_engine_cmd_t	olivares_workspace_t	lnk_file	create getattr unlink			engine command: git init probes symlink support with a link it creates and removes in the new repository
+ECMD-110	allow	olivares_engine_cmd_t	olivares_tool_home_t	dir	search			engine command: Git can tell absent config from unreadable credentials: directory search returns ENOENT, while every file read stays refused
+ECMD-STOP	allow	olivares_t	olivares_engine_cmd_t	process	sigkill signal			the engine stops its commands on cancellation
+ECMD-SEARCH	allow	olivares_t	olivares_engine_cmd_t	dir	search			the engine reaches its command processes
+ECMD-STAT	allow	olivares_t	olivares_engine_cmd_t	file	getattr open read			the engine monitors its command processes
+HAPP-37	allow	olivares_helper_apps_t	container_file_t	file	getattr			checks tunnel credential metadata after the runtime relabels its readonly bind; never reads the token

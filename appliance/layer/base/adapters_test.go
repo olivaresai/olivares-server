@@ -19,6 +19,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/olivaresai/olivares/appliance/answers"
 )
 
 // hostTools answers the one host command readiness runs: the product unit's state. First boot's
@@ -221,7 +223,7 @@ func productReadyz(t *testing.T) []byte {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"status": "ok", "store": "up", "leader": true}`)
+		_, _ = io.WriteString(w, `{"status": "ok", "store": "up", "leader": true, "setup_required": true}`)
 	}))
 	_ = server.Listener.Close()
 	server.Listener = listener
@@ -254,7 +256,7 @@ func TestReadiness_JudgesTheIdentityFilesAndTheStoreOnceReadyzAnswersOk(t *testi
 	}{
 		{"the store is missing", private, false, "olivares.db"},
 		{"a signing key is exposed", with(map[string]os.FileMode{"audit-signing.key": 0o640, "olivares.db": 0o600}), false, "audit-signing.key"},
-		{"every file present and private", with(map[string]os.FileMode{"olivares.db": 0o600}), true, "store and identity files present"},
+		{"every file present and private", with(map[string]os.FileMode{"olivares.db": 0o600}), true, "setup_required=true"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -307,5 +309,139 @@ func TestNewInput_TheAdvisorySourceLabelIsNotPartOfTheDigest(t *testing.T) {
 	}
 	if digests["file"] == digests["renamed"] {
 		t.Fatal("a changed answer left the restart digest unchanged")
+	}
+}
+
+// A seedless Anaconda install names the appliance as the host owner: first boot verifies the
+// hostname, UTC and NetworkManager without cloud-init and writes nothing under /etc/cloud.
+func TestLocalHost_CompletesWithoutCloudInit(t *testing.T) {
+	local, in := localHost(t)
+	root, profiles := local.Host.Root, local.Network
+	settings := HostByOwner{Local: local}
+	if effect, err := settings.Apply(context.Background(), in); err != nil || effect == "" {
+		t.Fatalf("local host settings: %q %v", effect, err)
+	}
+	handoff := HostSettingsHandoff{Host: Host{Root: root}}
+	effect, err := handoff.Apply(context.Background(), in)
+	if err != nil {
+		t.Fatalf("local handoff: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "etc/cloud")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a local host got /etc/cloud: %v", err)
+	}
+	if err := handoff.Verify(context.Background(), Input{}, effect); err != nil {
+		t.Fatalf("the recorded local handoff does not verify: %v", err)
+	}
+	store := Store{Dir: filepath.Join(root, "state")}
+	if err := os.MkdirAll(store.Dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(Record{Schema: recordSchema, State: Pending, Completed: []Completed{{Stage: StageHostSettings, Effect: localHostSettings}}}); err != nil {
+		t.Fatal(err)
+	}
+	if rec, err := HandOverHostSettings(context.Background(), store, handoff); err != nil || rec.HostSettingsOwner != "appliance" {
+		t.Fatalf("upgrade-time handoff of a local host: %+v %v", rec, err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "etc/cloud")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the upgrade-time handoff wrote /etc/cloud on a local host: %v", err)
+	}
+	place(t, root, "usr/bin/cloud-init", "#!/usr/bin/python3\n")
+	if _, err := settings.Apply(context.Background(), in); err == nil || !strings.Contains(err.Error(), "cloud-init") {
+		t.Fatalf("an enabled cloud-init beside a local owner was accepted: %v", err)
+	}
+	// A cloud-init program that cannot be inspected is not read as absent.
+	unreadable := t.TempDir()
+	place(t, unreadable, "proc/sys/kernel/hostname", in.Answers.Hostname+"\n")
+	place(t, unreadable, "usr/bin", "a file where a directory is expected\n")
+	blocked := HostByOwner{Local: LocalHost{Host: Host{Root: unreadable}, Network: profiles}}
+	if _, err := blocked.Apply(context.Background(), in); err == nil || !strings.Contains(err.Error(), "cannot be read") {
+		t.Fatalf("an uninspectable cloud-init program was read as absent: %v", err)
+	}
+
+	// The cloud-init owner is unchanged.
+	cloud, cin := networkHost(t)
+	if _, err := (HostByOwner{Cloud: cloud}).Apply(context.Background(), cin); err != nil {
+		t.Fatalf("cloud-init host settings: %v", err)
+	}
+	cloudHandoff := HostSettingsHandoff{Host: cloud.Host}
+	if _, err := cloudHandoff.Apply(context.Background(), cin); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(cloud.Host.Root, HostOwnerFile)); err != nil {
+		t.Fatalf("the cloud-init handoff no longer writes its owner file: %v", err)
+	}
+}
+
+// localHost is a seedless install whose answers name the appliance as the host owner, on a host
+// with the declared hostname, no cloud-init and one DHCP profile in a NetworkManager keyfile.
+func localHost(t *testing.T) (LocalHost, Input) {
+	t.Helper()
+	doc, err := os.ReadFile("../../answers/testdata/cloud-init.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := `["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAARIjNEVWZ3iJmqu8zd7v8AESIzRFVmd4iZqrvM3e7/"]`
+	local := strings.Replace(strings.Replace(string(doc), key, "[]", 1), `"owner": "cloud-init",`, `"owner": "local", "administrator": "deferred",`, 1)
+	in, err := NewInput("file:/etc/olivares-appliance/answers.json", "", []byte(local))
+	if err != nil {
+		t.Fatalf("a seedless install's answers were refused: %v", err)
+	}
+	root := t.TempDir()
+	place(t, root, "proc/sys/kernel/hostname", in.Answers.Hostname+"\n")
+	profiles := func(context.Context) ([]NetworkProfile, error) {
+		return []NetworkProfile{{Interface: "ens4", Managed: true, Filename: "/etc/NetworkManager/system-connections/ens4.nmconnection", IPv4Method: "auto", IPv6Method: "auto"}}, nil
+	}
+	return LocalHost{Host: Host{Root: root}, Network: profiles}, in
+}
+
+// The recorded local handoff holds only while no enabled cloud-init can take the host settings back.
+func TestLocalHandoff_VerifyRefusesCloudInitInstalledLater(t *testing.T) {
+	local, in := localHost(t)
+	handoff := HostSettingsHandoff{Host: local.Host}
+	effect, err := handoff.Apply(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	place(t, local.Host.Root, "usr/bin/cloud-init", "#!/usr/bin/python3\n")
+	if err := handoff.Verify(context.Background(), Input{}, effect); err == nil || !strings.Contains(err.Error(), "cloud-init") {
+		t.Fatalf("the local handoff verified beside an enabled cloud-init: %v", err)
+	}
+	place(t, local.Host.Root, "etc/cloud/cloud-init.disabled", "")
+	if err := handoff.Verify(context.Background(), Input{}, effect); err != nil {
+		t.Fatalf("the local handoff refused a disabled cloud-init: %v", err)
+	}
+}
+
+// cloud-init runs at boot from an enabled unit, with or without /usr/bin/cloud-init. The link is read, never
+// followed: here its target does not exist.
+func TestLocalHost_RefusesCloudInitEnabledByItsUnits(t *testing.T) {
+	for _, link := range cloudInitUnitLinks {
+		local, in := localHost(t)
+		path := filepath.Join(local.Host.Root, link)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("/usr/lib/systemd/system/"+filepath.Base(link), path); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := local.Apply(context.Background(), in); err == nil || !strings.Contains(err.Error(), "cloud-init") {
+			t.Fatalf("%s: an enabled cloud-init beside a local owner was accepted: %v", link, err)
+		}
+		place(t, local.Host.Root, "run/cloud-init/disabled", "")
+		if _, err := local.Apply(context.Background(), in); err != nil {
+			t.Fatalf("%s: a cloud-init its generator disabled was refused: %v", link, err)
+		}
+	}
+}
+
+// Only cloud-init keeps a static network source; a local owner takes DHCP alone.
+func TestLocalHost_RefusesStaticNetwork(t *testing.T) {
+	local, in := localHost(t)
+	in.Answers.Network = answers.Network{Mode: "static", Interfaces: []answers.NetworkInterface{{Name: "ens4", IPv4: &answers.AddressFamily{Addresses: []string{"192.0.2.10/24"}}}}}
+	local.Network = func(context.Context) ([]NetworkProfile, error) {
+		return []NetworkProfile{{Interface: "ens4", Managed: true, Filename: "/etc/NetworkManager/system-connections/ens4.nmconnection", IPv4Method: "manual", IPv4: []string{"192.0.2.10/24"}, IPv6Method: "auto"}}, nil
+	}
+	if _, err := local.Apply(context.Background(), in); err == nil || !strings.Contains(err.Error(), "static_network_requires_cloud_init") {
+		t.Fatalf("static answers with a local host owner: %v", err)
 	}
 }

@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+[Unit]
+Description=Olivares first-setup banner with current LAN addresses
+Documentation=https://github.com/olivaresai/olivares
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/olivares/tty1-banner /etc/issue.d/olivares-appliance.issue /run/olivares-banner/issue
+RuntimeDirectory=olivares-banner
+RuntimeDirectoryPreserve=yes
+User=root
+TimeoutStartSec=30
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+# The banner only writes its issue file; it opens no device, tty1 included: the repair console is tty1's
+# only writer.
+DevicePolicy=closed
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+IPAddressDeny=any
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=

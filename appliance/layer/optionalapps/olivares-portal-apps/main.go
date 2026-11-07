@@ -9,8 +9,8 @@
 // Accept=yes and starts one instance per connection, as root, with the connection as its standard
 // input and output. It reads one document, {"op": "status" | "install" | "start" | "stop" |
 // "uninstall", ...}, takes no argument and no path, admits the Appliance Console alone from the
-// connection, and runs the app's fixed Compose project with the local Docker daemon: the only app
-// is Nginx Proxy Manager, its image pinned by digest in the embedded manifest. A document names
+// connection, and runs the app's fixed Compose project with the local Docker daemon: the app is selected only by an embedded manifest digest (Nginx Proxy Manager or
+// Cloudflare Tunnel), with a fixed image and private state directory. A document names
 // no image, folder, port or Docker account. Until the appliance's kernel is proven to give each
 // instance its peer's pidfd, every lifecycle act is refused with pidfd_unproven; status is not.
 package main
@@ -58,7 +58,19 @@ func helper(open func() (optionalapps.Compose, error)) invocation.Helper {
 			if !ok {
 				return helperschema.Response{Result: helperschema.ResultRefused, Code: helperschema.CodeInputRefused, Detail: "not a document of this helper"}
 			}
-			x, err := open()
+			app, valid := optionalapps.AppForManifest(req.Manifest)
+			if !valid {
+				return helperschema.Response{Result: helperschema.ResultRefused, Code: helperschema.CodeInputRefused}
+			}
+			var x optionalapps.Compose
+			var err error
+			if app == optionalapps.Cloudflared {
+				var root *os.Root
+				root, err = os.OpenRoot("/var/lib/olivares-apps/cloudflared")
+				x = optionalapps.Compose{App: app, Root: root, Run: optionalapps.LinuxRun, PortAvailable: optionalapps.PortAvailable}
+			} else {
+				x, err = open()
+			}
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "olivares-portal-apps: the app directory cannot be opened:", err)
 				return helperschema.Response{Result: helperschema.ResultFailed, Code: helperschema.CodeEffectFailed, Detail: "the app directory cannot be opened; nothing was done"}

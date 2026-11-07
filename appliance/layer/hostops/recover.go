@@ -149,7 +149,7 @@ func mapObservation(obs Observation) (string, string, error) {
 
 func (e *Engine) rewrite(final string, rec Record) error {
 	tmp := final + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, 0o600)
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, 0o640)
 	if err != nil {
 		return err
 	}

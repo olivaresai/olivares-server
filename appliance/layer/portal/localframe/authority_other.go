@@ -21,3 +21,5 @@ func WriteAuthorityReply(*net.UnixConn, AuthorityReply) error {
 	return fault("local_protocol_unavailable")
 }
 func WriteAuthorityRefusal(*net.UnixConn) error { return fault("local_protocol_unavailable") }
+
+func WriteExposureRefusal(*net.UnixConn) error { return fault("local_protocol_unavailable") }

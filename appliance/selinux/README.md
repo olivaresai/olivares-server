@@ -16,7 +16,8 @@ The AlmaLinux appliance runs with SELinux enforcing and the targeted policy. Thi
 | `olivares_portal_pam_t` | one native PAM Authenticate/Account transaction on a systemd-accepted Unix connection | `olivares-portal-pam.socket`, fixed per-connection template |
 | `olivares_t` | the product engine (`olivares.service`) | PID 1, enabled by first boot |
 | `olivares_tool_t` | an AI tool the engine installed (`/var/lib/olivares/tools`), in a session, a sign-in or an install probe | the engine's confine helper, by its exec of the tool |
-| `olivares_cmd_t` | a shell or generic program (`bin_t`, `shell_exec_t`) such a tool runs: its Bash tool and the programs it calls; and the `git` the engine runs for session Git and worktree sessions | the tool's exec of the program; the engine's exec of `git` |
+| `olivares_cmd_t` | a shell or generic program (`bin_t`, `shell_exec_t`) such a tool runs: its Bash tool and the programs it calls | the tool's exec of the program |
+| `olivares_engine_cmd_t` | generic programs the engine runs, including local session Git and MCP stdio servers | the engine's exec of a generic program |
 | `olivares_hook_t` | Claude Code's PEP hook, `olivares claude-hook`: it reads the tool call, resolves the paths it names and asks the engine's PEP | the command domain's exec of `/usr/bin/olivares` (the hook line runs through `sh`) |
 | `olivares_cli_t` | `olivares-appliance`, the local API's command-line and terminal client | an operator's SSH login, through one base-policy interface call |
 | `olivares_net_guard_t` | the network guard (`olivares-net-guard.service`), NetworkManager's sole writer, and its root runtime initializer | its socket, `olivares-net-guard.socket`; `olivares-network-runtime.service` |
@@ -34,6 +35,14 @@ changes profiles, through NetworkManager's methods; it writes no keyfile. netres
 repair console, alone removes NetworkManager's runtime shadow keyfile and asks for a reload; it reads the guard's
 journal and writes only root's ledger in `/run/olivares-netrestore`. First boot's cloud-init host-owner drop-in has its
 own type, so first boot writes no other file in `/etc`.
+
+The guestinfo carrier asks the VMware tools with `vmtoolsd --cmd`, which first boot runs in its own domain (FBOOT-107)
+with the tools' vsock channel to the hypervisor (FBOOT-108). It never enters the tools' domain, `vmtools_t`, which the
+base policy leaves unconfined (N-FBOOT-VMTOOLS-DOMAIN), and never runs `vmware-rpctool`, a generic command. Its lookup
+of `/etc/vmware-tools/tools.conf` stays refused, because the directory has the type of the tools' unconfined scripts: the
+query runs on the tools' defaults, and the refusal is an expected denial (N-FBOOT-VMTOOLS-CONF). The tools' policy gives
+`/usr/bin/VGAuthService` the same type as `vmtoolsd`, so FBOOT-107 admits it too; the carriers' closed program list runs
+`vmtoolsd` and never `VGAuthService`.
 
 The optional apps helper reaches the container runtime through its socket (`/run/docker.sock`, `container_var_run_t`,
 the daemon `container_runtime_t`) and runs the Docker client and its Compose plugin (`container_runtime_exec_t`) in its own
@@ -78,6 +87,9 @@ is searchable only, and the portal holds `/run/olivares-lifecycle/lifecycle.lock
 An installed AI tool runs in `olivares_tool_t`. It executes its own program (`olivares_tool_exec_t`), keeps its state
 in its account's home (`/var/lib/olivares/accounts`, `olivares_tool_home_t`), works in its session's folder
 (`olivares_workspace_t`) and uses a TMPDIR the engine makes for it under `/var/lib/olivares/tool-tmp` (`olivares_tmp_t`).
+Tool process monitoring can read the tool command domain's process files, but cannot search or read
+process files in the engine command, Git publication or Git import domains. Engine children do not
+share the process label of a tool's commands, even when their UID and PID namespace match.
 Claude Code's installed program alone has `olivares_tool_claude_exec_t`: it is the only installed program the tool domain
 may re-execute without a transition, and both native and container-relay entry still select `olivares_tool_t`.
 It reaches the engine's egress proxy over loopback TCP, never one of the engine's own sockets, and it reads nothing in
@@ -102,20 +114,27 @@ in the session's folder and TMPDIR, never a file's contents, and makes one TCP c
   off loopback before it dials (both exit 2). An unreadable SELinux context denies every other command too, and the
   hook client follows neither redirects nor environment proxies, so only a compromised `olivares` binary could reach
   a remote port. A file-labeled endpoint (a unix socket) would close it in the policy.
-- The engine may run the Docker client the image ships for `isolation=container` (DOCK-01..04), and its user is in the
-  docker group so the client reaches the daemon's socket (config.sh). Both are root-equivalent on the host: rootful
-  Docker runs what the engine asks as root. A rootless runtime for container sessions would close it.
+- The engine runs `podman` as a client of the engine user's rootless podman service for `isolation=container`
+  (DOCK-01, DOCK-02, PODM-01..06): its unit sets `CONTAINER_HOST` to that user's socket, so `newuidmap` runs in the
+  service and never in the engine. The engine has no access to the Docker daemon: its user is not in the docker group, and
+  `container_var_run_t` (`/run/docker.sock`) is closed to it (N-ENGINE-DOCKER-SOCK). The socket carries the runtime's
+  label, `container_runtime_t`, which the Docker daemon shares; the node's type is what tells the two apart. The engine
+  user's systemd manager exists (it starts that service), and the engine must keep finding none: its lookups of the
+  manager's `bus` and `systemd/private` sockets stay refused (N-ENGINE-USERBUS, N-ENGINE-USERMGR, audited as expected
+  denials), which is how `confine.UserBusDirs` learns it has no manager to hide from a session. podman is given an
+  `XDG_RUNTIME_DIR` of its own (`/var/lib/olivares/podman-client`) for the same reason.
 - A session's container runs in the tool's own domain (`--security-opt label=type:olivares_tool_t`, CTR-01..05), with
   the native session's Olivares rules plus only measured image-file access, not upstream `container_domain` or
   `svirt_sandbox_domain` rules. Its tool, command and in-container hook are MCS-constrained. Olivares-labelled tool and
   workspace mounts keep their types (`NoRelabel`), so a container session cannot take them from native sessions; other
   paths get the container's labels. Plain `container_t` gets no access to accounts' files or workspaces and cannot enter
-  the hook domain (N-CONTAINER-HOME, N-CONTAINER-WORKSPACE, N-CHOOK-CONTAINER-ENTRY). The daemon that starts it is
-  rootful Docker, outside this policy: the ceiling stays DOCK-04's.
+  the hook domain (N-CONTAINER-HOME, N-CONTAINER-WORKSPACE, N-CHOOK-CONTAINER-ENTRY). The service that starts it is the
+  engine user's rootless podman (`container_runtime_t`, as the Docker daemon was), outside this module's domains.
 - A local MCP server's test probe runs from the engine with its folder in the engine's `/tmp` scratch, not in the tool
   or command domain, so it is not covered by these rules.
-- An upgrade does not relabel the folders the engine made before the policy knew them. After upgrading from a release
-  without these types, run `restorecon -RF /var/lib/olivares`.
+- The policy package relabels `/var/lib/olivares` recursively at the end of its install or upgrade transaction,
+  including folders the engine made before the policy knew their types, except `/var/lib/olivares/ollama`, whose
+  model storage keeps its container runtime labels. No manual relabel is needed unless the package reports a failure.
 - A workspace registered outside `/var/lib/olivares/workspaces` keeps its own label, which the tool domain cannot use.
   Label it once: `semanage fcontext -a -t olivares_workspace_t '<folder>(/.*)?'` and `restorecon -RF <folder>`.
 

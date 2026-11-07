@@ -22,13 +22,13 @@ func TestLocalUnits_ProtectSocketLifecycleAndPrivateReceipts(t *testing.T) {
 		t.Fatal("local socket adds group admission or install behavior")
 	}
 	drop := readUnit(t, "units/olivares-portal.service.d/30-host-operations.conf")
-	for key, want := range map[string]string{"DynamicUser": "no", "User": "olivares-portal", "RemoveIPC": "yes", "PrivateTmp": "yes", "ProtectSystem": "strict", "ProtectHome": "yes", "RestrictSUIDSGID": "yes", "NoNewPrivileges": "yes", "SupplementaryGroups": "olivares-appliance olivares-lifecycle", "RuntimeDirectory": "olivares-portal-receipts", "RuntimeDirectoryMode": "0700", "RuntimeDirectoryPreserve": "no", "StateDirectory": "olivares-portal/operations", "StateDirectoryMode": "0700"} {
+	for key, want := range map[string]string{"DynamicUser": "no", "User": "olivares-portal", "Group": "olivares-operations", "RemoveIPC": "yes", "PrivateTmp": "yes", "ProtectSystem": "strict", "ProtectHome": "yes", "RestrictSUIDSGID": "yes", "NoNewPrivileges": "yes", "SupplementaryGroups": "olivares-portal olivares-appliance olivares-lifecycle", "RuntimeDirectory": "olivares-portal-receipts", "RuntimeDirectoryMode": "0700", "RuntimeDirectoryPreserve": "no", "StateDirectory": "olivares-portal/operations", "StateDirectoryMode": "0750"} {
 		if !slices.Equal(drop.values("Service", key), []string{want}) {
 			t.Errorf("%s=%v", key, drop.values("Service", key))
 		}
 	}
 	for key := range drop["Service"] {
-		if !slices.Contains([]string{"DynamicUser", "User", "RemoveIPC", "PrivateTmp", "ProtectSystem", "ProtectHome", "RestrictSUIDSGID", "NoNewPrivileges", "SupplementaryGroups", "RuntimeDirectory", "RuntimeDirectoryMode", "RuntimeDirectoryPreserve", "StateDirectory", "StateDirectoryMode", "Restart", "RestartMode", "RestartSec"}, key) {
+		if !slices.Contains([]string{"DynamicUser", "User", "Group", "RemoveIPC", "PrivateTmp", "ProtectSystem", "ProtectHome", "RestrictSUIDSGID", "NoNewPrivileges", "SupplementaryGroups", "RuntimeDirectory", "RuntimeDirectoryMode", "RuntimeDirectoryPreserve", "StateDirectory", "StateDirectoryMode", "Restart", "RestartMode", "RestartSec"}, key) {
 			t.Errorf("unexpected service override %s", key)
 		}
 	}

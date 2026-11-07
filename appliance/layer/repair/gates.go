@@ -106,7 +106,9 @@ func (g WindowGate) Check(ctx context.Context, exempt PendingNetwork) error {
 		return refuse(gateWindow, "this boot's identity cannot be read")
 	}
 	response, err := g.Status(ctx)
-	if err != nil || response.Code != "ok" {
+	// An unselected guard guards nothing, so no window exists: its answer is admitted as "no window" only,
+	// never as the pending window of an exempt recovery (PendingFromStatus wants "ok").
+	if err != nil || response.Code != "ok" && response.Code != netguard.CodeUnselected {
 		return refuse(gateWindow, "the network guard's status is missing or unreadable")
 	}
 	if response.BootID != boot {
@@ -330,7 +332,8 @@ func (h HostHold) Hold(ctx context.Context) (func(), error) {
 		_ = lifecycle.Close()
 		return nil, errors.New("a lifecycle transition holds the lifecycle lock")
 	}
-	store, err := os.OpenFile(filepath.Join(h.RecordsDir, storeLock), os.O_RDWR|syscall.O_NOFOLLOW, 0)
+	// Read-only: flock needs no write, and the console's group may only read the store.
+	store, err := os.OpenFile(filepath.Join(h.RecordsDir, storeLock), os.O_RDONLY|syscall.O_NOFOLLOW, 0)
 	if err != nil {
 		_ = lifecycle.Close()
 		return nil, errors.New("the operation store's lock cannot be opened")

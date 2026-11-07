@@ -70,7 +70,7 @@ func Run(ctx context.Context, args []string, input io.Reader, out, diagnostic io
 		if err != nil {
 			return reportError(diagnostic, err, cmd.json)
 		}
-		_, err = fmt.Fprintf(out, "%s\n%s\nCommand: %s\nChanges: disabled (%s)\n", safe(plan.Descriptor.Title), safe(plan.Descriptor.Consequence), safe(plan.Descriptor.EquivalentCommand), safe(plan.Permissions.Code))
+		_, err = fmt.Fprintf(out, "%s\n%s\nCommand: %s\nChanges: disabled (%s)\n", safe(plan.Descriptor.Title), safe(plan.Descriptor.Consequence), safe(plan.Descriptor.EquivalentCommand), safe(permissionReason(plan.Permissions.Code)))
 		if err != nil {
 			return 2
 		}
@@ -178,9 +178,22 @@ func reportError(w io.Writer, err error, asJSON bool) int {
 			code += " " + failure.Reason
 		}
 	}
-	_, _ = fmt.Fprintln(w, code)
+	display := code
+	if !asJSON {
+		display = permissionReason(code)
+	}
+	_, _ = fmt.Fprintln(w, display)
 	if !asJSON && refused != nil && refused.BeforeRequest && refused.Code == "pidfd_unproven" {
 		_, _ = fmt.Fprintln(w, "This appliance does not give the portal a proof of the local process's identity, so the local socket cannot be used, not even for reads and plans. Use the web console for reads, plans and changes. Nothing was sent.")
 	}
 	return exit
+}
+
+// permissionReason presents fixed native refusal tokens without exposing an
+// engine error, credential or received body on the local console.
+func permissionReason(code string) string {
+	if code == "exposure_requires_step_up" {
+		return "Enable administrative step-up in Sign-in settings first."
+	}
+	return code
 }

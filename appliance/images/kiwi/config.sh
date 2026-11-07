@@ -328,10 +328,8 @@ if [ "$base" = almalinux10 ]; then
   grep -qx '{"selinux-enabled": true}' /etc/docker/daemon.json || {
     printf 'config.sh: /etc/docker/daemon.json does not turn on the daemon'"'"'s SELinux support\n' >&2; exit 1; }
   want_link /etc/systemd/system/multi-user.target.wants/docker.service /usr/lib/systemd/system/docker.service
-  # the regression: the engine drives the Docker client for isolation=container, and the daemon's socket is root:docker 0660,
-  # so the engine's user joins the docker group here (systemd applies it through the unit's User=). That membership is
-  # root-equivalent on the host (DOCK-04's shortcut); the upgrade is a rootless runtime for container sessions.
-  usermod -aG docker olivares || { printf 'config.sh: the engine user olivares could not join the docker group\n' >&2; exit 1; }
+  # The engine's user is NOT in the docker group: the daemon's socket is root:docker 0660, and that membership is root on the
+  # host. Container sessions run under the engine user's rootless Podman (session-image.sh); Docker serves the optional apps.
 fi
 
 # --- the desktop edition (AlmaLinux) -------------------------------------------------------------

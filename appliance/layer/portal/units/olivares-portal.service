@@ -19,11 +19,17 @@
 # points LoadCredential= elsewhere cannot verify custody without the operator's private
 # key. Without verified material the console serves nothing, not even loopback. It never
 # creates a certificate.
+#
+# On first boot those files appear only after first boot starts the product, whose start pulls in
+# olivares-console-certificate.service (Before= this unit), while the repair console wants this
+# unit at once. Ordering after first boot, which queues them, keeps the service from failing at
+# CREDENTIALS until then; on later boots first boot is skipped and nothing waits. It only orders:
+# this unit pulls nothing in and has no [Install] section, so multi-user.target never waits for it.
 [Unit]
 Description=Appliance Console (status and licence activation)
 Documentation=https://github.com/olivaresai/olivares
 Requires=olivares-portal.socket
-After=olivares-portal.socket
+After=olivares-portal.socket olivares-appliance-firstboot.service
 
 [Service]
 Type=simple

@@ -12,6 +12,10 @@
 // no path. The cycle is the unit's invocation id, which the product records in the handoff, so a
 // handoff made by hand or left by another run is refused.
 //
+// `update`, run by olivares-appliance-update.service, upgrades the Olivares packages and keeps, beside the data
+// snapshot it takes first, the Olivares packages it replaces; `rollback`, run by olivares-appliance-rollback.service,
+// returns the product to that snapshot and reinstalls those packages.
+//
 // `edition`, run by olivares-edition.service after a refresh, brings the installed edition to the one the
 // licence earns: the image ships Community, a licence that earns the feature suite swaps it for the Business
 // package the channel offers, and removing the licence swaps it back. The refresh runs under a hardened unit
@@ -67,6 +71,24 @@ type env struct {
 	Swap          func(ctx context.Context, s entitled.Swap) error
 	ProductActive func(ctx context.Context) (bool, error)
 	StartProduct  func(ctx context.Context) error
+
+	// Each product transaction's host actions. Snapshot quiesces the product and takes the read-only data
+	// snapshot before a swap or an upgrade; its Close releases the transaction lock. SwapOffered asks whether
+	// the channel offers the package a swap installs, UpgradeAvailable whether a newer Olivares package is
+	// offered, and Upgrade installs it. RetainPrevious keeps the installed Olivares packages in the point's
+	// package directory, and Rollback returns the product to the last transaction's point and those packages.
+	Snapshot         func(ctx context.Context) (point, error)
+	SwapOffered      func(ctx context.Context, s entitled.Swap) (bool, error)
+	UpgradeAvailable func(ctx context.Context) (bool, error)
+	Upgrade          func(ctx context.Context) error
+	RetainPrevious   func(ctx context.Context, dir string) error
+	Rollback         func(ctx context.Context) error
+}
+
+// point is a completed data snapshot that holds the product transaction lock until it is closed.
+type point interface {
+	io.Closer
+	PackageDir() string
 }
 
 // liveEnv is the environment of the host the command runs on; tests replace it.
@@ -86,8 +108,12 @@ func run(ctx context.Context, args []string, _, stderr io.Writer) int {
 		step = refresh
 	case len(args) == 1 && args[0] == "edition":
 		step = edition
+	case len(args) == 1 && args[0] == "update":
+		step = update
+	case len(args) == 1 && args[0] == "rollback":
+		step = func(ctx context.Context, e env) error { return e.Rollback(ctx) }
 	default:
-		fmt.Fprintln(stderr, "usage: olivares-entitled-repo refresh|edition")
+		fmt.Fprintln(stderr, "usage: olivares-entitled-repo refresh|edition|update|rollback")
 		return 2
 	}
 	e := liveEnv()
@@ -97,6 +123,52 @@ func run(ctx context.Context, args []string, _, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// update owns the whole product transaction: quiesce and snapshot before DNF,
+// then restore the product's prior running state after DNF succeeds or fails.
+// With nothing to upgrade it changes nothing: a point taken then would push the
+// pre-upgrade one out of the three kept.
+func update(ctx context.Context, e env) error {
+	available, err := e.UpgradeAvailable(ctx)
+	if err != nil {
+		return fmt.Errorf("ask the channel for Olivares updates: %w", err)
+	}
+	if !available {
+		return nil
+	}
+	wasActive, err := e.ProductActive(ctx)
+	if err != nil {
+		return fmt.Errorf("ask whether the product runs: %w", err)
+	}
+	point, err := e.Snapshot(ctx)
+	if err != nil {
+		return fmt.Errorf("prepare the product update: %w", err)
+	}
+	// The point holds the product transaction lock through the upgrade and the restart.
+	defer point.Close()
+	// The installed package is the way back. A channel that no longer offers it does not hold the update back.
+	if err := e.RetainPrevious(ctx, point.PackageDir()); err != nil {
+		fmt.Fprintf(e.Log, "olivares-entitled-repo: update: the installed Olivares packages were not kept (%v); a rollback to this point will refuse\n", err)
+	}
+	upgradeErr := e.Upgrade(ctx)
+	if upgradeErr != nil {
+		upgradeErr = fmt.Errorf("upgrade the Olivares packages: %w", upgradeErr)
+	}
+	return errors.Join(upgradeErr, startAgain(ctx, e, wasActive))
+}
+
+// startAgain starts a product that was running before the transaction, also when the unit was told to stop.
+func startAgain(ctx context.Context, e env, wasActive bool) error {
+	if !wasActive {
+		return nil
+	}
+	startCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), restartTimeout)
+	defer cancel()
+	if err := e.StartProduct(startCtx); err != nil {
+		return fmt.Errorf("start the product: %w", err)
+	}
+	return nil
 }
 
 // editionPasses bounds the passes of one run: each pass re-reads the facts, so a licence removed while a swap ran is
@@ -187,21 +259,25 @@ func editionPass(ctx context.Context, e env, previous *entitled.Swap) (*entitled
 	if err != nil {
 		return nil, fmt.Errorf("ask whether the product runs: %w", err)
 	}
+	// A channel that does not offer the edition yet leaves the product running and the kept points as they are;
+	// the timer's next run asks again.
+	offered, err := e.SwapOffered(ctx, swap)
+	if err != nil {
+		return nil, fmt.Errorf("ask the channel for %s: %w", swap.To, err)
+	}
+	if !offered {
+		return nil, fmt.Errorf("the channel does not offer %s yet; the product is left as it is", swap.To)
+	}
+	point, err := e.Snapshot(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("prepare the edition swap: %w", err)
+	}
+	// The point holds the product transaction lock through the swap and the restart; the next pass takes its own.
+	defer point.Close()
 	swapErr := e.Swap(ctx, swap)
-	var startErr error
-	if wasActive {
-		startCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), restartTimeout)
-		startErr = e.StartProduct(startCtx)
-		cancel()
-	}
+	startErr := startAgain(ctx, e, wasActive)
 	if swapErr != nil {
-		swapErr = fmt.Errorf("swap %s for %s: %w", swap.From, swap.To, swapErr)
-	}
-	if startErr != nil {
-		startErr = fmt.Errorf("start the product: %w", startErr)
-	}
-	if swapErr != nil {
-		return nil, errors.Join(swapErr, startErr)
+		return nil, errors.Join(fmt.Errorf("swap %s for %s: %w", swap.From, swap.To, swapErr), startErr)
 	}
 	return &swap, startErr
 }

@@ -3,9 +3,9 @@
 #
 # One connection to the optional apps helper, started by olivares-helper-apps.socket with the
 # connection as standard input and output. The helper takes no argument and no path. It runs
-# the one fixed Compose project of Nginx Proxy Manager with /usr/bin/docker against the local
+# a fixed Compose project of Nginx Proxy Manager or Cloudflare Tunnel with /usr/bin/docker against the local
 # Docker daemon's socket, in an empty Docker config of its own, and keeps the app's data and
-# certificates in its private state directory, which uninstall never removes. It runs as root,
+# certificates or tunnel-token in its private state directory, which uninstall never removes. It runs as root,
 # which owns the Docker socket, in the host's network namespace: its pre-flight probe binds
 # the app's published ports, and the Docker client reaches the daemon over a Unix socket only. The one
 # capability it holds is the bind of a port below 1024. An image pull is the daemon's, so this
@@ -21,7 +21,7 @@ StandardInput=socket
 StandardOutput=socket
 StandardError=journal
 RuntimeMaxSec=600
-StateDirectory=olivares-apps/nginx-proxy-manager
+StateDirectory=olivares-apps/nginx-proxy-manager olivares-apps/cloudflared
 StateDirectoryMode=0700
 NoNewPrivileges=yes
 ProtectSystem=strict

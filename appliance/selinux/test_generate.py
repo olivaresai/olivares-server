@@ -362,6 +362,34 @@ class InterfaceCall(unittest.TestCase):
         self.assertIn("# K-02: the operator's login runs the CLI in its domain\noptional_policy(`\n\t" + CALL + "\n')\n", te)
         self.assertEqual(te.count("unconfined"), 1)
 
+    def test_the_repair_console_pam_login_path_uses_distro_interfaces(self):
+        access = ACCESS
+        for row in (
+                ["K-03", "interface", "olivares_repair_console_t", "-", "-", "auth_use_pam", "", "", "PAM login"],
+                ["K-04", "interface", "olivares_repair_console_t", "-", "-", "init_read_utmp", "", "", "utmp"],
+                ["K-05", "interface", "olivares_repair_console_t", "-", "-", "logging_send_audit_msgs", "", "", "audit"]):
+            access = with_row(access, row)
+        for row in (
+                ["K-06", "allow", "init_t", "olivares_repair_console_t", "process", "transition", "", "init_daemon_domain", "entry"],
+                ["K-07", "allow", "olivares_repair_console_t", "olivares_repair_console_exec_t", "file",
+                 "entrypoint execute getattr map open read", "", "init_daemon_domain", "entry"],
+                ["K-08", "type_transition", "init_t", "olivares_repair_console_exec_t", "process",
+                 "olivares_repair_console_t", "", "init_daemon_domain", "entry"]):
+            access = with_row(access, row)
+        contexts = with_row(CONTEXTS, ["C07", "/usr/libexec/olivares/olivares-repair-console", "--",
+                                       "olivares_repair_console_exec_t", "module", "init_daemon_domain", "bin_t",
+                                       "olivares_repair_console_t", "the repair console"])
+        code, out, files = run_generator(access, contexts)
+        self.assertEqual(code, 0, out)
+        te = files["olivares.te"]
+        for call in ("auth_use_pam(olivares_repair_console_t)", "init_read_utmp(olivares_repair_console_t)",
+                     "logging_send_audit_msgs(olivares_repair_console_t)"):
+            self.assertIn(call, te)
+        self.assertNotIn("permissive olivares_repair_console_t", te)
+        self.assertIn("attribute can_read_shadow_passwords, nsswitch_domain;", te)
+        self.assertIn("type auth_cache_t, chkpwd_exec_t, chkpwd_t, shadow_t, updpwd_exec_t, updpwd_t;", te)
+        self.assertIn("type initrc_var_run_t;", te)
+
     def test_declarations_only_leaves_the_call_out(self):
         code, out, files = run_generator(IF_ACCESS, IF_CONTEXTS, "--declarations-only")
         self.assertEqual(code, 0, out)
@@ -382,7 +410,7 @@ class InterfaceCall(unittest.TestCase):
     def test_a_second_call_is_refused(self):
         self.assertRefused(with_row(IF_ACCESS, ["K-03", "interface", "olivares_cli_t", "olivares_cli_exec_t", "-",
                                                 "unconfined_run_to", "", "", "again"]),
-                           IF_CONTEXTS, "K-03: a second interface row; the module makes one call")
+                           IF_CONTEXTS, "K-03: a second interface row with the same call")
 
     def test_a_condition_or_a_via_on_the_call_is_refused(self):
         for column, value in (("condition", "olivares_d_jit"), ("via", "application_domain")):
@@ -436,9 +464,10 @@ ENGINE_ACCESS = CMD_ACCESS + "".join("\t".join(r) + "\n" for r in [
     ["E-03", "type_transition", "init_t", "olivares_exec_t", "process", "olivares_t", "", "init_daemon_domain",
      "the exec transition"],
     ["E-04", "allow", "olivares_t", "bin_t", "file", "execute getattr open read", "", "", "the engine runs git"],
-    ["E-05", "type_transition", "olivares_t", "bin_t", "process", "olivares_cmd_t", "", "",
+    ["E-05", "type_transition", "olivares_t", "bin_t", "process", "olivares_engine_cmd_t", "", "",
      "and git runs in the command domain"],
-    ["E-06", "allow", "olivares_t", "olivares_cmd_t", "process", "transition", "", "", "the transition"],
+    ["E-00", "allow", "olivares_engine_cmd_t", "bin_t", "file", "entrypoint execute execute_no_trans getattr map open read", "", "command_domain", "engine commands"],
+    ["E-06", "allow", "olivares_t", "olivares_engine_cmd_t", "process", "transition", "", "", "the transition"],
 ])
 # The engine's network git runs in two generic-entry domains, gitpublish's and the skills import's, each entered only by
 # the engine naming it for its next exec, never by a type transition (the regression).
@@ -532,7 +561,7 @@ class CommandDomain(unittest.TestCase):
                     ["T-08", "allow", "olivares_cmd_t", "bin_t", "file", "read", "", "command_domain", "no"]):
             with self.subTest(row=row):
                 self.assertRefused(with_row(CMD_ACCESS, row), CMD_CONTEXTS,
-                                   "T-08: a command_domain row is the entrypoint of olivares_cmd_t, olivares_gitpub_t or olivares_git_import_t on bin_t "
+                                   "T-08: a command_domain row is the entrypoint of olivares_cmd_t, olivares_engine_cmd_t, olivares_gitpub_t or olivares_git_import_t on bin_t "
                                    "or shell_exec_t")
 
     def test_only_the_tools_exec_of_a_generic_command_enters_the_command_domain(self):
@@ -541,19 +570,19 @@ class CommandDomain(unittest.TestCase):
                      "", "", "no"]):
             with self.subTest(row=row):
                 self.assertRefused(with_row(CMD_ACCESS, row), CMD_CONTEXTS,
-                                   "T-08: only the exec of bin_t or shell_exec_t by olivares_tool_t or olivares_t enters olivares_cmd_t")
+                                   "T-08: only the exec of bin_t or shell_exec_t by olivares_tool_t enters olivares_cmd_t")
         self.assertRefused(with_row(CMD_ACCESS, ["T-08", "allow", "olivares_cmd_t", "olivares_tool_exec_t", "file",
                                                  "entrypoint", "", "", "no"]),
                            CMD_CONTEXTS, "T-08: olivares_cmd_t's entry points are its command_domain rows")
 
     def test_the_engine_executes_a_generic_command_only_into_the_command_domain(self):
-        # the regression: the engine runs git for session Git and worktree sessions; the exec enters olivares_cmd_t.
+        # the regression: the engine runs git for session Git and worktree sessions; the exec enters olivares_engine_cmd_t.
         code, out, files = run_generator(ENGINE_ACCESS, ENGINE_CONTEXTS)
         self.assertEqual(code, 0, out)
-        self.assertIn("type_transition olivares_t bin_t:process olivares_cmd_t;", files["olivares.te"])
+        self.assertIn("type_transition olivares_t bin_t:process olivares_engine_cmd_t;", files["olivares.te"])
         self.assertIn("allow olivares_t bin_t:file { execute getattr open read };", files["olivares.te"])
         self.assertRefused(without(ENGINE_ACCESS, "E-05"), ENGINE_CONTEXTS,
-                           "E-04: olivares_t may execute bin_t only into olivares_cmd_t")
+                           "E-04: olivares_t may execute bin_t only into olivares_engine_cmd_t")
         self.assertRefused(with_row(ENGINE_ACCESS, ["E-07", "allow", "olivares_t", "bin_t", "file",
                                                     "execute execute_no_trans", "", "", "no"]),
                            ENGINE_CONTEXTS, "E-07: olivares_t may not execute bin_t, a generic command type")
@@ -580,7 +609,7 @@ class CommandDomain(unittest.TestCase):
         # setexec makes every domain the engine may transition to selectable by name: that set is pinned.
         self.assertRefused(with_row(access, ["N-09", "allow", "olivares_t", "olivares_d_t", "process", "transition", "", "",
                                              "no"]), ENGINE_CONTEXTS,
-                           "N-09: olivares_t enters only olivares_tool_t, olivares_cmd_t, olivares_gitpub_t or "
+                           "N-09: olivares_t enters only olivares_tool_t, olivares_engine_cmd_t, olivares_gitpub_t or "
                            "olivares_git_import_t")
     def test_the_hook_domain_is_entered_only_by_the_command_domains_exec_of_the_engine(self):
         access = ENGINE_ACCESS + HOOK_ACCESS

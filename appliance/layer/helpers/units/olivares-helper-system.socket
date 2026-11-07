@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The host-user helper's socket. Each connection starts one fixed instance.
+[Unit]
+Description=Appliance host-user helper socket
+Documentation=https://github.com/olivaresai/olivares
+
+[Socket]
+ListenStream=/run/olivares-helpers/system.sock
+Accept=yes
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
+DirectoryMode=0755
+MaxConnections=4

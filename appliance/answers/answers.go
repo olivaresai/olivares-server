@@ -24,6 +24,7 @@ type document struct {
 
 type host struct {
 	Owner                string        `json:"owner"`
+	Administrator        *string       `json:"administrator,omitempty"` // "deferred": the console creates it at first boot
 	Hostname             string        `json:"hostname"`
 	Network              Network       `json:"network"`
 	Time                 clockSettings `json:"time"`
@@ -89,14 +90,19 @@ func Build(r io.Reader) (Plan, error) {
 	if err := validate(&d); err != nil {
 		return Plan{}, err
 	}
+	hostOps := []operation{
+		{Owner: "cloud-init", Action: "wait-for-completion", State: "pending"},
+		{Owner: "cloud-init", Action: "verify-host-settings", State: "pending"},
+	}
+	if d.Host.Owner == "local" {
+		hostOps = []operation{{Owner: "olivares", Action: "verify-host-settings", State: "pending"}}
+	}
 	return Plan{value: &planDocument{
 		SchemaVersion: "appliance-plan/v1", State: "planned", Answers: d,
-		Operations: []operation{
-			{Owner: "cloud-init", Action: "wait-for-completion", State: "pending"},
-			{Owner: "cloud-init", Action: "verify-host-settings", State: "pending"},
-			{Owner: "olivares", Action: "generate-product-config", State: "pending"},
-			{Owner: "olivares", Action: "initialize-storage", State: "pending"},
-		},
+		Operations: append(hostOps,
+			operation{Owner: "olivares", Action: "generate-product-config", State: "pending"},
+			operation{Owner: "olivares", Action: "initialize-storage", State: "pending"},
+		),
 		PendingPrerequisites: []string{
 			"host-and-product-adapters-unimplemented", "instance-identity-unverified",
 			"firewall-policy-unverified", "protected-setup-delivery-and-expiry-unimplemented",

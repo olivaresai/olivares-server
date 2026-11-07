@@ -57,17 +57,28 @@ func rootUnit(name, file string) string {
 	return filepath.Join(dir, file)
 }
 
-// rootConfinement is what a root helper's template states of its network and its capabilities,
-// exactly; nil is a directive the template does not state. A root helper runs with no network and no
-// capability, but the firewall's local entry point loads the host's own table: it runs in the host's
-// network namespace, with netlink, and holds CAP_NET_ADMIN alone, as the owner's other units do.
+// rootConfinement is what a root helper's template states of its network, its capabilities and its
+// filesystem, exactly; nil is a directive the template does not state. A root helper runs with no
+// network, no capability and a read-only system, but the firewall's local entry point loads the host's
+// own table: it runs in the host's network namespace, with netlink, and holds CAP_NET_ADMIN alone, as
+// the owner's other units do. The host-user helper runs the distribution's useradd and usermod, which
+// write /etc's account files, create the home under /home and its mail spool under /var/spool/mail:
+// they hold ProtectSystem=true (strict would need ReadWritePaths=, which no root helper states) and
+// the three capabilities useradd and usermod were measured to need on AlmaLinux 10: CAP_CHOWN gives
+// the new home to its account, CAP_FOWNER then sets its mode, CAP_DAC_OVERRIDE opens the mode-0000
+// /etc/gshadow. None is ambient, and no set-id file is made.
 func rootConfinement(name string) map[string][]string {
-	if name == helperschema.HelperFirewallLocal {
+	switch name {
+	case helperschema.HelperFirewallLocal:
 		return map[string][]string{"Service.PrivateNetwork": nil, "Service.RestrictAddressFamilies": {"AF_UNIX AF_NETLINK"},
-			"Service.CapabilityBoundingSet": {"CAP_NET_ADMIN"}}
+			"Service.CapabilityBoundingSet": {"CAP_NET_ADMIN"}, "Service.ProtectSystem": {"strict"}}
+	case helperschema.HelperSystem:
+		return map[string][]string{"Service.PrivateNetwork": {"yes"}, "Service.RestrictAddressFamilies": {"AF_UNIX"},
+			"Service.CapabilityBoundingSet": {"CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER"}, "Service.AmbientCapabilities": {""},
+			"Service.RestrictSUIDSGID": {"yes"}, "Service.ProtectSystem": {"true"}}
 	}
 	return map[string][]string{"Service.PrivateNetwork": {"yes"}, "Service.RestrictAddressFamilies": {"AF_UNIX"},
-		"Service.CapabilityBoundingSet": {""}}
+		"Service.CapabilityBoundingSet": {""}, "Service.ProtectSystem": {"strict"}}
 }
 
 func TestHelperUnits_OneInstancePerConnectionOnARootOnlySocket(t *testing.T) {
@@ -91,7 +102,6 @@ func TestHelperUnits_OneInstancePerConnectionOnARootOnlySocket(t *testing.T) {
 				"Service.StandardInput":   "socket",
 				"Service.StandardOutput":  "socket",
 				"Service.NoNewPrivileges": "yes",
-				"Service.ProtectSystem":   "strict",
 			} {
 				if !slices.Equal(service[key], []string{want}) {
 					t.Errorf("service %s=%v, want %q", key, service[key], want)
@@ -110,6 +120,10 @@ func TestHelperUnits_OneInstancePerConnectionOnARootOnlySocket(t *testing.T) {
 			for key, values := range service {
 				if strings.HasPrefix(key, "Install.") {
 					t.Errorf("the service has an [Install] section (%s)", key)
+				}
+				// systemd drops a capability name it does not know, saying so only at debug level.
+				if key == "Service.CapabilityBoundingSet" && slices.ContainsFunc(strings.Fields(strings.Join(values, " ")), func(w string) bool { return !strings.HasPrefix(w, "CAP_") }) {
+					t.Errorf("%s=%q: a name without CAP_ is unknown to systemd, which leaves it out of the set", key, values)
 				}
 				if strings.HasPrefix(key, "Service.Exec") {
 					for _, value := range values {

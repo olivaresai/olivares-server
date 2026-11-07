@@ -65,7 +65,7 @@ cleanup() {
   if [ -d "$private/k/gnupg" ]; then
     gpgconf --homedir "$private/k/gnupg" --kill all >/dev/null 2>&1 || true
   fi
-  # The workspace build rewrites the tracked go.work.sum (#2722): its copy is put back on exit, whatever the outcome, so the
+  # The workspace build rewrites the tracked go.work.sum: its copy is put back on exit, whatever the outcome, so the
   # delivery leaves the tree as it found it. A restore that fails makes the delivery fail too.
   if [ -f "$private/go.work.sum" ] && ! cp -p "$private/go.work.sum" "$source_root/go.work.sum"; then
     printf 'qualification-delivery.sh: could not restore go.work.sum\n' >&2

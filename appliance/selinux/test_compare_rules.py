@@ -15,6 +15,8 @@ import glob
 import importlib.util
 import io
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import types
@@ -70,6 +72,90 @@ MODULE = BASELINE + """
 
 
 class Cil(unittest.TestCase):
+    def test_the_measured_interfaces_equal_their_native_expansion(self):
+        # interface-rules.tsv was measured on the pinned policy; where checkmodule is installed (the pinned EL10.2
+        # container), each interface's native expansion must still be exactly the table's.
+        if shutil.which("checkmodule") is None:
+            self.skipTest("checkmodule is not installed")
+        for args in (("RCON-23", "olivares_repair_console_t", "auth_use_pam"),
+                     ("RCON-24", "olivares_repair_console_t", "init_read_utmp"),
+                     ("RCON-25", "olivares_repair_console_t", "logging_send_audit_msgs"),
+                     ("SYS-23", "olivares_helper_system_t", "usermanage_domtrans_useradd")):
+            with self.subTest(interface=args[2]):
+                r = row(args[0], "interface", args[1], "-", "-", args[2])
+                native = [sorted(part) for part in compare_rules.expanded_interface(r)]
+                table = [sorted(part) for part in compare_rules.interface_rules(r)]
+                self.assertEqual(native, table)
+
+    def test_native_pam_interfaces_expand_to_their_actual_rules(self):
+        allows, transitions, _, dontaudits = compare_rules.interface_rules(
+            row("RCON-23", "interface", "olivares_repair_console_t", "-", "-", "auth_use_pam"))
+        self.assertTrue(any(new == "chkpwd_t" for _, _, _, _, new in transitions))
+        self.assertTrue(any(new == "updpwd_t" for _, _, _, _, new in transitions))
+        self.assertIn(("olivares_repair_console_t", "var_log_t", "file", "faillog", "faillog_t"), transitions)
+        self.assertTrue(any(s == "olivares_repair_console_t" for s, _, _, _, _ in allows))
+        self.assertIsInstance(dontaudits, list)
+        self.assertTrue(dontaudits, "auth_use_pam drops dontaudit shadow reads")
+        allows, transitions, _, dontaudits = compare_rules.interface_rules(
+            row("RCON-24", "interface", "olivares_repair_console_t", "-", "-", "init_read_utmp"))
+        self.assertTrue(any(t == "initrc_var_run_t" and c == "file" and "read" in p for _, t, c, p, _ in allows))
+        allows, transitions, roles, dontaudits = compare_rules.interface_rules(
+            row("RCON-25", "interface", "olivares_repair_console_t", "-", "-", "logging_send_audit_msgs"))
+        self.assertTrue(any(c == "capability" and p == "audit_write" for _, _, c, p, _ in allows))
+        allows, transitions, _, _ = compare_rules.interface_rules(
+            row("SYS-23", "interface", "olivares_helper_system_t", "-", "-", "usermanage_domtrans_useradd"))
+        self.assertTrue(any(new == "useradd_t" for _, _, _, _, new in transitions))
+        self.assertTrue(any(s == "olivares_helper_system_t" for s, _, _, _, _ in allows))
+
+    def test_the_row_atoms_need_no_checkmodule(self):
+        # The merge gate and the main suite run test_manifest on a runner with no checkmodule; every interface row of
+        # access.tsv must expand from the table, measured once on the pinned policy, not by compiling there.
+        rows = generate.read_table(os.path.join(HERE, "access.tsv"), generate.ACCESS_COLUMNS)
+        with mock.patch.object(compare_rules.shutil, "which", return_value=None):
+            atoms = compare_rules.row_atoms(rows)
+        self.assertIn(("allow", "olivares_repair_console_t", "olivares_repair_console_t", "capability", "audit_write", ""),
+                      atoms)
+
+    def test_every_native_interface_a_row_calls_is_measured(self):
+        rows = generate.read_table(os.path.join(HERE, "access.tsv"), generate.ACCESS_COLUMNS)
+        called = {r["perms"] for r in rows if r["kind"] == "interface"}
+        self.assertTrue({"auth_use_pam", "init_read_utmp", "logging_send_audit_msgs",
+                         "usermanage_domtrans_useradd"} <= called)
+        self.assertEqual(sorted(called - set(compare_rules.INTERFACE_RULES)), [])
+        self.assertEqual(compare_rules.DYNAMIC_INTERFACES, ())
+        self.assertNotIn("auth_manage_shadow", compare_rules.INTERFACE_RULES)
+
+    def test_interface_expansion_uses_the_distribution_makefile(self):
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append(command)
+            if command[0] == "make":
+                with open(os.path.join(kwargs["cwd"], "olivares.pp"), "w", encoding="utf-8") as handle:
+                    handle.write("compiled")
+            return subprocess.CompletedProcess(command, 0, stdout="")
+
+        with mock.patch.object(compare_rules.shutil, "which", return_value="/usr/bin/checkmodule"), \
+                mock.patch.object(compare_rules.subprocess, "run", side_effect=run):
+            compare_rules.expanded_interface(
+                row("RCON-23", "interface", "olivares_repair_console_t", "-", "-", "auth_use_pam"))
+        self.assertEqual([call[0] for call in calls],
+                         ["make", "/usr/libexec/selinux/hll/pp", "make", "/usr/libexec/selinux/hll/pp"])
+
+    def test_installed_rule_condition_matches_expression_and_branch(self):
+        class Expression:
+            def __str__(self):
+                return "olivares_d_jit"
+
+        view = object.__new__(compare_rules.SetoolsView)
+        rule = types.SimpleNamespace(conditional=Expression(), conditional_block=True)
+        self.assertTrue(view.matches_condition(rule, "olivares_d_jit:true"))
+        self.assertFalse(view.matches_condition(rule, "olivares_d_jit:false"))
+        self.assertFalse(view.matches_condition(rule, "another_boolean:true"))
+        rule.conditional_block = False
+        self.assertTrue(view.matches_condition(rule, "olivares_d_jit:false"))
+        self.assertFalse(view.matches_condition(rule, "olivares_d_jit:true"))
+
     def test_parses_nested_statements_and_quoted_names(self):
         nodes = compare_rules.parse_cil('(a b (c "d e") ; comment\n (f))')
         self.assertEqual(nodes, [["a", "b", ["c", '"d e"'], ["f"]]])
@@ -587,6 +673,37 @@ class AgainstSetools(unittest.TestCase):
                 self.assertEqual(got, want)
 
 
+class BaseNames(unittest.TestCase):
+    """base mode: every type and attribute the module requires is declared by the distribution's policy. semodule
+    refuses the whole module at the first one that is not, and an optional block that requires one is left out."""
+
+    TE = ("gen_require(`\n\ttype etc_t;\n\ttype group_file_t;\n\tclass file { getattr open read };\n')\n"
+          "optional_policy(`\nrequire {\nattribute nsswitch_domain;\ntype useradd_t, useradd_exec_t;\n}\n"
+          "\tusermanage_domtrans_useradd(olivares_d_t)\n')\n")
+
+    def test_reads_the_gen_require_and_require_blocks(self):
+        self.assertEqual(compare_rules.required_names(self.TE),
+                         {("type", "etc_t"), ("type", "group_file_t"), ("attribute", "nsswitch_domain"),
+                          ("type", "useradd_t"), ("type", "useradd_exec_t")})
+
+    def test_a_required_name_the_base_policy_lacks_is_refused(self):
+        base = {("type", "etc_t"), ("attribute", "nsswitch_domain"), ("type", "useradd_t"), ("type", "useradd_exec_t")}
+        missing = compare_rules.missing_from_base(compare_rules.required_names(self.TE),
+                                                  lambda kind, name: (kind, name) in base)
+        self.assertEqual(missing, ["type group_file_t"])
+
+    def test_base_mode_refuses_a_module_whose_required_names_it_cannot_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            te = os.path.join(tmp, "olivares.te")
+            with open(te, "w", encoding="utf-8") as f:
+                f.write("policy_module(olivares, 1.0)\n")
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = compare_rules.main(["base", "--policy", os.path.join(tmp, "policy.35"), "--te", te])
+        self.assertEqual(rc, 1)
+        self.assertIn("no required names", buf.getvalue())
+
+
 class CommandLine(unittest.TestCase):
     def test_cil_mode_exits_1_on_an_extra_allow_and_names_it(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -615,6 +732,56 @@ class CommandLine(unittest.TestCase):
         self.assertEqual(denied["N-PROD-JIT"]["allowed_when"], "olivares_operate_runtime=true")
         self.assertEqual({i for i, d in denied.items() if d["allowed_when"]}, {"N-PROD-JIT"})
 
+    def test_console_reads_the_deferral_marker(self):
+        rows = generate.read_table(os.path.join(HERE, "access.tsv"), generate.ACCESS_COLUMNS)
+        directory = next(r for r in rows if r["id"] == "RCON-37")
+        self.assertEqual((directory["kind"], directory["source"], directory["target"], directory["class"], directory["perms"]),
+                         ("allow", "olivares_repair_console_t", "olivares_appliance_etc_t", "dir", "getattr search"))
+        marker = next(r for r in rows if r["id"] == "RCON-38")
+        self.assertEqual((marker["kind"], marker["source"], marker["target"], marker["class"], marker["perms"]),
+                         ("allow", "olivares_repair_console_t", "olivares_appliance_etc_t", "file", "getattr"))
+
+    def test_helper_creates_and_removes_the_deferral_marker(self):
+        rows = generate.read_table(os.path.join(HERE, "access.tsv"), generate.ACCESS_COLUMNS)
+        directory = next(r for r in rows if r["id"] == "SYS-28")
+        self.assertEqual((directory["kind"], directory["source"], directory["target"], directory["class"], directory["perms"]),
+                         ("allow", "olivares_helper_system_t", "etc_t", "dir", "create"))
+        directory = next(r for r in rows if r["id"] == "SYS-29")
+        self.assertEqual((directory["kind"], directory["source"], directory["target"], directory["class"], directory["perms"]),
+                         ("allow", "olivares_helper_system_t", "olivares_appliance_etc_t", "dir", "search remove_name write"))
+
+    def test_repair_console_pam_never_manages_shadow(self):
+        rows = generate.read_table(os.path.join(HERE, "access.tsv"), generate.ACCESS_COLUMNS)
+        self.assertNotIn("auth_manage_shadow",
+                         {r["perms"] for r in rows if r["source"] == "olivares_repair_console_t"})
+        pam = next(r for r in rows if r["id"] == "RCON-23")
+        self.assertEqual(pam["perms"], "auth_use_pam")
+
+    def test_native_useradd_and_narrow_userdb_labels(self):
+        rows = generate.read_table(os.path.join(HERE, "access.tsv"), generate.ACCESS_COLUMNS)
+        native = next(r for r in rows if r["id"] == "SYS-23")
+        self.assertEqual((native["kind"], native["source"], native["target"], native["perms"]),
+                         ("interface", "olivares_helper_system_t", "-", "usermanage_domtrans_useradd"))
+        for identifier, name in (("SYS-26", "olivares.user"), ("SYS-27", "olivares.user.new")):
+            transition = next(r for r in rows if r["id"] == identifier)
+            self.assertEqual((transition["kind"], transition["source"], transition["target"], transition["class"], transition["perms"]),
+                             ("type_transition", "olivares_helper_system_t", "etc_t", "file", 'olivares_userdb_t "' + name + '"'))
+        self.assertNotIn("auth_manage_shadow", {r["perms"] for r in rows if r["source"] == "olivares_helper_system_t"})
+        home = next(r for r in rows if r["id"] == "SYS-31")
+        self.assertEqual((home["kind"], home["source"], home["target"], home["class"], home["perms"]),
+                         ("type_transition", "olivares_helper_system_t", "home_root_t", "dir", "user_home_dir_t"))
+        child = next(r for r in rows if r["id"] == "SYS-32")
+        self.assertEqual((child["kind"], child["source"], child["target"], child["class"], child["perms"]),
+                         ("allow", "olivares_helper_system_t", "user_home_dir_t", "dir", "create setattr"))
+
+    def test_the_helper_writes_the_userdb_record_with_its_own_type(self):
+        rows = generate.read_table(os.path.join(HERE, "access.tsv"), generate.ACCESS_COLUMNS)
+        transition = next(r for r in rows if r["id"] == "SYS-26")
+        self.assertEqual((transition["kind"], transition["source"], transition["target"], transition["class"], transition["perms"]),
+                         ("type_transition", "olivares_helper_system_t", "etc_t", "file", 'olivares_userdb_t "olivares.user"'))
+        directory = next(r for r in rows if r["id"] == "SYS-24")
+        self.assertIn("remove_name", directory["perms"].split())
+
     def test_the_repository_denied_table_names_one_access_per_domain(self):
         denied = compare_rules.read_denied(os.path.join(HERE, "denied.tsv"))
         sources = {d["source"] for d in denied}
@@ -624,11 +791,11 @@ class CommandLine(unittest.TestCase):
         # is pinned off the accounts' files and the workspaces: a session's container runs as olivares_tool_t (the regression).
         self.assertEqual(sources, domains | {"init_t", "container_t"})
         self.assertEqual(domains, {"olivares_portal_t", "olivares_repair_console_t", "olivares_helper_power_t",
-                                   "olivares_helper_bundle_t", "olivares_snapshotcore_t", "olivares_firstboot_t",
+                                   "olivares_helper_system_t", "olivares_helper_bundle_t", "olivares_snapshotcore_t", "olivares_firstboot_t",
                                    "olivares_t", "olivares_cli_t", "olivares_net_guard_t", "olivares_helper_netrestore_t",
                                    "olivares_helper_netprobe_t", "olivares_portal_pam_t", "olivares_helper_units_t",
                                    "olivares_helper_storage_t", "olivares_helper_firewall_t", "olivares_helper_apt_t",
-                                   "olivares_helper_apps_t", "olivares_tool_t", "olivares_cmd_t",
+                                   "olivares_helper_apps_t", "olivares_tool_t", "olivares_cmd_t", "olivares_engine_cmd_t",
                                    "olivares_gitpub_t", "olivares_git_import_t", "olivares_hook_t", "olivares_container_hook_t",
                                    "olivares_container_relay_t"})
 

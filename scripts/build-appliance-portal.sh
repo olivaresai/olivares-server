@@ -11,6 +11,7 @@ for command in \
 	appliance/layer/portal/cmd/olivares-portal-sockets \
 	appliance/layer/netguard/cmd/olivares-net-guard \
 	appliance/layer/helpers/olivares-portal-power \
+	appliance/layer/helpers/olivares-portal-system \
 	appliance/layer/helpers/olivares-portal-support-bundle \
 	appliance/layer/helpers/olivares-portal-netrestore \
 	appliance/layer/helpers/olivares-portal-netprobe \

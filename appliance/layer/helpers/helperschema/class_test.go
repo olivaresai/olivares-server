@@ -11,11 +11,11 @@ import (
 )
 
 func TestHelperClass_RootHelpersKeepTheirContract(t *testing.T) {
-	if got := Helpers(); !slices.Equal(got, []string{HelperPower, HelperSupportBundle, HelperCert, HelperFirewallLocal}) {
-		t.Fatalf("the root helpers are %v, want exactly power, support-bundle, cert and firewall-local", got)
+	if got := Helpers(); !slices.Equal(got, []string{HelperPower, HelperSupportBundle, HelperCert, HelperFirewallLocal, HelperSystem}) {
+		t.Fatalf("the root helpers are %v, want exactly power, support-bundle, cert, firewall-local and system", got)
 	}
 	for helper, account := range map[string]string{HelperPower: "root", HelperSupportBundle: "olivares-support-bundle", HelperCert: "root",
-		HelperFirewallLocal: "root"} {
+		HelperFirewallLocal: "root", HelperSystem: "root"} {
 		if class, ok := ClassOf(helper); !ok || class != ClassRoot {
 			t.Errorf("%s is of class %v (known %v), want the root class", helper, class, ok)
 		}
@@ -25,7 +25,7 @@ func TestHelperClass_RootHelpersKeepTheirContract(t *testing.T) {
 	}
 	// A root helper's socket is root's alone, so its rules never name the Appliance Console.
 	for helper, rules := range map[string][]Rule{HelperPower: PowerRules(), HelperSupportBundle: SupportBundleRules(), HelperCert: CertRules(),
-		HelperFirewallLocal: FirewallLocalRules()} {
+		HelperFirewallLocal: FirewallLocalRules(), HelperSystem: SystemRules()} {
 		for _, rule := range rules {
 			if slices.Contains(rule.Invokers, Portal) {
 				t.Errorf("%s %s admits the Appliance Console", helper, rule.Subcommand)

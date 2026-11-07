@@ -1,9 +1,13 @@
 <!-- SPDX-FileCopyrightText: 2026 Olivares.AI -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
+**Languages:** **English** · [Español](./README.es.md) · [简体中文](./README.zh.md) · [Русский](./README.ru.md) · [日本語](./README.ja.md) · [Deutsch](./README.de.md) · [Français](./README.fr.md) · [Українська](./README.uk.md) · [한국어](./README.ko.md) · [Português](./README.pt.md)
+
 # Olivares Server
 
-Olivares Server is the Olivares appliance: a Linux image that installs the Olivares engine and console, a local
+<a href="https://olivares.ai/server"><img src="assets/film-poster-server.webp" alt="Watch the Olivares Server film" width="720"></a>
+
+Olivares Server is the Olivares AI™ appliance: a Linux image that installs the Olivares engine and console, a local
 console for the host itself, and the first-boot setup that starts the product.
 
 This repository holds the **recipe** for the Community appliance: the sources, image definitions, service units,

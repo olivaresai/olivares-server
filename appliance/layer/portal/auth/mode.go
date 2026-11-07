@@ -122,9 +122,9 @@ func (v Verb) RequiresStepUp() bool {
 // address and no credential material, so a page may state it to any caller.
 const (
 	reasonNoSelector        = "No sign-in mode has been selected on this console."
-	reasonProductUnmeasured = "The product's reachability is unmeasured, and an unmeasured product is not a product that is down."
-	reasonNoStack           = "This console has no sign-in stack wired."
-	reasonStackUnusable     = "This console's sign-in stack cannot be used."
+	reasonProductUnmeasured = "Olivares could not check whether the product is running, so it does not assume the product is down."
+	reasonNoStack           = "This console has no sign-in service connected."
+	reasonStackUnusable     = "This console's sign-in service cannot be used."
 )
 
 // State is the sign-in mode in force and why. It is a measurement, not a permission: it
@@ -164,9 +164,9 @@ func (s State) Statement() string {
 		says = "Sign-in mode " + string(ProductDownRepair) + ": the product does not answer, so a human in " +
 			"the " + AdministratorsGroup + " group signs in on this host and only the repair verbs are offered."
 	default:
-		says = "Sign-in mode " + string(Unavailable) + ": nobody signs in over the network. The remaining " +
-			"door is the repair console on tty1, which carries the same repair verbs and is the only " +
-			"surface that can repair this console's sign-in stack."
+		says = "Sign-in mode " + string(Unavailable) + ": this web console cannot sign anyone in right now. " +
+			"Use the repair console on tty1, the screen of this machine itself: it has the same repair verbs " +
+			"and is the only place that can repair this console's sign-in."
 	}
 	if s.Reason == "" {
 		return says

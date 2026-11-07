@@ -7,17 +7,26 @@ package hostusers
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/user"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
+	"unicode"
 )
 
 // Linux is used inside the fixed, kernel-attested root helper. It is not a
 // portal privilege escalator and is deliberately not composed by this package.
-type Linux struct{}
+// Diagnostics, when set, receives a failed account tool's stderr, bounded: the
+// helper's journal, never the operator's console.
+type Linux struct{ Diagnostics io.Writer }
+
+// toolStderrBytes bounds what a failed useradd or usermod may write to the journal.
+const toolStderrBytes = 512
 
 func (Linux) Account(_ context.Context, name string) (Account, bool, error) {
 	u, err := user.Lookup(name)
@@ -59,16 +68,44 @@ func (Linux) Home(_ context.Context, path string) (Home, error) {
 	}
 	return Home{Exists: true, Directory: child.IsDir(), Private: child.Mode().Perm()&0o077 == 0, UID: strconv.FormatUint(uint64(stat.Uid), 10), GID: strconv.FormatUint(uint64(stat.Gid), 10)}, nil
 }
-func (Linux) Run(ctx context.Context, path string, args []string) error {
-	if path != "/usr/sbin/useradd" {
+func (x Linux) Run(ctx context.Context, path string, args []string) error {
+	if path != "/usr/sbin/useradd" && path != "/usr/sbin/usermod" {
 		return errors.New("input_refused")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "LC_ALL=C"}
-	if cmd.Run() != nil {
+	stderr := &firstBytes{max: toolStderrBytes}
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		if x.Diagnostics != nil {
+			_, _ = fmt.Fprintf(x.Diagnostics, "system helper: %s failed: %v: %s\n", path, err, printable(stderr.b))
+		}
 		return errors.New("effect_failed")
 	}
 	return nil
+}
+
+// firstBytes keeps the first max bytes written to it and accepts the rest unread.
+type firstBytes struct {
+	b   []byte
+	max int
+}
+
+func (w *firstBytes) Write(p []byte) (int, error) {
+	if room := w.max - len(w.b); room > 0 {
+		w.b = append(w.b, p[:min(room, len(p))]...)
+	}
+	return len(p), nil
+}
+
+// printable replaces control characters, so a tool's output stays one journal line.
+func printable(b []byte) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, strings.ToValidUTF8(string(b), "?"))
 }

@@ -109,7 +109,7 @@ func TestUnsafeOrUnsupportedAnswers(t *testing.T) {
 		{"version", "appliance-answers/v1", "appliance-answers/v2", "$.schema_version"},
 		{"source", `"source": "file"`, `"source": "automatic"`, "$.source"},
 		{"ambiguous sources", `"source": "file"`, `"source": "file,nocloud"`, "$.source"},
-		{"local host", `"owner": "cloud-init"`, `"owner": "local"`, "$.host.owner"},
+		{"local host with an SSH key", `"owner": "cloud-init"`, `"owner": "local"`, "$.host.ssh_authorized_keys"},
 		{"unknown owner", `"owner": "cloud-init"`, `"owner": "appliance"`, "$.host.owner"},
 		{"hostname shell", `"hostname": "olivares.example.test"`, `"hostname": "$(DO-NOT-PRINT)"`, "$.host.hostname"},
 		{"hostname leading dash", `"hostname": "olivares.example.test"`, `"hostname": "-bad.test"`, "$.host.hostname"},
@@ -281,5 +281,48 @@ func TestTimeEndpointZoneBeforeNormalization(t *testing.T) {
 				t.Fatalf("incorrect endpoint normalization: %s", data)
 			}
 		})
+	}
+}
+
+func TestZeroSSHKeysOnlyWhenTheAdministratorIsDeferred(t *testing.T) {
+	key := `["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAARIjNEVWZ3iJmqu8zd7v8AESIzRFVmd4iZqrvM3e7/"]`
+	none := strings.Replace(fixture(t), key, "[]", 1)
+	if none == fixture(t) {
+		t.Fatal("the fixture's SSH key was not found")
+	}
+	deferred := strings.Replace(none, `"owner": "cloud-init",`, "\"owner\": \"cloud-init\",\n    \"administrator\": \"deferred\",", 1)
+	if _, err := answers.Build(strings.NewReader(deferred)); err != nil {
+		t.Fatalf("an installer that defers the administrator to first boot wrote no SSH key and was refused: %v", err)
+	}
+	reject(t, none, "$.host.ssh_authorized_keys")
+	reject(t, strings.Replace(deferred, `"deferred"`, `"DO-NOT-PRINT"`, 1), "$.host.administrator")
+	reject(t, strings.Replace(deferred, "[]", key, 1), "$.host.ssh_authorized_keys")
+	reject(t, strings.Replace(deferred, `"source": "file"`, `"source": "nocloud"`, 1), "$.host.administrator")
+}
+
+// The installer that created the administrator states it, with no key of its own to declare; no
+// other carrier may claim an administrator these answers did not create.
+func TestZeroSSHKeysWhenTheInstallerCreatedTheAdministrator(t *testing.T) {
+	key := `["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAARIjNEVWZ3iJmqu8zd7v8AESIzRFVmd4iZqrvM3e7/"]`
+	installed := strings.Replace(strings.Replace(fixture(t), key, "[]", 1), `"owner": "cloud-init",`,
+		"\"owner\": \"cloud-init\",\n    \"administrator\": \"installed\",", 1)
+	if !strings.Contains(installed, `"installed"`) || !strings.Contains(installed, `"source": "file"`) {
+		t.Fatal("the fixture's owner, key or source was not found")
+	}
+	if _, err := answers.Build(strings.NewReader(installed)); err != nil {
+		t.Fatalf("the installer's file stating the administrator it created was refused: %v", err)
+	}
+	reject(t, strings.Replace(installed, `"source": "file"`, `"source": "nocloud"`, 1), "$.host.administrator")
+}
+
+func TestLocalOwnerTakesNoSSHKey(t *testing.T) {
+	key := `["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAARIjNEVWZ3iJmqu8zd7v8AESIzRFVmd4iZqrvM3e7/"]`
+	local := strings.Replace(strings.Replace(fixture(t), `"owner": "cloud-init",`, `"owner": "local",`, 1), key, "[]", 1)
+	if _, err := answers.Build(strings.NewReader(local)); err != nil {
+		t.Fatalf("a local host owner with no SSH key was refused: %v", err)
+	}
+	// Any other carrier implies cloud-init, which a local owner refuses.
+	for _, source := range []string{"nocloud", "guestinfo", "systemd-credential", "local-assistant"} {
+		reject(t, strings.Replace(local, `"source": "file"`, `"source": "`+source+`"`, 1), "$.source")
 	}
 }

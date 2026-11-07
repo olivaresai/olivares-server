@@ -31,7 +31,7 @@ func TestHelperAdmission_InvokersComeFromTheClosedTable(t *testing.T) {
 	}
 
 	rules := map[string][]Rule{HelperPower: PowerRules(), HelperSupportBundle: SupportBundleRules(), HelperCert: CertRules(),
-		HelperFirewallLocal: FirewallLocalRules()}
+		HelperFirewallLocal: FirewallLocalRules(), HelperSystem: SystemRules()}
 	if len(rules) != len(Helpers()) {
 		t.Fatalf("the inventory reads %d helpers, the seam has %d", len(rules), len(Helpers()))
 	}
@@ -113,7 +113,7 @@ func TestHelperAdmission_TheNetworkGuardIsItsOwnAccountForNetworkRestoreAlone(t 
 
 	t.Run("every other helper refuses the guard", func(t *testing.T) {
 		rules := map[string][]Rule{HelperPower: PowerRules(), HelperSupportBundle: SupportBundleRules(), HelperCert: CertRules(),
-			HelperFirewallLocal: FirewallLocalRules()}
+			HelperFirewallLocal: FirewallLocalRules(), HelperSystem: SystemRules()}
 		if len(rules) != len(Helpers()) {
 			t.Fatalf("the inventory reads %d helpers, the seam has %d", len(rules), len(Helpers()))
 		}

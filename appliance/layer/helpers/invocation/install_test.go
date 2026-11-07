@@ -21,6 +21,7 @@ var helperBinaries = map[string]string{
 	helperschema.HelperSupportBundle: "olivares-portal-support-bundle",
 	helperschema.HelperCert:          "olivares-portal-cert",
 	helperschema.HelperFirewallLocal: "olivares-portal-firewall-local",
+	helperschema.HelperSystem:        "olivares-portal-system",
 }
 
 // helperProgram is the directory a helper's program is built from: the helpers' own directory, or

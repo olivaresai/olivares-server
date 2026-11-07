@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -186,6 +187,43 @@ func TestConsole_OrdinaryPhysicalAccessWithoutAuthenticationRefuses(t *testing.T
 	header := strings.Join(f.console.Header(), "\n")
 	if !strings.Contains(header, "never by access to this machine") {
 		t.Errorf("the header does not say that access alone authorizes nothing:\n%s", header)
+	}
+}
+
+func TestUserDBHostRecordReadsTheNativeAdministrator(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "olivares.user")
+	if err := os.WriteFile(path, []byte(`{"userName":"olivares","uid":1000}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	human, err := UserDBHostRecord(path).RecordedHuman()
+	if err != nil || human != recordedHuman {
+		t.Fatalf("recorded human = %#v, %v, want %#v", human, err, recordedHuman)
+	}
+}
+
+func TestConsole_SetupTokenNeedsSignInAndLocalConfirmation(t *testing.T) {
+	f := newFixture(t, onTty1, hostLayerRecord{human: recordedHuman})
+	reads := 0
+	f.console = f.console.WithSetupToken(func() (string, error) {
+		reads++
+		return "olst_test", nil
+	})
+	code, out := session(t, f.console, "t", "show", "s", "root", "t", "show", "", "q")
+	if code != 0 {
+		t.Fatalf("console exited %d:\n%s", code, out)
+	}
+	if reads != 1 {
+		t.Fatalf("token read %d times without a qualified sign-in: %s", reads, out)
+	}
+	if strings.Count(out, "olst_test") != 1 || !strings.Contains(out, "needs its qualified sign-in") {
+		t.Fatalf("token disclosure does not follow local confirmation:\n%s", out)
+	}
+	// The token does not outlive the operator's attention: it stays until Enter, then the screen and its
+	// scrollback are cleared, so an idle sign-out or a walk away leaves nothing to read.
+	shown := strings.Index(out, "olst_test")
+	cleared := strings.Index(out, "\x1b[H\x1b[2J\x1b[3J")
+	if cleared < shown || !strings.Contains(out[shown:cleared], "Press Enter") {
+		t.Fatalf("the token was not held until Enter and then cleared from the screen:\n%q", out)
 	}
 }
 
@@ -484,4 +522,25 @@ func (s *stepped) Read(p []byte) (int, error) {
 	n := copy(p, s.lines[s.next]+"\n")
 	s.next++
 	return n, nil
+}
+
+func TestConsole_SetupTokenAnswersEachReadFailureWithItsOwnSentence(t *testing.T) {
+	for name, tc := range map[string]struct {
+		err  error
+		want string
+	}{
+		"absent or spent": {os.ErrNotExist, "no active one-time token"},
+		"unreadable":      {errors.New("open /var/lib/olivares-appliance/setup-token: permission denied"), "could not be read"},
+	} {
+		f := newFixture(t, onTty1, hostLayerRecord{human: recordedHuman})
+		f.console = f.console.WithSetupToken(func() (string, error) { return "", tc.err })
+		code, out := session(t, f.console, "s", "root", "t", "show", "q")
+		if code != 0 || !strings.Contains(out, tc.want) {
+			t.Errorf("%s: exit %d, no %q in:\n%s", name, code, tc.want, out)
+		}
+		if name == "unreadable" && (strings.Contains(out, "permission denied") || strings.Contains(out, "/var/lib/olivares-appliance")) ||
+			name == "unreadable" && strings.Contains(out, "may already be complete") {
+			t.Errorf("%s: the answer discloses the error or blames a spent token:\n%s", name, out)
+		}
+	}
 }

@@ -74,14 +74,15 @@ def guarded(lines, condition):
 def scriptlet(section):
     """The body of a scriptlet as sh runs it, with the RPM macros this suite cannot expand replaced: the
     selinux-policy macros by a no-op, %{_sbindir}/ by nothing (the stub commands are on PATH), %{selinuxtype} by
-    targeted."""
+    targeted, %{modulename} by olivares."""
     body = []
     for line in read_spec().splitlines()[read_spec().splitlines().index(section) + 1:]:
         if line.split(" ", 1)[0] in SECTIONS:
             break
         if line.startswith("%selinux_"):
             line = ":"
-        body.append(line.replace("%{_sbindir}/", "").replace("%{selinuxtype}", "targeted"))
+        body.append(line.replace("%{_sbindir}/", "").replace("%{selinuxtype}", "targeted")
+                    .replace("%{modulename}", "olivares"))
     return "\n".join(body) + "\n"
 
 
@@ -96,11 +97,24 @@ esac
 """
 
 
-def run_scriptlet(section, count, records, import_rc=0):
-    """Runs a scriptlet with $1 = count against stub semanage and selinuxenabled (SELinux off). Returns (exit,
-    stderr, the lines semanage import received or None when it was not called)."""
+SEMODULE_STUB = """#!/bin/sh
+# A stand-in for semodule: -lfull prints $STUB_DIR/modules, the store as semodule -lfull lists it.
+case "$*" in
+*-lfull*) cat "$STUB_DIR/modules" ;;
+*) echo "unexpected semodule $*" >&2; exit 64 ;;
+esac
+"""
+LOADED = "200 olivares             pp\n"
+
+
+def run_scriptlet(section, count, records, import_rc=0, modules=LOADED):
+    """Runs a scriptlet with $1 = count against stub semanage, semodule (the store lists `modules`) and
+    selinuxenabled (SELinux off). Returns (exit, stderr, the lines semanage import received or None when it was not
+    called)."""
     with tempfile.TemporaryDirectory() as tmp:
-        for name, text in (("semanage", STUB), ("selinuxenabled", "#!/bin/sh\nexit 1\n")):
+        with open(os.path.join(tmp, "modules"), "w", encoding="utf-8") as f:
+            f.write(modules)
+        for name, text in (("semanage", STUB), ("semodule", SEMODULE_STUB), ("selinuxenabled", "#!/bin/sh\nexit 1\n")):
             path = os.path.join(tmp, name)
             with open(path, "w", encoding="utf-8") as f:
                 f.write(text)
@@ -210,10 +224,16 @@ class Spec(unittest.TestCase):
         inside, _ = guarded(self.sections["%postun"], 0)
         self.assertIn("%selinux_modules_uninstall -s %{selinuxtype} %{modulename}", inside)
 
-    def test_upgrade_relabels_an_existing_claude_installation(self):
+    def test_upgrade_relabels_existing_engine_state(self):
+        # The diff-only macro skips unchanged contexts even when existing data
+        # still has the base policy's var_lib_t label.
         posttrans = self.sections["%posttrans"]
-        self.assertIn("if [ -d /var/lib/olivares/tools/claude ]; then", posttrans)
-        self.assertIn('%{_sbindir}/restorecon -R /var/lib/olivares/tools/claude || echo "olivares-selinux: could not label Claude Code; re-execution stays refused until restorecon -R /var/lib/olivares/tools/claude runs" >&2', posttrans)
+        self.assertIn("if [ -d /var/lib/olivares ]; then", posttrans)
+        relabel = [line for line in posttrans if line.startswith("%{_sbindir}/restorecon -R ") and "engine state" in line]
+        self.assertEqual(len(relabel), 1, "upgrade must relabel all policy-owned engine state")
+        self.assertIn("restorecon -R -e /var/lib/olivares/ollama /var/lib/olivares ||", relabel[0],
+                      "upgrade must preserve the managed container model labels")
+        self.assertRegex(relabel[0], r'\|\| echo "olivares-selinux: [^"]+" >&2$')
 
     def test_ports_are_recorded_on_first_install_only(self):
         inside, outside = guarded(self.sections["%post"], 1)
@@ -240,10 +260,10 @@ class Spec(unittest.TestCase):
                 for line in imports:
                     self.assertRegex(line, r'\|\| echo "olivares-selinux: [^"]+" >&2$')
                     self.assertNotIn("|| :", line)
-        for section in ("%pre", "%post", "%postun", "%posttrans"):
-            for line in self.sections.get(section, []):
-                with self.subTest(section=section, line=line):
-                    self.assertIsNone(re.match(r"^exit\b", line), "a scriptlet never fails the transaction")
+        exits = {section: [line for line in self.sections.get(section, []) if re.match(r"^exit\b", line)]
+                 for section in ("%pre", "%post", "%postun", "%posttrans")}
+        self.assertEqual(exits, {"%pre": [], "%post": ["exit 1"], "%postun": [], "%posttrans": []},
+                         "only a policy module missing from the store fails a scriptlet")
 
     def test_an_upgrade_repairs_every_record_and_only_those(self):
         inside, _ = guarded(self.sections["%post"], "-ge 2")
@@ -351,6 +371,13 @@ class Scriptlets(unittest.TestCase):
         code, err, _ = run_scriptlet("%post", 1, [], import_rc=1)
         self.assertEqual(code, 0)
         self.assertIn("olivares-selinux:", err)
+
+    def test_a_module_that_did_not_link_fails_the_install_and_is_named(self):
+        # selinux-policy's install macro ends semodule with "|| :": a module semodule refused ("Failed to resolve
+        # typeattributeset statement") leaves the store without olivares and the scriptlet would still exit 0.
+        code, err, _ = run_scriptlet("%post", 1, [], modules="")
+        self.assertNotEqual(code, 0, "the package must not install without its policy module")
+        self.assertIn("olivares-selinux: the policy module olivares is not installed", err)
 
     def test_an_upgrade_with_every_record_imports_nothing(self):
         self.assertEqual(run_scriptlet("%post", 2, RECORDS), (0, "", None))

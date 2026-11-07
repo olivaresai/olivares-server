@@ -6,7 +6,8 @@
 # and never by copying files into the image root, so a build that has no signed package needs
 # one it can make: this is that package, and it installs exactly what the release package
 # installs on Debian - the binary, the unit, the package-init note, the environment file, the
-# data directory and the licence texts - through the product's OWN postinstall.
+# data directory, the AppArmor profile and the licence texts, with the same depends - through the
+# product's OWN postinstall.
 #
 # It is not a second definition of the product package and it must not become one. The release
 # package is defined by .goreleaser.yaml (nfpms, package_name olivares) and is what a published
@@ -14,8 +15,12 @@
 # package from dist/ and this file goes away. Until then, an image built with it carries a
 # product binary nobody signed, which is why no image artifact is published.
 #
-# Written in the JSON subset of YAML, like packaging/nfpm/olivares-appliance-base.yaml, so the
-# appliance module reads it with the standard library. Modes are decimal: 493 = 0755,
+# The base fixtures (appliance/layer/base/fixture) install it beside olivares-appliance-base, which
+# depends on olivares >= VERSION; like that package and the release recipes, it carries VERSION
+# verbatim (version_schema none), so a prerelease such as 0.0.0-fixture is not rewritten to
+# 0.0.0~fixture, below the constraint. Written in the JSON subset of YAML, like
+# packaging/nfpm/olivares-appliance-base.yaml, so the appliance module reads it with the
+# standard library. Modes are decimal: 493 = 0755,
 # 420 = 0644, 416 = 0640, 488 = 0750. Built from the repository root with VERSION and ARCH in the
 # environment and bin/olivares in place.
 {
@@ -23,6 +28,7 @@
   "arch": "${ARCH}",
   "platform": "linux",
   "version": "${VERSION}",
+  "version_schema": "none",
   "section": "utils",
   "priority": "optional",
   "maintainer": "Olivares.AI <enterprise@olivares.ai>",
@@ -35,6 +41,7 @@
     {"src": "bin/olivares", "dst": "/usr/libexec/olivares-container-hook", "file_info": {"mode": 493}},
     {"src": "packaging/service/migrate-agentops-dropin.sh", "dst": "/usr/share/olivares/migrate-agentops-dropin.sh", "file_info": {"mode": 493}},
     {"src": "packaging/container/session/Containerfile", "dst": "/usr/share/olivares/session-image/Containerfile", "file_info": {"mode": 420}},
+    {"src": "packaging/apparmor/olivares-engine.conf", "dst": "/usr/share/olivares/apparmor/usr.bin.olivares", "packager": "deb", "file_info": {"mode": 420}},
     {"src": "packaging/systemd/olivares.service", "dst": "/usr/lib/systemd/system/olivares.service", "file_info": {"mode": 420}},
     {"src": "packaging/nfpm/package-init-systemd.txt", "dst": "/usr/lib/olivares/package-init", "file_info": {"mode": 420}},
     {"src": "packaging/olivares.env.example", "dst": "/etc/olivares/olivares.env", "type": "config|noreplace", "file_info": {"mode": 416}},
@@ -48,5 +55,22 @@
     "postinstall": "packaging/nfpm/postinstall.sh",
     "preremove": "packaging/nfpm/preremove.sh",
     "postremove": "packaging/nfpm/postremove.sh"
+  },
+  "overrides": {
+    "deb": {
+      "depends": [
+        "apparmor"
+      ]
+    },
+    "rpm": {
+      "depends": [
+        "/bin/sh",
+        "gawk",
+        "shadow-utils",
+        "coreutils",
+        "sed",
+        "grep"
+      ]
+    }
   }
 }

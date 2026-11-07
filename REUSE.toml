@@ -27,6 +27,13 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Olivares.AI"
 SPDX-License-Identifier = "AGPL-3.0-only"
 
+# The film poster the README shows: a frame of the Server film, a binary image that cannot carry an inline header.
+[[annotations]]
+path = ["assets/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Olivares.AI"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
 # The EPEL 10 public signing key the image builder verifies EPEL packages with. Published by the Fedora Project, kept
 # byte for byte and pinned by sha256 in the recipe's lock; it is not Olivares code.
 [[annotations]]

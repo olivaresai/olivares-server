@@ -104,16 +104,12 @@ func (c GuestInfoCarrier) Read(ctx context.Context) (Delivery, bool, error) {
 	return Delivery{Carrier: GuestInfo, Ref: ref, Document: data}, true, nil
 }
 
-// environment asks the VMware tools for the OVF environment the way cloud-init does:
-// vmware-rpctool first, then vmtoolsd --cmd. The arguments name the key only; the value
-// arrives on standard output and never enters an argument vector.
+// environment asks the VMware tools for the OVF environment with vmtoolsd --cmd, the
+// tools' own labeled program (vmtools_exec_t), which first boot runs in its own domain.
+// It never asks vmware-rpctool: the same package installs it as a generic command (bin_t),
+// which first boot may not execute. The arguments name the key only; the value arrives on
+// standard output and never enters an argument vector.
 func (c GuestInfoCarrier) environment(ctx context.Context) ([]byte, bool) {
-	query := "info-get " + GuestInfoKey
-	if out, err := c.Run(ctx, "vmware-rpctool", query); err == nil && len(out) > 0 {
-		return out, true
-	}
-	if out, err := c.Run(ctx, "vmtoolsd", "--cmd", query); err == nil && len(out) > 0 {
-		return out, true
-	}
-	return nil, false
+	out, err := c.Run(ctx, "vmtoolsd", "--cmd", "info-get "+GuestInfoKey)
+	return out, err == nil && len(out) > 0
 }

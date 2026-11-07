@@ -35,6 +35,12 @@ case "${1:-configure}" in
   *) exit 0 ;;
 esac
 
+# Older appliance images used the Docker socket for sessions. Migrate the local image and
+# runtime before dropping that access; the helper is a no-op on a fresh or already migrated host.
+if [ -f /etc/systemd/system/olivares.service.d/60-session-docker.conf ]; then
+  /usr/libexec/olivares/session-image --migrate
+fi
+
 # A removal's markers make this a reinstallation, whatever the arguments say: dpkg passes the
 # kept configuration's version, rpm passes 1. The enablement the removal found comes back.
 if [ -e "$removed" ] || [ -e "$enabled_at_removal" ]; then

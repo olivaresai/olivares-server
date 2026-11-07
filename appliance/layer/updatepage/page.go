@@ -56,6 +56,7 @@ var watched = []struct {
 }{
 	{"olivares-entitled-repo.service", "Entitled channel refresh", nil},
 	{"olivares-appliance-update.service", "Product update", []act{{"Start the product update", "start"}, {"Read its log", "logs"}}},
+	{"olivares-appliance-rollback.service", "Product rollback to before the last update", []act{{"Roll the product back", "start"}, {"Read its log", "logs"}}},
 	// enable and disable only decide whether the timer starts at boot; stopping and starting it now are their own acts.
 	{"dnf-automatic-install.timer", "Automatic OS security updates", []act{
 		{"Stop the timer (until it is started or the host boots)", "stop"}, {"Start the timer now", "start"},

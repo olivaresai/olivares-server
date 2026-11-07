@@ -9,6 +9,7 @@ package localpam
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -39,6 +40,33 @@ func answer(t *testing.T, line string) {
 		t.Fatal(err)
 	}
 	_ = r.Close()
+}
+
+func TestLocalPAM_ThePasswordServiceChangesTheCredential(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Fatal("the container job runs this case as root, as the repair console runs")
+	}
+	raw := make([]byte, 16)
+	if _, err := rand.Read(raw); err != nil {
+		t.Fatal(err)
+	}
+	credential := hex.EncodeToString(raw)
+	answer(t, credential+"\n"+credential)
+	if err := (Stack{}).ChangePassword("passwd", fixtureAdmin); err != nil {
+		t.Fatalf("the distribution password service refused the native change: %v", err)
+	}
+	transaction, err := Stack{}.Start("login", fixtureAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer transaction.Close()
+	answer(t, credential)
+	if err := transaction.Authenticate(); err != nil {
+		t.Fatalf("the recovered credential did not sign in: %v", err)
+	}
+	if err := transaction.Account(); err != nil {
+		t.Fatalf("the recovered account was refused: %v", err)
+	}
 }
 
 func TestLocalPAM_TheLoginServiceChecksTheCredentialAndTheAccount(t *testing.T) {
@@ -82,5 +110,110 @@ func TestLocalPAM_TheLoginServiceChecksTheCredentialAndTheAccount(t *testing.T) 
 	}
 	if !Built {
 		t.Fatal("the adapter under test is the refusing one")
+	}
+}
+
+// capture runs f with the process's standard output and standard error on pipes, restored after,
+// and returns what each received.
+func capture(t *testing.T, f func()) (stdout, stderr string) {
+	t.Helper()
+	read := func(fd int) (restore func() string) {
+		saved, err := syscall.Dup(fd)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := syscall.Dup3(int(w.Fd()), fd, 0); err != nil {
+			t.Fatal(err)
+		}
+		_ = w.Close()
+		return func() string {
+			_ = syscall.Dup3(saved, fd, 0)
+			_ = syscall.Close(saved)
+			data, _ := io.ReadAll(r)
+			_ = r.Close()
+			return string(data)
+		}
+	}
+	restoreOut, restoreErr := read(1), read(2)
+	f()
+	return restoreOut(), restoreErr()
+}
+
+// The operator sees the password service's prompts on tty1: they go to standard output, which the
+// console's unit gives to the terminal, never to standard error, which it gives to the journal.
+func TestLocalPAM_TheConversationPromptsOnTheTerminal(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Fatal("the container job runs this case as root, as the repair console runs")
+	}
+	raw := make([]byte, 16)
+	if _, err := rand.Read(raw); err != nil {
+		t.Fatal(err)
+	}
+	credential := hex.EncodeToString(raw)
+	answer(t, credential+"\n"+credential)
+	var err error
+	stdout, stderr := capture(t, func() { err = (Stack{}).ChangePassword("passwd", fixtureAdmin) })
+	if err != nil {
+		t.Fatalf("the distribution password service refused the change: %v", err)
+	}
+	if !strings.Contains(stdout, "New password:") || !strings.Contains(stdout, "Retype new password:") {
+		t.Fatalf("the prompts did not reach the terminal; standard output %q, standard error %q", stdout, stderr)
+	}
+	if strings.Contains(stderr, "password:") || strings.Contains(stdout+stderr, credential) {
+		t.Fatalf("a prompt went to the journal or the credential was echoed; standard output %q, standard error %q", stdout, stderr)
+	}
+}
+
+// An answer longer than the conversation's buffer is refused, never cut down into a credential.
+func TestLocalPAM_AnOverlongAnswerIsRefused(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Fatal("the container job runs this case as root, as the repair console runs")
+	}
+	raw := make([]byte, 300)
+	if _, err := rand.Read(raw); err != nil {
+		t.Fatal(err)
+	}
+	long := hex.EncodeToString(raw)
+	answer(t, long+"\n"+long)
+	if err := (Stack{}).ChangePassword("passwd", fixtureAdmin); err == nil {
+		t.Fatal("a 600-character answer was taken: it was cut down into the credential")
+	}
+}
+
+// A NUL typed in an answer would cut the credential at it: the answer is refused instead.
+func TestLocalPAM_AnAnswerHoldingANulIsRefused(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Fatal("the container job runs this case as root, as the repair console runs")
+	}
+	raw := make([]byte, 16)
+	if _, err := rand.Read(raw); err != nil {
+		t.Fatal(err)
+	}
+	withNul := hex.EncodeToString(raw) + "\x00" + hex.EncodeToString(raw[:4])
+	answer(t, withNul+"\n"+withNul)
+	if err := (Stack{}).ChangePassword("passwd", fixtureAdmin); err == nil {
+		t.Fatal("an answer holding a NUL was taken: it was cut down into the credential")
+	}
+}
+
+// A secret is never read from a character device whose echo cannot be turned off.
+func TestLocalPAM_ASecretIsNotReadFromADeviceItCannotQuieten(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Fatal("the container job runs this case as root, as the repair console runs")
+	}
+	null, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Dup3(int(null.Fd()), 0, 0); err != nil {
+		t.Fatal(err)
+	}
+	_ = null.Close()
+	if err := (Stack{}).ChangePassword("passwd", fixtureAdmin); err == nil {
+		t.Fatal("a credential was taken from a device the conversation could not quieten")
 	}
 }

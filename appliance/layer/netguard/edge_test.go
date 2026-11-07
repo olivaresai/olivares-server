@@ -5,8 +5,11 @@
 package netguard
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/olivaresai/olivares/appliance/layer/helpers/helperschema"
 )
@@ -62,5 +65,36 @@ func TestGuard_StatusDuringPendingCallDoesNotTakeNetworkLock(t *testing.T) {
 	status, err := e.Status(change.OperationID)
 	if err != nil || status.PendingCalls != 1 {
 		t.Fatal(status, err)
+	}
+}
+
+type brokenClock struct{}
+
+func (brokenClock) Now() (string, time.Duration, error) {
+	return "", 0, errors.New("boot_identity_unavailable")
+}
+
+// While nothing is selected the guard answers status network_unselected, of this boot and with no window, and
+// refuses everything else as before; a guard that cannot read its boot answers no status either.
+func TestGuardEdge_UnselectedAnswersStatusOnly(t *testing.T) {
+	console := helperschema.Peer{UID: 0, Account: "root", Unit: "olivares-repair-console.service", TTY: "/dev/tty1", Attested: true}
+	boot := "3f1c2a8e-5b7d-4e21-9a0c-6d2f8b4e1a73"
+	unselected := Edge{Unselected: &testClock{boot: boot, now: time.Second}}
+	got := unselected.Handle(context.Background(), console, EdgeRequest{Action: "status"})
+	if got.Code != CodeUnselected || got.BootID != boot || len(got.OpenWindows) != 0 || got.Status != nil {
+		t.Fatalf("unselected status answered %+v", got)
+	}
+	for name, c := range map[string]struct {
+		edge    Edge
+		request EdgeRequest
+	}{
+		"apply":                  {unselected, EdgeRequest{Action: "apply"}},
+		"one operation's status": {unselected, EdgeRequest{Action: "status", OperationID: "fedcba9876543210fedcba9876543210"}},
+		"no clock":               {Edge{}, EdgeRequest{Action: "status"}},
+		"a boot it cannot read":  {Edge{Unselected: brokenClock{}}, EdgeRequest{Action: "status"}},
+	} {
+		if got := c.edge.Handle(context.Background(), console, c.request); got.Code != "network_guard_unavailable" {
+			t.Errorf("%s: answered %+v, not network_guard_unavailable", name, got)
+		}
 	}
 }

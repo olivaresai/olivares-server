@@ -41,12 +41,13 @@ names. Values are strings except objects and the two arrays shown in the example
 | --- | --- |
 | `schema_version` | `appliance-answers/v1` only. |
 | `source` | One of `file`, `nocloud`, `guestinfo`, `systemd-credential`, `local-assistant`; asserted provenance, not discovery. |
-| `host.owner` | `cloud-init` only. A local OS management adapter is not implemented. |
+| `host.owner` | `cloud-init`, or `local` for an install with no cloud-init seed (the Anaconda images), only with `source` `file` and DHCP: first boot then verifies the hostname, UTC and NetworkManager itself, refuses a cloud-init that can run at boot (its program or an enabled unit, unless disabled) then and at every later verification, and writes nothing under `/etc/cloud`. |
 | `host.hostname` | Complete static kernel hostname, 1–64 ASCII bytes with DNS-shaped labels of 1–63 letters/digits/hyphens. No leading/trailing hyphen, trailing dot, localhost or wholly numeric final label; IP addresses and all-digit names are refused. Lowercased in the plan. |
 | `host.network.mode` | `dhcp` only; fixed addresses, gateways and DNS settings are not supported in this version. |
 | `host.time.timezone` | `UTC` only. |
 | `host.time.servers` | Array of 1–8 unique DNS names or unicast IP addresses; no loopback, link-local, multicast, zone identifiers or localhost. Names are lowercased and IPs normalized. |
-| `host.ssh_authorized_keys` | Array of 1–16 unique `ssh-ed25519` public keys. Each has exactly the algorithm, one space and its standard base64 SSH wire value; the wire algorithm and 32-byte key length must agree. Options, comments, other algorithms and private keys are refused. |
+| `host.administrator` | Optional, and only in a document labelled `source: file`. `deferred`: the installer found no administrator and wrote no SSH key, and first boot creates one on the tty1 console; on the desktop, GDM waits for it and opens at the next boot. `installed`: the installer created the administrator, a wheel member or root with authorized keys, and holds its credentials. |
+| `host.ssh_authorized_keys` | Array of 1–16 unique `ssh-ed25519` public keys, or empty when `host.administrator` is present: `deferred`, and no one can sign in over SSH until first boot creates the administrator; `installed`, and the administrator signs in with what the installer gave it. Always empty when `host.owner` is `local`: Olivares applies no SSH key there. Each has exactly the algorithm, one space and its standard base64 SSH wire value; the wire algorithm and 32-byte key length must agree. Options, comments, other algorithms and private keys are refused. |
 | `product.storage_profile` | `single-node-prod`, the existing SQLite configuration profile. `eval`, `postgres-prod` and `k8s` are unsupported here. |
 | `product.public_console_url` | HTTPS origin: DNS name or unicast IP, optional port 1–65535 and optional trailing slash. No credentials, query, fragment, other path, percent escapes, whitespace, localhost or loopback/link-local/multicast IPs. It is not contacted or resolved. |
 | `product.update_channel` | `stable`, `security` or `lts`, the product's existing channels. |
@@ -75,6 +76,7 @@ the pending prerequisites. Each operation has state `pending`:
 | --- | --- | --- |
 | `cloud-init` | `wait-for-completion` | A future adapter must observe successful completion of the external host owner. |
 | `cloud-init` | `verify-host-settings` | A future adapter must verify declared hostname, network, time and public SSH prerequisites. It must not reapply them. |
+| `olivares` | `verify-host-settings` | With `host.owner` `local`, in place of the two cloud-init rows: first boot verifies the hostname, UTC and NetworkManager itself and never changes them. |
 | `olivares` | `generate-product-config` | A future adapter must use the product's configuration generator. |
 | `olivares` | `initialize-storage` | A future adapter must use the product's initialization mechanism. |
 
@@ -175,7 +177,7 @@ refuses, naming them, when present carriers disagree:
 | Carrier | Where the document is |
 | --- | --- |
 | `nocloud` | `/etc/olivares-appliance/carriers/nocloud.json`, written by cloud-init from the NoCloud seed's `write_files` (see `answers/carriers/testdata/nocloud/user-data`, which also sets `fqdn` and `prefer_fqdn_over_hostname` so the kernel hostname is the complete `host.hostname`). |
-| `guestinfo` | Property `olivares-appliance-answers`, base64, of the OVF environment in `guestinfo.ovfEnv`, read with `vmware-rpctool` or `vmtoolsd --cmd`. |
+| `guestinfo` | Property `olivares-appliance-answers`, base64, of the OVF environment in `guestinfo.ovfEnv`, read with `vmtoolsd --cmd`, which first boot runs in its own SELinux domain (`appliance/selinux/README.md`). |
 | `systemd-credential` | Credential `olivares.appliance.answers`, imported by the unit from the system credentials (SMBIOS type 11, `systemd.set_credential=` or a container manager). |
 | `file` | `/etc/olivares-appliance/answers.json`, written by an operator or the local assistant. |
 
@@ -204,9 +206,12 @@ does not turn them into an imported installation. The field is additive within s
 v1; a record written without it derives it when read from start-services in progress or
 completed, never from a refusal recorded at start-services. A seam, the
 answers loader or the identity inspection that is not installed refuses before any
-stage runs. cloud-init owns the host settings: first boot waits
+stage runs. The answers' `host.owner` owns the host settings. With `cloud-init`, first boot waits
 for it and verifies the hostname, UTC, the authorized SSH keys and its error-free
-completion, and never applies them. The product's own `config generate` writes the
+completion; with `local` (an install with no cloud-init seed), it verifies the hostname, UTC and
+NetworkManager's persistent profiles and refuses an enabled cloud-init. It never applies them. A
+`local` host whose installer deferred no administrator is reached only through the accounts the
+installer created. The product's own `config generate` writes the
 product configuration; the public console address goes to a drop-in the appliance
 owns. When the answers declare `portal.enabled`, `portal.listen` or
 `host.management_interfaces`, generate-product-config also publishes them, as validated, to
@@ -289,7 +294,7 @@ does not offer. It holds no password, hash or credential store of its own.
 | --- | --- | --- |
 | `product-up` | The product's own identity, with a step-up through the product's existing authorizer. The console asks once and returns the answer unchanged, keeping no decision of its own. | Everything the console has. |
 | `product-down-repair` | The host, through the PAM service the layer ships, for a human in the `olivares-admins` local group: who this human is on this host. | The repair verbs only: `apply-update`, `roll-back`, `network`, `certificate`, `support-bundle`, `power`. |
-| `unavailable` | Nobody, over the network: the product does not answer and the console's sign-in stack cannot be used, or the product's reachability was never measured. | Nothing. An unmeasured product is not a product that is down, and the page names the remaining door. |
+| `unavailable` | Nobody, over the network: the product does not answer and the console's sign-in service cannot be used, or the product's state could not be checked. | Nothing. A product that could not be checked is not assumed down, and the page sends the person to the repair console on tty1. |
 
 That sign-in is never a session identity and never a provider-account identity, and a
 step-up in it is a re-authentication, because no policy engine is running to ask. A human
@@ -331,15 +336,23 @@ the mode on every request, and the pages a signed-in superadministrator reads st
 The server image enables the tty1 unit: its
 `config.sh` links the unit at `multi-user.target` and masks `getty@tty1.service`, which
 the unit conflicts with and which logind would otherwise start again on a switch back to
-the first virtual console. The unit prints the banner of `/etc/issue.d` each time the
+the first virtual console. The unit prints the banner `/run/olivares-banner/issue` each time the
 console starts, on a screen it has just cleared, because the login prompt that printed it is gone from tty1.
+(agetty reads `/run/issue.d` only when `/etc/issue` does not exist, and both images ship it, so the unit names
+the file.) `olivares-tty1-banner.service` writes that file: the packaged text of `/etc/issue.d` plus one
+`https://<address>:8443/setup` line for each global IPv4 address of the host, container bridges left out, and the
+way to the setup token (`s` to sign in, then `t`). The service runs before each console start and writes only that
+file: the console is the only process that writes to tty1, so nothing draws over its prompts. A lease that arrives
+later reaches the screen when the operator chooses `q`, which restarts the console with the refreshed file.
 It keeps `TTYVTDisallocate=` off, which would wipe the banner after it is printed, and clears the screen again
 when the console stops. The address in the banner
 is the one the machine has at that moment, so on a first boot that waits for DHCP the
 banner printed again after the console restarts is the one to trust. The other consoles
 (tty2 to tty6, the serial console) keep their login prompt and the banner. A machine that
 has only its tty1 screen has the repair console's verb menu as its only local sign-in. The
-desktop image leaves tty1 to gdm and does not enable the unit. The PAM service
+desktop image enables the unit only while the administrator is deferred: the installer's marker holds gdm, and the
+banner service quits the boot splash that gdm would otherwise quit; from the boot after the console creates the
+administrator, tty1 is gdm's. The PAM service
 file was measured against a real stack in a container, with real accounts: on Debian 12 and on AlmaLinux 10.2 a
 member of `olivares-admins` is authenticated with the right password, an expired member is authenticated and
 refused at the account step, and a non-member, a locked password, a wrong password and an unknown login are
@@ -495,11 +508,15 @@ hours), then `olivares-appliance service start olivares-appliance-update.service
 want to wait for the window; that run reboots the host a minute after it when an update needs it, as the nightly one does.
 Both units are oneshot services, so their start is reached when its job finished done and the unit exited cleanly; a run
 longer than the helper's 100 s wait for its job stays `unknown`, and `olivares-appliance service logs <unit>` and
-`dnf history` tell what it did.
+`dnf history` tell what it did. When the channel offers a newer Olivares package, the update first stops the product and
+takes a read-only btrfs snapshot of `/var/lib/olivares` (the last three are kept; see docs/UPGRADE-AND-ROLLBACK.md), and
+with the data volume 95% full or more it refuses before the package manager starts. It keeps the Olivares packages it
+replaces beside that snapshot, and `olivares-appliance service start olivares-appliance-rollback.service` (or
+`olivares upgrade rollback`) returns the product to both: see docs/UPGRADE-AND-ROLLBACK.md.
 The timer has four acts because its verbs differ: `stop` and `start` act now, and `disable` and `enable` only decide
 whether it starts at boot, so `disable` alone leaves tonight's run in place.
-Stopping `olivares-appliance-update.service` while it runs interrupts the package manager mid-transaction, so read
-`dnf history` and `rpm -Va` afterwards.
+Stopping `olivares-appliance-update.service` while it runs asks the package manager to finish or unwind (it gets ten
+minutes) and starts a product the update stopped, so read `dnf history` and `rpm -Va` afterwards.
 
 ### Optional apps
 
@@ -674,7 +691,8 @@ transaction runs (no match in the channel, a conflict, a refused signature, no n
 unit failed in the journal; the timer tries again. The data
 directory `/var/lib/olivares`, the configuration `/etc/olivares` and the keys belong to the product's state and are kept
 by both packages. The product stops with the package it belongs to and the new package starts nothing, so the step
-starts it again when it was running; a product that was stopped stays stopped (first boot owns the first start). It is
+starts it again when it was running; a product that was stopped stays stopped (first boot owns the first start). Before
+each swap whose package the channel offers it takes the same read-only data snapshot as the update. It is
 forward only, like the update: it keeps no way back to a previous build. A licence file, repository file or environment
 file it cannot read is an error and changes nothing: only a missing file means none. A licence that
 `/etc/olivares/olivares.env` hands the product (`OLIVARES_LICENSE` or `OLIVARES_LICENSE_PATH` with a value) counts as
@@ -691,7 +709,7 @@ package and what the step did, so a licensed host that stays on Community says w
 On the running appliance `/var/lib/olivares` is its own volume, so the product package's post-install step places its
 install manifest through the product (`olivares __place-install-manifest`) instead of renaming it across volumes; a
 failure refuses as `manifest-placement-failed`. Install and upgrade complete that step there. The swap runs the same
-step; it has not been run yet (#2959).
+step; it has not been run yet.
 
 What it needs from outside this repository: the entitled channel must offer `olivares-business` (published by the release
 process), and the public repository at `packages.olivares.ai` must serve `olivares` for the way back. The address
@@ -909,23 +927,43 @@ any machine, with no hypervisor and no artifact.
 
 ## Session container image
 
-Both AlmaLinux editions build `localhost/olivares-session:latest` in Docker's
-persistent store during KIWI configuration. The product package supplies
-`/usr/share/olivares/session-image/Containerfile`; an absent recipe, failed build,
-or failed `docker image inspect` stops the image build. The base is pinned by
-digest and the staged recipe replaces apt sources with dated signed Debian
-snapshots. Building needs network access; first boot needs no image pull.
+Both AlmaLinux editions build `localhost/olivares-session:latest` during KIWI configuration
+(`session-image.sh`, run by `config.sh`) and save it as `/usr/lib/olivares/session-image.tar`.
+KIWI runs the script in a chroot, where the kernel refuses user namespaces, so root builds with
+Podman into a throwaway store (host network, `--storage-driver overlay`) and the build directory
+goes away with the script. The product package supplies
+`/usr/share/olivares/session-image/Containerfile`; an absent recipe, failed build, failed
+`podman image exists` or failed save stops the image build. The base is pinned by digest and the
+build mounts dated signed Debian snapshots over apt's sources. Building needs network access;
+first boot needs no image pull. The product RPM gives `olivares` its subordinate UID and GID
+ranges, which rootless Podman needs.
 
-The private build daemons use `/var/lib/docker` and the system containerd's
-`/etc/containerd/config.toml` with `/var/lib/containerd`, matching the boot services.
-Both stop before KIWI seals the image. Build-time daemon identity and network
-state are removed; client state stays in the disposable build directory. The
-engine selects Docker explicitly and wants its service without a hard startup
-dependency. Its empty capability set and `NoNewPrivileges` remain
-in force. The existing appliance Docker group and SELinux policy govern socket
-access; no user manager or rootless Podman service is installed for sessions.
+The engine user's own Podman serves the engine. The helper links the user units
+`podman.socket` and `podman.service` (from the Podman package) into the user's manager
+and enables linger, so `user@<uid>.service` starts them at boot. The service first loads the
+current archive into the user's store (no network), then answers the API. The
+engine's drop-in sets `OLIVARES_SESSION_CONTAINER_RUNTIME=podman` and `CONTAINER_HOST` to that
+socket, which makes `podman` a client of it, and wants the user manager without a hard startup
+dependency. `newuidmap` runs in the user service, never in the engine, so the engine keeps its
+empty capability set and `NoNewPrivileges`. The drop-in also gives the engine its own
+`XDG_RUNTIME_DIR` (`/var/lib/olivares/podman-client`): the engine learns that it has no user
+manager of its own from a refused lookup of the manager's sockets, and must keep failing it, while
+podman needs an existing runtime directory without an unreadable bus. A call the unit's seccomp
+filter does not list answers `ENOSYS` instead of killing the process, which podman's SELinux
+library copes with; nothing outside the filter's list becomes allowed. The engine user is not in the `docker` group and has
+no access to Docker's socket: Docker stays for the optional apps.
 
-Check the preloaded image with
-`sudo -u olivares docker image inspect localhost/olivares-session:latest`,
-then `olivares doctor` and a container session
+On an installed Docker-session appliance, the base package upgrade requires Podman and the matching product version (which
+allocates subordinate IDs before the migration) and runs `session-image --migrate`. It exports the existing session image with `docker save`,
+loads it into the engine user's Podman store without pulling, installs the same runtime
+configuration as a new image, then removes `60-session-docker.conf` and the engine user's
+Docker group membership and restarts an active engine. Export or load failure stops the
+migration before the runtime configuration changes; the Docker image is retained.
+The vendor user units retain `KillMode=process` and `Delegate=true`; per-user drop-ins only
+load the archive, allow time for that load, and restrict the socket mode to 0600.
+The product RPM's subordinate-ID allocation applies on every RPM host, not only appliances.
+
+Check the image with
+`sudo -u olivares env XDG_RUNTIME_DIR=/run/user/$(id -u olivares) podman image exists localhost/olivares-session:latest`,
+then `olivares doctor` (container-runtime: podman) and a container session
 on the booted appliance with SELinux enforcing.

@@ -74,7 +74,7 @@
 /run/olivares-portal-receipts(/.*)?	gen_context(system_u:object_r:olivares_portal_receipts_run_t,s0)
 # C45: root:root 0755, the protected parent; the directory alone, so nothing beside the leaf takes this type
 /var/lib/olivares-portal	-d	gen_context(system_u:object_r:olivares_portal_var_lib_t,s0)
-# C46: the static account's leaf, 0700: hostop/v1 records and store.lock; never /var/lib/private, never a symlink
+# C46: the static account's leaf, 0750 with group olivares-operations; store.lock and the records 0640, so the repair console's power verb holds the lock and reads the records: hostop/v1 records and store.lock; never /var/lib/private, never a symlink
 /var/lib/olivares-portal/operations(/.*)?	gen_context(system_u:object_r:olivares_portal_ops_t,s0)
 # C47: entry point of the network guard
 /usr/libexec/olivares/olivares-net-guard	--	gen_context(system_u:object_r:olivares_net_guard_exec_t,s0)
@@ -178,3 +178,11 @@
 /etc/olivares-appliance/image	--	gen_context(system_u:object_r:olivares_image_etc_t,s0)
 # C108: Claude Code's installed program: the only installed executable the tool domain may re-execute without a transition; claude.part gets the same type at creation (TOOL-114)
 /var/lib/olivares/tools/claude/[^/]+/bin/claude	--	gen_context(system_u:object_r:olivares_tool_claude_exec_t,s0)
+# C109: the one-time setup token in the clear, delivered once to the machine itself: no other domain reads it, and olivares_t reads only the hash (C68)
+/var/lib/olivares-appliance/setup-token	--	gen_context(system_u:object_r:olivares_setup_plaintext_t,s0)
+# C110: the host layer records its administrator here; olivares_repair_console_t reads it for recovery
+/etc/userdb/olivares.user	--	gen_context(system_u:object_r:olivares_userdb_t,s0)
+# C111: fixed host-user helper entry point
+/usr/libexec/olivares/olivares-portal-system	--	gen_context(system_u:object_r:olivares_helper_system_exec_t,s0)
+# C112: one type for the host-user helper socket
+/run/olivares-helpers/system\.sock	-s	gen_context(system_u:object_r:olivares_helper_system_sock_t,s0)

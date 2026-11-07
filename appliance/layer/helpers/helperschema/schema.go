@@ -35,12 +35,14 @@ const (
 	// HelperCert is the certificate helper, olivares-portal-cert. It is a root helper because its
 	// one admitted invoker is the repair console on tty1.
 	HelperCert = "cert"
+	// HelperSystem is the host-user helper, olivares-portal-system.
+	HelperSystem = "system"
 )
 
 // Helpers returns the root helpers (ClassRoot), in a fixed order. The module helpers are
 // ModuleHelpers; ClassOf knows every helper of the seam. HelperFirewallLocal is firewalllocal.go's.
 func Helpers() []string {
-	return []string{HelperPower, HelperSupportBundle, HelperCert, HelperFirewallLocal}
+	return []string{HelperPower, HelperSupportBundle, HelperCert, HelperFirewallLocal, HelperSystem}
 }
 
 // SocketDir is the directory of the helpers' sockets. Each socket unit listens on

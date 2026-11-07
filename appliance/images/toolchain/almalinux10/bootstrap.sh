@@ -5,7 +5,7 @@
 # before any network effect.
 set -euo pipefail
 cd /toolchain
-printf '%s  %s\n' '603885729c29500f226fa3de6fe761b799655edf92c25d22a1c16abaa27fc3bc' input-lock.json | sha256sum -c -
+printf '%s  %s\n' 'fc2926d724337b2d29a118e028773ade872a4d4d7330193b82e35582e1d012d0' input-lock.json | sha256sum -c -
 # HTTPS does not grant trust: every package is checked against the AlmaLinux 10 key, whose file the base image's
 # almalinux-gpg-keys installed, or against the EPEL 10 key, whose file travels beside this script; the sha256 of both is
 # checked first. AlmaLinux and EPEL do not sign repomd.xml, so dnf caches the metadata of the four pinned trees, their
@@ -51,10 +51,10 @@ while read -r repo pinned; do
   [ "${#cached[@]}" -eq 1 ]
   printf '%s  %s\n' "$pinned" "${cached[0]}" | sha256sum -c -
 done <<'PINS'
-almalinux-baseos caf34cc405ec0b63cca2520b54b13e09029647ea79ef46b974832a9fb953b8d1
-almalinux-appstream 4ba3037f340eab7c94e1830dfbd5de41473945e910bf5337c86e669393459380
-almalinux-crb 4a9ab6641f9297aa9534b6b93a3312b6a732f3e7a63c2929a3b4ed4f5289c9f6
-epel-10 a5add31338be754e214ac67f34483cadbf16321a4df7751a39ba578ada74a9f4
+almalinux-baseos c69e1d8662607f751c4b5bf3ec0a50c7f45c804e48909f7fafe01523524d54e1
+almalinux-appstream 234d7cad321019a242dfa85c1d97a9b86e6eb4d00dab27d2a61dd148562c800a
+almalinux-crb 140b33ab6ccef177c00154171679f6cb9fe801addf7b602995e70091fcc61d1f
+epel-10 0b7192b28d8ab1b756032d4431694846a5ce23f96469933a53e7df67f538f215
 PINS
 dnf -y install --setopt=install_weak_deps=False \
     almalinux-gpg-keys-10.2-21.el10.x86_64 \
@@ -117,7 +117,7 @@ dnf -y install --setopt=install_weak_deps=False \
     syslinux-6.04-0.34.el10.alma.2.x86_64 \
     syslinux-nonlinux-6.04-0.34.el10.alma.2.noarch \
     tar-2:1.35-13.el10_2.x86_64 \
-    util-linux-2.40.2-18.el10.x86_64 \
+    util-linux-2.40.2-18.el10_2.20.x86_64 \
     xfsprogs-6.16.0-1.el10.x86_64 \
     xorriso-1.5.6-6.el10.x86_64
 # Retain only the installed inventory, not the package cache; no repository stays configured.

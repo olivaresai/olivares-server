@@ -188,3 +188,24 @@ func TestSignIn_ProductDownOffersRepairVerbsOnly(t *testing.T) {
 		}
 	})
 }
+
+// Every page and the repair console on tty1 state the mode in force. The sentence is read by a person who
+// installed a server and has nothing else to go on, so it says what happens and where to go in plain words.
+func TestState_UnavailableStatesItselfInPlainWords(t *testing.T) {
+	for name, state := range map[string]State{
+		"product unmeasured": {Mode: Unavailable, Reason: reasonProductUnmeasured},
+		"no selector":        {Mode: Unavailable, Reason: reasonNoSelector},
+		"no stack":           {Mode: Unavailable, Reason: reasonNoStack},
+		"stack unusable":     {Mode: Unavailable, Reason: reasonStackUnusable},
+	} {
+		statement := state.Statement()
+		for _, jargon := range []string{"unmeasured", "reachability", "remaining door", "nobody signs in over the network", "wired"} {
+			if strings.Contains(statement, jargon) {
+				t.Errorf("%s: the statement says %q: %s", name, jargon, statement)
+			}
+		}
+		if !strings.Contains(statement, "tty1") {
+			t.Errorf("%s: the statement does not send the person to tty1: %s", name, statement)
+		}
+	}
+}

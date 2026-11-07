@@ -35,6 +35,10 @@ func (a appAuthority) Authorize(_ context.Context, d hostops.Descriptor, target,
 	return caller, nil
 }
 
+func (a appAuthority) ReserveExposure(ctx context.Context, d hostops.Descriptor, target, digest string) (hostops.Caller, error) {
+	return a.Authorize(ctx, d, target, digest)
+}
+
 type appHelper struct {
 	host  *dockerHost
 	fault string

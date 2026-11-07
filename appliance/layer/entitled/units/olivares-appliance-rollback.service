@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 Olivares.AI
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# The appliance's rollback of the last product update: `olivares-appliance service start
+# olivares-appliance-rollback.service` (or `olivares upgrade rollback`) returns the product to the read-only data
+# snapshot the last update took and reinstalls the Olivares packages that update replaced, which the update kept
+# beside the snapshot. It reads the request that update published: a later upgrade by hand or an edition swap took no
+# point with kept packages, and the rollback refuses. Every refusal comes before the product is stopped and says why
+# in the journal; rpm's test transaction proves first that the kept versions go back together. Then it stops the
+# product, replaces the content of /var/lib/olivares with the snapshot's, reinstalls the packages in one rpm
+# transaction (signature required) and starts the product. The kept packages are used up, so a second rollback
+# refuses instead of wiping what was written since. A failure after the stop leaves the product stopped, and the
+# rollback can run again. It reads nothing from the network and needs no licence.
+#
+# KillMode=mixed and TimeoutStopSec=, as in olivares-appliance-update.service: a stop sends SIGTERM to the command
+# alone, which passes it on to rpm and gives it ten minutes to finish; systemd kills what is left after fifteen.
+[Unit]
+Description=Roll the product back to its data and packages before the last update
+Documentation=https://github.com/olivaresai/olivares
+RequiresMountsFor=/var/lib/olivares
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/olivares/olivares-entitled-repo rollback
+TimeoutStartSec=1h
+TimeoutStopSec=15min
+KillMode=mixed

@@ -5,7 +5,9 @@
 # earns. It refreshes the entitled channel first (Requires= and After=), then, as root, swaps the Community package
 # for Business when the licence earns the feature suite, and swaps it back when the licence is gone. One package
 # transaction, the package manager's own signature checks, the product's data and keys untouched, and the product
-# started again when it was running. Forward only, like the update: it keeps no way back to a previous build.
+# started again when it was running. Before each swap it asks the channel for the package it installs; when the
+# channel offers it, it stops the product and takes the same read-only data snapshot as the update, and refuses at 95%
+# data-volume usage. Forward only: it keeps no previous build, so the rollback refuses after a swap.
 #
 # It starts on the credential's renewal (olivares-entitled-repo.timer), which is also its retry for a channel that was
 # not ready, and when a licence is installed or removed (olivares-entitled-repo.path). With nothing to change

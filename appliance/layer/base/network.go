@@ -30,17 +30,27 @@ type NetworkProfile struct {
 type NetworkReader func(context.Context) ([]NetworkProfile, error)
 
 func (s CloudInitHost) verifyNetwork(ctx context.Context, in Input) error {
-	if err := secondNetworkOwner(ctx, s.Host, s.Networkd); err != nil {
+	return verifyNetwork(ctx, s.Host, s.Network, s.Networkd, in, true)
+}
+
+// verifyNetwork refuses a second network owner and any active profile NetworkManager does not keep in a
+// persistent keyfile. When cloudRendered, cloud-init must also have rendered the profiles and, for static
+// answers, kept its network source; a local host owner has neither, so it takes DHCP only.
+func verifyNetwork(ctx context.Context, host Host, network NetworkReader, networkd NetworkdReader, in Input, cloudRendered bool) error {
+	if !cloudRendered && in.Answers.Network.Mode == "static" {
+		return Refuse("static_network_requires_cloud_init")
+	}
+	if err := secondNetworkOwner(ctx, host, networkd); err != nil {
 		return err
 	}
-	if in.Answers.Network.Mode == "static" {
-		data, err := os.ReadFile(s.Host.path("/var/lib/cloud/instance/network-config.json"))
+	if cloudRendered && in.Answers.Network.Mode == "static" {
+		data, err := os.ReadFile(host.path("/var/lib/cloud/instance/network-config.json"))
 		var source map[string]json.RawMessage
 		if err != nil || len(data) > 65536 || json.Unmarshal(data, &source) != nil || len(source) == 0 {
 			return Refuse("static_network_source_missing")
 		}
 	}
-	reader := s.Network
+	reader := network
 	if reader == nil {
 		reader = ReadNetworkManager
 	}
@@ -60,7 +70,7 @@ func (s CloudInitHost) verifyNetwork(ctx context.Context, in Input) error {
 			rendered = true
 		}
 	}
-	if !rendered {
+	if cloudRendered && !rendered {
 		return Refuse("network_renderer_not_networkmanager")
 	}
 	for _, want := range in.Answers.Network.Interfaces {

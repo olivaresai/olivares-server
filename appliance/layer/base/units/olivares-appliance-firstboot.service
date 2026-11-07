@@ -17,7 +17,8 @@
 # before the product: first boot alone enables and starts the product, and a product unit
 # ordered after this one would, once enabled, put multi-user.target in a cycle again. The
 # readiness unit it pulls in measures the product after the product starts. Without cloud-init
-# the ordering on cloud-final.service is inert and verify-host-settings refuses.
+# the ordering on cloud-final.service is inert: verify-host-settings then refuses unless the
+# answers name the appliance as the host owner (host.owner local).
 [Unit]
 Description=Olivares Server first boot
 Documentation=https://github.com/olivaresai/olivares/tree/main/appliance

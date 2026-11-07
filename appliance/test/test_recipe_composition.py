@@ -59,19 +59,27 @@ code = int(os.environ.get("FAKE_DOCKER_EXIT", "0"))
 if code or args[0] != "run" or not os.environ.get("FAKE_IMAGE_BIN"):
     sys.exit(code)
 index, mounts = 1, {"/toolchain/input-lock.json": os.environ["FAKE_IMAGE_LOCK"]}
+container_env = {"PATH": os.environ["FAKE_IMAGE_BIN"]}
 while args[index].startswith("--"):
     if args[index] == "--volume":
         host, target = args[index + 1].split(":")
         mounts[target] = host
+    elif args[index] == "--env":
+        name, value = args[index + 1].split("=", 1)
+        container_env[name] = value
     index += 1 if args[index] == "--privileged" else 2
 paths = re.compile("|".join(re.escape(t) for t in sorted(mounts, key=len, reverse=True)) + r"(?=/|$|[\s\"'])")
 command = [paths.sub(lambda m: mounts[m.group(0)], part) for part in args[index + 1:]]
 try:
-    sys.exit(subprocess.run(command, env={"PATH": os.environ["FAKE_IMAGE_BIN"]}).returncode)
+    sys.exit(subprocess.run(command, env=container_env).returncode)
 except FileNotFoundError:
     print("fake image: program not qualified by the lock: " + command[0], file=sys.stderr)
     sys.exit(127)
 '''
+
+# The emulated builder's python3 records the stage's converter steps (python3 -m venv, python3 -m pip) with the given
+# shell line and runs neither, so no test creates a real environment or reaches the package index.
+CONVERTER_STEPS = 'case "$1 $2" in "-m venv"|"-m pip") %s exit 0;; esac\n'
 
 # An emulated dpkg-scanpackages for the admitted image: it writes one index stanza per .deb in the
 # current directory from the package's own control file, and skips a package it cannot read with a
@@ -331,13 +339,15 @@ class RecipeComposition(unittest.TestCase):
             after["cp"] = 'src=$2; case $src in %s/*) src=%s/${src#%s/};; esac; exec %s "$1" "$src" "$3"\n' % (
                 declared, modules, declared, shutil.which("cp"))
         for program in programs:
+            record = sys.executable + " -c 'import json,sys; open(sys.argv[1],\"a\").write(json.dumps(sys.argv[2:])+\"\\n\")' " \
+                     + str(calls) + " " + program + ' "$@"\n'
             if program in (failing or {}):
                 body = "exit %d\n" % failing[program]
             elif program in real:
-                body = "exec " + real[program] + ' "$@"\n'
+                # The converter's environment and its install are recorded, never run: no test reaches the index.
+                body = (CONVERTER_STEPS % record if program == "python3" else "") + "exec " + real[program] + ' "$@"\n'
             else:
-                body = sys.executable + " -c 'import json,sys; open(sys.argv[1],\"a\").write(json.dumps(sys.argv[2:])+\"\\n\")' " \
-                       + str(calls) + " " + program + ' "$@"\n' + after.get(program, "")
+                body = record + after.get(program, "")
             (image / program).write_text("#!/bin/sh\n" + body)
             (image / program).chmod(0o755)
         return image, calls
@@ -357,6 +367,23 @@ class RecipeComposition(unittest.TestCase):
         modules = toolchain["dracut_modules_dir"]
         self.assertEqual([call[2] for call in used if call[0] == "cp"], [modules + "/."])
         self.assertTrue(any(name.startswith(modules + "/") for name in toolchain["required_files"]))
+
+    def test_the_stage_installs_the_document_converter_from_hash_pinned_wheels_only(self):
+        toolchain = json.loads(LOCK.read_text())["toolchain"]
+        image, calls = self.qualified_image(toolchain["required_programs"],
+                                            modules=modules_fixture(self.work / "builder-modules"))
+        result = self.build(FAKE_IMAGE_BIN=str(image), FAKE_IMAGE_LOCK=str(LOCK))
+        self.assertEqual(result.returncode, 0, result.stderr[-2000:])
+        overlay = self.work / "stage/description" / DEBIAN
+        converter = str(overlay / "usr/lib/olivares/markitdown")
+        requirements = overlay / "usr/share/olivares/documents/requirements.txt"
+        steps = [call[1:] for call in map(json.loads, calls.read_text().splitlines()) if call[:2] == ["python3", "-m"]]
+        self.assertEqual(steps, [["-m", "venv", "--copies", "--without-pip", converter],
+                                 ["-m", "pip", "--python", converter + "/bin/python3", "install", "--only-binary=:all:",
+                                  "--require-hashes", "-r", str(requirements)]])
+        self.assertEqual(requirements.read_bytes(), (ROOT / "modules/documents/requirements.txt").read_bytes())
+        self.assertEqual((overlay / "usr/share/doc/markitdown/LICENSE").read_bytes(),
+                         (ROOT / "modules/documents/MarkItDown-LICENSE.txt").read_bytes())
 
     def test_description_lists_the_dracut_package_kiwi_requires_for_the_installer_medium(self):
         # KIWI 11.0.4 refuses an oem type with installiso before any image work unless the image
@@ -1266,7 +1293,7 @@ class AlmaLinuxBuild(unittest.TestCase):
         fixture = modules_fixture(self.work / "builder-modules")
         declared = toolchain["dracut_modules_dir"]
         bodies = {"bash": 'exec %s "$@"\n' % shutil.which("bash"),
-                  "python3": 'PYTHONPATH=%s exec %s "$@"\n' % (site, sys.executable),
+                  "python3": CONVERTER_STEPS % ":\n" + 'PYTHONPATH=%s exec %s "$@"\n' % (site, sys.executable),
                   "mkdir": 'exec %s "$@"\n' % shutil.which("mkdir"),
                   "cp": 'src=$2; case $src in %s/*) src=%s/${src#%s/};; esac; exec %s "$1" "$src" "$3"\n' % (
                       declared, fixture, declared, shutil.which("cp")),
@@ -1728,7 +1755,7 @@ if args[0] == "build":
     out = args[args.index("-o") + 1]
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     open(out, "w").write("inert binary of " + args[-1])
-    # the workspace build rewrites the tracked go.work.sum: it drops an entry the root workspace does not need (#2722)
+    # the workspace build rewrites the tracked go.work.sum: it drops an entry the root workspace does not need
     if os.path.exists("go.work.sum"):
         lines = open("go.work.sum").read().splitlines(True)
         open("go.work.sum", "w").write("".join(lines[:-1]))
@@ -4301,6 +4328,8 @@ DEBIAN = "debian13-server-amd64"
 # the server profile's glibc-langpack-en, already in the shared set.
 DESKTOP_PACKAGES = {
     "gdm": "the display manager; brings gnome-session and gnome-settings-daemon with it",
+    "gnome-initial-setup": "GNOME's first-login setup assistant, which the desktop profile names (its reason is not "
+                           "recorded); pinned by the relock of 2026-11-07",
     "gnome-shell": "GNOME Shell, the desktop",
     "firefox": "the browser",
     "nautilus": "the file browser",
@@ -4314,11 +4343,11 @@ DESKTOP_PACKAGES = {
 PRODUCT_LAYOUT = {
     "image": "oem", "filesystem": "btrfs", "firmware": "uefi", "eficsm": "true", "efipartsize": "512",
     "bootpartition": "true", "bootfilesystem": "ext4", "bootpartsize": "1024", "installiso": "true",
-    "installboot": "install", "btrfs_root_is_subvolume": "true",
-    "kernelcmdline": "console=tty0 console=ttyS0,115200n8 net.ifnames=0 systemd.show_status=1",
+    "btrfs_root_is_subvolume": "true",
+    "kernelcmdline": "console=tty0 console=ttyS0,115200n8 net.ifnames=0 systemd.show_status=1 loglevel=3",
 }
 PRODUCT_VOLUMES = ["var/lib/olivares", "var/lib/olivares-appliance"]
-PRODUCT_OEMCONFIG = {"oem-resize": "false", "oem-unattended": "true", "oem-swap": "false", "oem-skip-verify": "false"}
+PRODUCT_OEMCONFIG = {"oem-resize": "false", "oem-unattended": "false", "oem-swap": "false", "oem-skip-verify": "false"}
 
 
 def description_root():
@@ -4350,6 +4379,21 @@ class AlmaLinuxProfile(unittest.TestCase):
         self.assertIn(ALMALINUX, profiles)
         # KIWI builds the imported profile when none is named; build.sh names it (AlmaLinuxBuild).
         self.assertEqual([name for name, imported in profiles.items() if imported == "true"], [ALMALINUX])
+
+    def test_the_default_install_never_erases_without_confirmation(self):
+        for profile in (ALMALINUX, DESKTOP, DEBIAN):
+            with self.subTest(profile=profile):
+                image_type = profile_type(description_root(), profile)
+                self.assertNotIn("installboot", image_type.attrib, profile)
+                unattended = image_type.find("oemconfig/oem-unattended")
+                self.assertIsNotNone(unattended, profile)
+                self.assertEqual(unattended.text, "false", profile)
+
+    def test_kernel_noise_does_not_cover_the_repair_console(self):
+        for profile in (ALMALINUX, DESKTOP):
+            with self.subTest(profile=profile):
+                cmdline = profile_type(description_root(), profile).get("kernelcmdline")
+                self.assertIn("loglevel=3", cmdline.split(), profile)
 
     def test_the_almalinux_profile_installs_with_dnf4_for_release_10(self):
         # KIWI 11.0.4 accepts apk, apt, zypper, dnf4, dnf5, microdnf and pacman (kiwi.rnc :999); AlmaLinux 10's package
@@ -4843,7 +4887,7 @@ class AlmaLinuxPackages(unittest.TestCase):
         image = description_root()
         almalinux = profile_packages(image, "image", ALMALINUX)
         self.assertEqual(len(almalinux), len(set(almalinux)), "a package is named twice")
-        self.assertEqual(set(almalinux) - SELINUX_PACKAGES - DOCKER_RPMS - RUNTIME_FROM_ALMALINUX,
+        self.assertEqual(set(almalinux) - SELINUX_PACKAGES - DOCKER_RPMS - RUNTIME_FROM_ALMALINUX - SESSION_RUNTIME,
                          {f for _, f, _ in PACKAGE_MAP if f})
         self.assertEqual(set(profile_packages(image, "image", DEBIAN)), {d for d, _, _ in PACKAGE_MAP if d})
 
@@ -5051,6 +5095,8 @@ DOCKER_KEY_SHA256 = "e6c650e0700b1bf4868b693b30761b926844befc8a0acb7ac0dd9b1faf1
 DOCKER_KEY_FINGERPRINT = "060A61C51B558A7F742B77AAC52FEB6B621E9F35"
 DOCKER_RPMS = {"docker-ce", "docker-ce-cli", "containerd.io", "docker-compose-plugin"}
 RUNTIME_FROM_ALMALINUX = {"container-selinux", "iptables-nft", "kernel-modules-extra"}
+# The runtime container sessions use, rootless podman, AlmaLinux's own package (olivares-appliance-base depends on it).
+SESSION_RUNTIME = {"podman"}
 DOCKER_BASEURL = "https://download.docker.com/linux/rhel/10/x86_64/stable/"
 
 
@@ -5120,6 +5166,13 @@ class ContainerRuntime(unittest.TestCase):
         repos = {r.get("alias") for r in image.iter("repository") if in_profile(r, ALMALINUX)}
         self.assertFalse([a for a in repos if "docker" in a], "Docker is not a repository of the image")
 
+    def test_the_session_runtime_podman_is_an_image_root_from_the_locked_almalinux_trees(self):
+        image = description_root()
+        for profile in (ALMALINUX, DESKTOP):
+            with self.subTest(profile=profile):
+                self.assertIn("podman", profile_packages(image, "image", profile))
+        self.assertIn("podman", self.lock()["image_packages"])
+
     def test_the_build_repository_trusts_docker_beside_the_per_build_key(self):
         repo = next(r for r in description_root().iter("repository") if r.get("alias") == "olivares-appliance-build")
         self.assertEqual([k.get("key") for k in repo.iter("signing")],
@@ -5181,60 +5234,21 @@ class ContainerRuntime(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("docker.service", result.stderr)
 
-    # the regression: the engine drives the Docker client for isolation=container, and the daemon's socket is root:docker 0660,
-    # so the engine's user joins the docker group in the image (systemd applies it through User=; root-equivalent, DOCK-04).
-    def test_config_sh_puts_the_engine_user_in_the_docker_group_on_both_editions_and_fails_when_it_cannot(self):
+    # Container sessions run under the engine user's rootless Podman (session-image.sh), so the engine user never joins the docker
+    # group: membership opens the rootful daemon's socket, which is root on the host. Docker stays for the optional apps' helper.
+    def test_config_sh_keeps_the_engine_user_out_of_the_docker_group_on_both_editions(self):
         for profile in (ALMALINUX, DESKTOP):
             with self.subTest(profile=profile):
                 root = self.root()
                 result = run_config_sh(root, [profile], programs=["setfiles"])
                 self.assertEqual(result.returncode, 0, result.stderr[-2000:])
-                self.assertEqual((root / ".usermod").read_text().splitlines(), ["-aG docker olivares"])
-                result = run_config_sh(self.root(), [profile], programs=["setfiles"], usermod_fails=True)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn("docker group", result.stderr)
+                self.assertFalse((root / ".usermod").exists(), "config.sh changed an account: " + (
+                    (root / ".usermod").read_text() if (root / ".usermod").exists() else ""))
 
-    def test_package_upgrade_puts_the_engine_user_in_the_docker_group(self):
-        """Only the appliance grants socket DAC access, with both toolchains and every failure surfaced."""
+    def test_package_install_never_puts_the_engine_user_in_the_docker_group(self):
         script = (ROOT / "packaging/nfpm/postinstall.sh").read_text()
-        block = "# Only the appliance grants" + script.split("# Only the appliance grants", 1)[1].split("# The first release", 1)[0]
-        for name, id_rc, getent_rc, usermod_rc, addgroup_rc, want_rc, want_call in (
-            ("gnu usermod", 0, 0, 0, 0, 0, "usermod -aG docker olivares"),
-            ("busybox addgroup", 0, 0, 127, 0, 0, "addgroup olivares docker"),
-            ("docker group absent", 0, 2, 0, 0, 0, ""),
-            ("getent failure", 0, 1, 0, 0, 1, ""),
-            ("usermod failure", 0, 0, 1, 0, 1, "usermod -aG docker olivares"),
-            ("addgroup failure", 0, 0, 127, 1, 1, "addgroup olivares docker"),
-            ("membership query failure", 1, 0, 0, 0, 1, "usermod -aG docker olivares"),
-            ("membership absent after update", 0, 0, 0, 0, 1, "usermod -aG docker olivares"),
-            ("not an appliance", 0, 0, 0, 0, 0, ""),
-        ):
-            with self.subTest(name):
-                root = self.root()
-                bin_dir = root / "bin"
-                bin_dir.mkdir()
-                (bin_dir / "grep").symlink_to("/usr/bin/grep")
-                (bin_dir / "getent").write_text("#!/bin/sh\nexit $GETENT_RC\n")
-                if usermod_rc != 127:
-                    (bin_dir / "usermod").write_text("#!/bin/sh\nprintf '%s\\n' \"usermod $*\" >>\"$CALLS\"; exit $USERMOD_RC\n")
-                (bin_dir / "addgroup").write_text("#!/bin/sh\nprintf '%s\\n' \"addgroup $*\" >>\"$CALLS\"; exit $ADDGROUP_RC\n")
-                groups = "olivares users" if name == "membership absent after update" else "olivares docker users"
-                (bin_dir / "id").write_text("#!/bin/sh\n[ \"$ID_RC\" -eq 0 ] || exit \"$ID_RC\"\nprintf '%s\\n' '" + groups + "'\n")
-                for program in ("getent", "usermod", "addgroup", "id"):
-                    if program == "usermod" and usermod_rc == 127:
-                        continue
-                    (bin_dir / program).chmod(0o755)
-                calls = root / "calls"
-                env = dict(os.environ, PATH=str(bin_dir), GETENT_RC=str(getent_rc), USERMOD_RC=str(usermod_rc),
-                           ADDGROUP_RC=str(addgroup_rc), ID_RC=str(id_rc), CALLS=str(calls), package_phase="/bin/sh")
-                if name == "not an appliance":
-                    env["package_phase"] = "/nonexistent"
-                done = subprocess.run(["/bin/sh", "-c", block], cwd=root, env=env, capture_output=True, text=True)
-                self.assertEqual(done.returncode, want_rc, done.stdout + done.stderr)
-                recorded = calls.read_text() if calls.exists() else ""
-                self.assertEqual(recorded.strip(), want_call)
-                if name in ("membership query failure", "membership absent after update"):
-                    self.assertIn("docker group", done.stderr)
+        self.assertNotRegex(script, r"(usermod\s+-aG\s+docker|addgroup\s+olivares\s+docker)")
+        self.assertNotIn("DOCK-04", script)
 
     def test_images_sh_requires_the_daemon_the_compose_plugin_and_the_module_the_iptables_backend_needs(self):
         for profile in (ALMALINUX, DESKTOP):
@@ -5890,12 +5904,21 @@ RUNTIME_PATHS = ("usr/lib/systemd/system/docker.service", "usr/lib/systemd/syste
 AUTOMATIC_TIMER_PATH = "usr/lib/systemd/system/dnf-automatic-install.timer"
 
 
-def run_images_sh(root, profiles, relabel="", status=0, runtime=True, automatic=True):
+# The document converter's interpreter, which build.sh's stage installs in the overlay and images.sh runs (DocumentConverter).
+CONVERTER_PATH = "usr/lib/olivares/markitdown/bin/python3"
+
+
+def run_images_sh(root, profiles, relabel="", status=0, runtime=True, automatic=True, converter=True):
     """images.sh as KIWI runs it (tasks/system_build.py: after config.sh and its own setfiles labeling, chrooted), here on
     ROOT: its absolute /etc, /usr, /var and /.autorelabel paths are moved below ROOT. setfiles is a stub that records its
     arguments in ROOT/.setfiles.args and prints RELABEL, exiting STATUS. RUNTIME puts the container runtime in the root, as
-    the packages do, so the other tests need not name it; AUTOMATIC does the same for dnf-automatic's install timer."""
+    the packages do, so the other tests need not name it; AUTOMATIC does the same for dnf-automatic's install timer, and
+    CONVERTER for the document converter, as a stub that imports nothing and exits 0."""
     root = Path(root)
+    if converter:
+        (root / CONVERTER_PATH).parent.mkdir(parents=True, exist_ok=True)
+        (root / CONVERTER_PATH).write_text("#!/bin/sh\nexit 0\n")
+        (root / CONVERTER_PATH).chmod(0o755)
     if automatic:
         (root / AUTOMATIC_TIMER_PATH).parent.mkdir(parents=True, exist_ok=True)
         (root / AUTOMATIC_TIMER_PATH).write_text("")
@@ -6014,6 +6037,17 @@ class AlmaLinuxSelinuxBuildChecks(unittest.TestCase):
         result = run_images_sh(root, [DEBIAN])
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse((root / ".setfiles.args").exists())
+
+
+class DocumentConverter(unittest.TestCase):
+    """images.sh fails the image build when the document converter's interpreter is not in the root, on each base."""
+
+    def test_images_sh_fails_an_image_without_the_converter(self):
+        for profiles in ([ALMALINUX], ["almalinux10-desktop-amd64"], [DEBIAN]):
+            with self.subTest(profiles=profiles), tempfile.TemporaryDirectory(prefix="a2-converter-") as temp:
+                result = run_images_sh(temp, profiles, converter=False)
+                self.assertNotEqual(result.returncode, 0, "an image without the converter must fail its build")
+                self.assertIn(CONVERTER_PATH, result.stderr)
 
 
 class AlmaLinuxSelinux(unittest.TestCase):
@@ -6612,6 +6646,17 @@ class ModuleHelperSockets(unittest.TestCase):
                          "the firewall's socket and two services are enabled, and no other firewall unit")
         for other in ("nftables.service", "firewalld.service"):
             self.assertNotIn("enable " + other, lines, "a second owner of the host firewall is never enabled")
+        # Anaconda enables firewalld unless its kickstart says otherwise, and firewalld's zone then rejects what the
+        # appliance's own policy admits (8443 closed to the LAN on a seedless Server). The installed images keep one
+        # owner too.
+        for kickstart in ("server.ks", "desktop.ks"):
+            with self.subTest(kickstart=kickstart):
+                text = (ROOT / "appliance/images/anaconda" / kickstart).read_text()
+                firewall = [line.split() for line in text.splitlines() if line.split()[:1] == ["firewall"]]
+                self.assertEqual(firewall, [["firewall", "--disabled"]],
+                                 "a second owner of the host firewall is never enabled")
+                self.assertNotRegex(text, r"(?m)^\s*services\s[^\n]*--enabled=[^\n]*\b(firewalld|nftables)\b")
+                self.assertNotRegex(text, r"(?m)\bsystemctl\s+(enable|unmask)\b[^\n]*\b(firewalld|nftables)\b")
 
     def test_each_enabled_firewall_service_has_the_install_section_the_preset_needs(self):
         for service, target in self.FIREWALL_SERVICES.items():
@@ -6666,9 +6711,14 @@ class RepairConsoleHelpers(unittest.TestCase):
 
     def test_console_starts_and_orders_its_root_helper_sockets(self):
         unit = self.unit()["Unit"]
-        sockets = {"olivares-helper-power.socket", "olivares-helper-cert.socket", "olivares-helper-firewall-local.socket"}
-        self.assertEqual(set(unit.get("Wants", "").split()), sockets)
-        self.assertEqual(set(unit.get("After", "").split()), sockets | {"getty@tty1.service"})
+        sockets = {"olivares-helper-power.socket", "olivares-helper-cert.socket", "olivares-helper-firewall-local.socket",
+                   "olivares-helper-system.socket"}
+        banner = {"olivares-tty1-banner.service"}
+        # The console wants the portal so its StateDirectory= makes the operation store the power verb holds; it never
+        # orders after it or requires it (the After set and the loop below), so the last door never waits on the portal.
+        portal = {"olivares-portal.service"}
+        self.assertEqual(set(unit.get("Wants", "").split()), sockets | banner | portal)
+        self.assertEqual(set(unit.get("After", "").split()), sockets | {"getty@tty1.service", "olivares-tty1-banner.service"})
         for directive in ("Requires", "Requisite", "BindsTo", "PartOf", "Before"):
             self.assertFalse(unit.get(directive, ""), directive)
 
@@ -7035,6 +7085,50 @@ for at, line in json.load(open(os.environ["FAKE_GUEST"])).get(guest, []):
 time.sleep(600)
 '''
 
+# The installer driver (install_interactive.py) runs `qemu-system-x86_64` with its console on stdio and `xorriso` by name, so
+# the battery's own emulation of QEMU cannot stand in for it; these two can, from the PATH. The guest asks for the disk and for
+# the erasure confirmation and reads the answers from its stdin, writes a GPT header at byte 512 of its virtio disk only after
+# the "y" (as the installer does, and only when FAKE_INSTALL_WRITES=1), then prints what FAKE_GUEST names for "iso-install";
+# __EXIT__ ends it, and it otherwise idles until the driver stops it. Like QEMU it holds a write lock on its disk while it runs.
+FAKE_INSTALLER_QEMU = r'''
+import fcntl, json, os, sys, time
+args = sys.argv[1:]
+disk = next(a for a in args if a.startswith("file=") and ",if=virtio,format=qcow2" in a)[5:].split(",")[0]
+held = open(disk, "r+b")
+fcntl.lockf(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+def say(text):
+    sys.stdout.write(text + "\n")
+    sys.stdout.flush()
+if "rd.kiwi.oem.unattended=true" not in args[args.index("-append") + 1]:
+    say("Select Installation Disk")
+    sys.stdin.readline()
+    say("Destroying ALL data on /dev/vda")
+    sys.stdin.readline()
+if os.environ.get("FAKE_INSTALL_WRITES") == "1":
+    held.seek(512)
+    held.write(b"EFI PART" + b"\0" * 504)
+    held.flush()
+start = time.monotonic()
+for at, line in json.load(open(os.environ["FAKE_GUEST"])).get("iso-install", []):
+    time.sleep(max(0, start + at - time.monotonic()))
+    if line == "__EXIT__":
+        sys.exit(0)
+    say(line)
+time.sleep(600)
+'''
+
+# xorriso as the driver uses it: the volume id of the medium, and -extract of a boot file (empty here).
+FAKE_INSTALLER_XORRISO = r'''
+import sys
+args = sys.argv[1:]
+if "-pvd_info" in args:
+    print("Volume Id    : \'OLIVARES\'")
+elif "-extract" in args:
+    open(args[args.index("-extract") + 2], "wb").close()
+else:
+    sys.exit(3)
+'''
+
 # An emulated qemu-img with the semantics of QEMU's img_dd (qemu-img.c, v8.2.2 :5078-5328, the same in v10.0.0): `count` bounds the copy as an absolute input offset (size = min(length, count * bs)), the output is created
 # with size - skip * bs bytes (0 when skip * bs passes size, after "cannot skip to specified offset"), and the copy runs from
 # skip * bs to size. So `bs=512 skip=1 count=1` writes an empty output with exit 0, as Debian's 10.0.13 and Ubuntu's 8.2.2
@@ -7170,7 +7264,8 @@ class BootBattery(unittest.TestCase):
         self.work = Path(self.temp.name)
         self.bin = self.work / "bin"
         self.bin.mkdir()
-        for name, body in (("qemu", FAKE_QEMU), ("qemu-img", FAKE_QEMU_IMG)):
+        for name, body in (("qemu", FAKE_QEMU), ("qemu-img", FAKE_QEMU_IMG), ("qemu-system-x86_64", FAKE_INSTALLER_QEMU),
+                           ("xorriso", FAKE_INSTALLER_XORRISO)):
             (self.bin / name).write_text("#!" + sys.executable + "\n" + body)
             (self.bin / name).chmod(0o755)
         self.ovmf = self.work / "ovmf"
@@ -7189,6 +7284,7 @@ class BootBattery(unittest.TestCase):
         shutil.rmtree(evidence, ignore_errors=True)
         env = dict(os.environ, APPLIANCE_BOOT_ACCEL="tcg", APPLIANCE_QEMU=str(self.bin / "qemu"),
                    APPLIANCE_QEMU_IMG=str(self.bin / "qemu-img"), APPLIANCE_OVMF_DIR=str(self.ovmf),
+                   PATH=str(self.bin) + os.pathsep + os.environ["PATH"],
                    APPLIANCE_BOOT_TIMEOUT=str(deadline), APPLIANCE_INSTALL_TIMEOUT=str(deadline),
                    FAKE_GUEST=str(self.work / "guests.json"), FAKE_INSTALL_WRITES="1" if install_writes else "0")
         result = subprocess.run(["bash", str(script or ROOT / "appliance/test/boot-battery.sh"), str(self.artifacts),
@@ -7255,17 +7351,9 @@ class BootBattery(unittest.TestCase):
         self.assertIn("PASS bios_shows_the_console_label", result.stdout, result.stdout)
         self.assertEqual(result.returncode, 2, result.stdout)
 
-    # What KIWI's installer guest printed in hosted builds (serial.log lines 1-66, 67 and
-    # 975), in its order: the medium's dracut install with /run/install mounted, then no firmware and no GRUB but a second
-    # kernel, the installed system kexec'd by kiwi-dump-reboot-system.sh (KIWI 11.0.4) once the dump and its check passed,
-    # up to its login prompt. The kernel line is the installer's hand-over.
-    MEDIUM = [[0, "Loading initrd..."],
-              [0, "[   30.139873] dracut-pre-mount[718]: mount: /run/install: WARNING: source write-protected, "
-                  "mounted read-only."]]
-    HAND_OVER = [2, "[    0.000000] Linux version 6.12.107+deb13-amd64 (debian-kernel@lists.debian.org) "
-                    "(x86_64-linux-gnu-gcc-14 (Debian 14.2.0-19) 14.2.0, GNU ld (GNU Binutils for Debian) 2.44) #1 SMP"]
-    INSTALLER = MEDIUM + [HAND_OVER, [3, "[   23.023254] systemd[1]: Installed transient /etc/machine-id file."],
-                          [4, "localhost login: "]]
+    # What the installer driver (install_interactive.py) reads from the guest's console: the guest asks for the disk and
+    # for the erasure confirmation, then the installed system prints its console label. The label is the hand-over.
+    INSTALLER = [[1, SERIAL_LABEL]]
     INSTALLED = [[0, SERIAL_SECURE_BOOT], [0, JOURNAL_MULTI_USER], [1, SERIAL_LABEL]]
 
     def test_the_installer_assertion_reads_the_disk_it_wrote(self):
@@ -7276,40 +7364,46 @@ class BootBattery(unittest.TestCase):
         self.assertIn("PASS control:iso_medium_ran_the_installer", result.stdout, result.stdout)
 
     def test_an_installer_that_wrote_nothing_is_refused(self):
-        # The same serial log, and a target disk the installer never wrote: no partition table.
+        # The same console, and a target disk the installer never wrote: no partition table.
         result, _ = self.battery({"iso-install": self.INSTALLER, "iso-install-boot": self.INSTALLED}, "iso-install",
                                  deadline=6, install_writes=False)
         self.assertIn("FAIL iso_medium_ran_the_installer", result.stdout, result.stdout)
 
     def test_the_installer_case_ends_on_the_hand_over_to_the_installed_system(self):
-        # A hosted build: the installer guest sat at `localhost login:` until its 1,800 s deadline, since none of
-        # the old markers appears when kiwi-dump kexecs into the installed system. The case ends on the hand-over.
+        # The case ends when the installed system prints its label, not at the deadline.
         result, evidence = self.battery({"iso-install": self.INSTALLER, "iso-install-boot": self.INSTALLED}, "iso-install",
                                         deadline=30)
         self.assertIn("PASS iso_medium_ran_the_installer", result.stdout, result.stdout)
-        self.assertLessEqual(int((evidence / "iso-install/seconds").read_text()), 10)
-        self.assertRegex((evidence / "iso-install/qemu-exit.txt").read_text(), r"(?m)^ended: hand-over$")
+        exit_record = (evidence / "iso-install/qemu-exit.txt").read_text()
+        self.assertRegex(exit_record, r"(?m)^ended: hand-over$")
+        self.assertLessEqual(int(re.search(r"(?m)^seconds: (\d+)$", exit_record).group(1)), 10)
 
     def test_a_guest_stopped_at_the_deadline_is_not_a_finished_installer(self):
-        # A written GPT header without the hand-over is a partial installer: the dump writes LBA 0 and 1 first.
-        result, evidence = self.battery({"iso-install": self.MEDIUM, "iso-install-boot": self.INSTALLED}, "iso-install",
+        # Hosted build 41651142110: the self-test expected FAIL and the battery printed UNMEASURED. A guest that ran and
+        # never handed over is the appliance's failure, whatever the disk holds.
+        result, evidence = self.battery({"iso-install": [], "iso-install-boot": self.INSTALLED}, "iso-install",
                                         deadline=6)
         self.assertIn("FAIL iso_medium_ran_the_installer", result.stdout, result.stdout)
+        self.assertNotIn("UNMEASURED", result.stdout, result.stdout)
         self.assertRegex((evidence / "iso-install/qemu-exit.txt").read_text(), r"(?m)^ended: deadline$")
 
     def test_a_guest_that_exits_before_the_hand_over_is_not_a_finished_installer(self):
         # A failed dump or check ends in `reboot -f` (kiwi-dialog-lib.sh report_and_quit), which ends QEMU under
         # -no-reboot: an exit of the guest is no end of the installer.
-        result, evidence = self.battery({"iso-install": self.MEDIUM + [[1, "__EXIT__"]], "iso-install-boot": self.INSTALLED},
+        result, evidence = self.battery({"iso-install": [[1, "__EXIT__"]], "iso-install-boot": self.INSTALLED},
                                         "iso-install", deadline=20)
         self.assertIn("FAIL iso_medium_ran_the_installer", result.stdout, result.stdout)
+        self.assertNotIn("UNMEASURED", result.stdout, result.stdout)
         self.assertRegex((evidence / "iso-install/qemu-exit.txt").read_text(), r"(?m)^ended: exited$")
 
-    def test_a_kernel_line_before_the_installer_ran_is_no_hand_over(self):
-        # Only a kernel that starts after the installer mounted its medium is the installed system.
-        result, _ = self.battery({"iso-install": [[0, self.HAND_OVER[1]], [1, self.MEDIUM[1][1]]],
-                                  "iso-install-boot": self.INSTALLED}, "iso-install", deadline=6)
-        self.assertIn("FAIL iso_medium_ran_the_installer", result.stdout, result.stdout)
+    def test_an_installer_driver_that_cannot_start_leaves_the_case_unmeasured(self):
+        # No guest ran: a medium xorriso cannot read says nothing about the appliance, so it is never a FAIL.
+        (self.bin / "xorriso").write_text("#!/bin/sh\nexit 5\n")
+        result, _ = self.battery({"iso-install": self.INSTALLER, "iso-install-boot": self.INSTALLED}, "iso-install",
+                                 deadline=6)
+        self.assertIn("UNMEASURED iso-install", result.stdout, result.stdout)
+        self.assertNotIn("FAIL", result.stdout, result.stdout)
+        self.assertEqual(result.returncode, 2, result.stdout)
 
     def test_the_emulated_qemu_img_reads_as_img_dd_does(self):
         # The fixture stands for qemu-img, so it must answer as qemu-img answers (both versions).
@@ -7343,7 +7437,7 @@ class BootBattery(unittest.TestCase):
         # The battery reads its console label from the layer's banner through lib/console-label.sh and its guests' CPU
         # model from lib/cpu-model.sh.
         for path in ("appliance/test/lib/console-label.sh", "appliance/test/lib/cpu-model.sh",
-                     "appliance/layer/base/units/tty1-banner.txt"):
+                     "appliance/test/install_interactive.py", "appliance/layer/base/units/tty1-banner.txt"):
             (self.work / "repo" / path).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(ROOT / path, self.work / "repo" / path)
         text = (ROOT / "appliance/test/boot-battery.sh").read_text()

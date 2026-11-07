@@ -6,33 +6,33 @@
   "repositories": {
     "almalinux-baseos": {
       "baseurl": "https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/",
-      "repomd_sha256": "caf34cc405ec0b63cca2520b54b13e09029647ea79ef46b974832a9fb953b8d1",
+      "repomd_sha256": "c69e1d8662607f751c4b5bf3ec0a50c7f45c804e48909f7fafe01523524d54e1",
       "repomd_bytes": 3890,
-      "primary_sha256": "78046bda1f651efbfc9268c34950f7d3aa9737fe5d620047222ded3216189f4f",
-      "recorded_at": "2026-10-23T21:46:42Z"
+      "primary_sha256": "58e7fa212b6609756ba3023dfb4a097e5c1175edaf7492d1a7e0e676fc901bc1",
+      "recorded_at": "2026-11-07T12:56:09Z"
     },
     "almalinux-appstream": {
       "baseurl": "https://repo.almalinux.org/almalinux/10.2/AppStream/x86_64/os/",
-      "repomd_sha256": "4ba3037f340eab7c94e1830dfbd5de41473945e910bf5337c86e669393459380",
+      "repomd_sha256": "234d7cad321019a242dfa85c1d97a9b86e6eb4d00dab27d2a61dd148562c800a",
       "repomd_bytes": 3890,
-      "primary_sha256": "4bdf85c0310782b9630e9c39c3106ad2976203409c96bc9aa04d236b1f91cb63",
-      "recorded_at": "2026-10-23T21:46:42Z"
+      "primary_sha256": "183c72e4597b3f33f6c92f12b95f96d0eca37124018b59faa14fc276c15afd2a",
+      "recorded_at": "2026-11-07T12:56:09Z"
     }
   },
   "builder_repositories": {
     "epel-10": {
       "baseurl": "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/",
-      "repomd_sha256": "a5add31338be754e214ac67f34483cadbf16321a4df7751a39ba578ada74a9f4",
+      "repomd_sha256": "0b7192b28d8ab1b756032d4431694846a5ce23f96469933a53e7df67f538f215",
       "repomd_bytes": 4066,
-      "primary_sha256": "2a9cb2654315415236bbf379d9809ba90c9e5eb0931233966693db3d2b91b1a3",
-      "recorded_at": "2026-10-23T21:46:42Z"
+      "primary_sha256": "8ca763818e861bce69c5bba09b31e231b6413823c5d262db0922e8fbf03452f5",
+      "recorded_at": "2026-11-07T12:56:09Z"
     },
     "almalinux-crb": {
       "baseurl": "https://repo.almalinux.org/almalinux/10.2/CRB/x86_64/os/",
-      "repomd_sha256": "4a9ab6641f9297aa9534b6b93a3312b6a732f3e7a63c2929a3b4ed4f5289c9f6",
+      "repomd_sha256": "140b33ab6ccef177c00154171679f6cb9fe801addf7b602995e70091fcc61d1f",
       "repomd_bytes": 3876,
-      "primary_sha256": "a17aed3a9a4bb6e40d6bf8b91f70e32f2174564657607267158f2c8436a6b375",
-      "recorded_at": "2026-10-23T21:46:42Z"
+      "primary_sha256": "be5dc45b031a852ebb52f151d8a7f64f5d71e854b17f19edbb2e13aee7b6316a",
+      "recorded_at": "2026-11-07T12:56:09Z"
     }
   },
   "key": {
@@ -52,31 +52,31 @@
   "source_repositories": {
     "almalinux-baseos-source": {
       "baseurl": "https://vault.almalinux.org/10.2/BaseOS/Source/",
-      "repomd_sha256": "fcd06116ebfb7c7077a000128908d56e980b4b0999c4e51731b5b9c2c40ff514",
+      "repomd_sha256": "b46264bc9261c7cac8aa3e95c534874ba3f274a709870e67f3e519bd21ffe353",
       "repomd_bytes": 3102,
-      "primary_sha256": "1b0001b810a2258bf1d76979d41182eadb72c9a22fa70c06b64533384dd22ba9",
-      "recorded_at": "2026-10-23T21:46:42Z"
+      "primary_sha256": "ffc1ad895064768c8407b76d6ef7252a438fdd223652181b264ee46d7f803d4c",
+      "recorded_at": "2026-11-07T12:56:09Z"
     },
     "almalinux-appstream-source": {
       "baseurl": "https://vault.almalinux.org/10.2/AppStream/Source/",
-      "repomd_sha256": "f925be027bb80f48a06c4f0d525c68419ff95b91ac280e90e4584ae29d6db278",
+      "repomd_sha256": "0fb94980ba864178a2b3c675a75dfb3fbde7f567d4fc8ca83d0c416b8a4704bf",
       "repomd_bytes": 3103,
-      "primary_sha256": "6a2afaa902f3b2a04f28f34b755d20c451830b87d0908cd2f59e846bc4b924a6",
-      "recorded_at": "2026-10-23T21:46:42Z"
+      "primary_sha256": "de1ebe706ab5ad2aef1f042d0a413dc1469ec66e55ebf21cfeb70d3d73577b77",
+      "recorded_at": "2026-11-07T12:56:09Z"
     },
     "almalinux-crb-source": {
       "baseurl": "https://vault.almalinux.org/10.2/CRB/Source/",
-      "repomd_sha256": "dfd154724240a146985d0d6d2f1cc97267996a1b6018c26bb8ccb4b2da08e8ce",
+      "repomd_sha256": "a00b7bb768296e5f684d905e616e36cf0e1095a9b95d13730446183266b7546b",
       "repomd_bytes": 3091,
       "primary_sha256": "91400cf62f95207919f92fd5fb019aec0595d3e41b2ece264aa4fe809fef77f6",
-      "recorded_at": "2026-10-23T21:46:42Z"
+      "recorded_at": "2026-11-07T12:56:09Z"
     },
     "epel-10-source": {
       "baseurl": "https://dl.fedoraproject.org/pub/epel/10/Everything/source/tree/",
-      "repomd_sha256": "d8a1f71b5ee3ef956dfac92c013a7c3940df598ffa797501dcfd80db960446d9",
+      "repomd_sha256": "19f3de65f8a4747f4d27d55df413a0a4096b29b4d07a192eb346b683b603e95b",
       "repomd_bytes": 3582,
-      "primary_sha256": "d42871b8d110defaf3461a5e174366007cf05786dafe4cc2af918112e066d99b",
-      "recorded_at": "2026-10-23T21:46:42Z"
+      "primary_sha256": "ad7cfd4a586e3ba1aa56c9ec499705234d3086367faee812254a163bc24e5fa9",
+      "recorded_at": "2026-11-07T12:56:09Z"
     }
   }
 }

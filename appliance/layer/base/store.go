@@ -143,6 +143,48 @@ func writeAtomic(dir, name string, data []byte, mode os.FileMode) error {
 	if err != nil {
 		return err
 	}
+	return publish(f, dir, name, data, mode)
+}
+
+// writeStaged is writeAtomic with the temporary under one fixed name, dir/name.new, created
+// if absent and opened without following a link. A regular staging file left by an interrupted
+// write is replaced; a non-regular staging path is refused. A policy that types a file by its name (the enforcing policy gives the
+// delivered setup token its own type this way) cannot see a random temporary name; a link planted
+// under the fixed name makes the call fail instead of writing through it.
+func writeStaged(dir, name string, data []byte, mode os.FileMode) error {
+	f, err := os.OpenFile(filepath.Join(dir, name+".new"), os.O_WRONLY|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, mode)
+	if err != nil {
+		return err
+	}
+	if err := checkStagedFile(f); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Truncate(0); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return publish(f, dir, name, data, mode)
+}
+
+// checkStagedFile requires a regular staging inode owned only by this process, with no other link.
+func checkStagedFile(f *os.File) error {
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return errors.New("the staging path is not a regular file")
+	}
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || st.Uid != uint32(os.Geteuid()) || st.Nlink != 1 {
+		return errors.New("the staging file is not private to this process")
+	}
+	return nil
+}
+
+// publish writes data to the open temporary f, syncs it and renames it to dir/name, then syncs dir.
+func publish(f *os.File, dir, name string, data []byte, mode os.FileMode) error {
 	tmp := f.Name()
 	defer os.Remove(tmp) // a no-op once the rename succeeded
 	if err := f.Chmod(mode); err != nil {

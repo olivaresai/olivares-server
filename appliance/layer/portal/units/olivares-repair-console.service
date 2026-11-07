@@ -3,18 +3,26 @@
 #
 # The Appliance Repair Console on tty1: the last door.
 #
-# Packaged, and enabled by the server image only: installing the package starts nothing at
+# Packaged, and enabled by the server image, and by the desktop image only while the administrator is
+# deferred: installing the package starts nothing at
 # boot and leaves the login prompt on tty1 where it was. The image's config.sh links this
 # unit at multi-user.target and masks getty@tty1.service, so that tty1 is this console's
 # alone, on every boot and on every switch back to the first virtual console (logind starts
 # autovt@tty1 on a switch). Conflicts= below says what that decision costs — this console
-# takes tty1 from getty@tty1.service. The desktop image does not enable it: gdm owns tty1.
+# takes tty1 from getty@tty1.service. On the desktop a drop-in runs it only while the installer's marker
+# defers the administrator; from the next boot gdm owns tty1.
 #
-# The banner of /etc/issue.d is what agetty printed on tty1 before this console took it, and
-# it names the machine's address and where the setup token is. The console cannot print it
-# from inside this unit's private network, which sees no interface but loopback, so the one
-# command that prints it, agetty --show-issue, runs outside the sandbox (the "+" prefix) and
-# its failure leaves the console as it is (the "-" prefix). The screen is cleared once, just
+# The banner is what agetty printed on tty1 before this console took it, and it names the
+# machine's addresses and where the setup token is. agetty reads /run/issue and /run/issue.d only
+# when /etc/issue does not exist, and both images ship it, so the unit names the one file it prints,
+# /run/olivares-banner/issue, which olivares-tty1-banner.service writes from the host's addresses. Nothing
+# else writes to tty1 while this console runs, so no prompt (a secret one among them) is drawn over; q
+# restarts the console, which shows the refreshed file. The console wants
+# the banner service and starts after it, so the file exists before agetty reads it; if the service fails
+# the console still opens (Wants=, not Requires=). The console
+# cannot read the addresses from inside this unit's private network, which sees no interface but
+# loopback, so agetty --show-issue runs outside the sandbox (the "+" prefix); its failure leaves the
+# console as it is (the "-" prefix). The screen is cleared once, just
 # before it, and TTYVTDisallocate= is off: the service manager deallocates the virtual console
 # before it execs the main process when that is on, which wiped the banner on a booted image.
 # That deallocation also cleared the screen when the console exited, so the same clear runs in
@@ -26,7 +34,12 @@
 # sign-in stack unusable. A door that shares a failure with the door it stands in for is not
 # a second door, so this unit names neither olivares-portal.socket nor
 # olivares-portal.service in any ordering or requirement, and the service manager brings it
-# up whether either of them is running or not. It is not a network service at all:
+# up whether either of them is running or not. It only wants olivares-portal.service, with no
+# After=: the portal's StateDirectory= makes the operation store the power verb holds, and
+# nothing else starts the portal before its socket's first connection, so without the want the
+# store does not exist and the verb is refused. A want neither waits for the portal nor fails
+# with it: if the portal fails, this console still opens and the verb refuses (fail closed).
+# It is not a network service at all:
 # PrivateNetwork=yes and IPAddressDeny=any stay in force. AF_UNIX carries helper requests;
 # AF_NETLINK lets the host sign-in stack submit audit records. No IP socket family is allowed.
 #
@@ -52,8 +65,8 @@
 Description=Appliance Repair Console on tty1 (the last door)
 Documentation=https://github.com/olivaresai/olivares
 Conflicts=getty@tty1.service
-Wants=olivares-helper-power.socket olivares-helper-cert.socket olivares-helper-firewall-local.socket
-After=getty@tty1.service olivares-helper-power.socket olivares-helper-cert.socket olivares-helper-firewall-local.socket
+Wants=olivares-helper-power.socket olivares-helper-cert.socket olivares-helper-firewall-local.socket olivares-helper-system.socket olivares-tty1-banner.service olivares-portal.service
+After=getty@tty1.service olivares-tty1-banner.service olivares-helper-power.socket olivares-helper-cert.socket olivares-helper-firewall-local.socket olivares-helper-system.socket
 # The console exits 0 whenever its operator leaves with q or its input ends, and restarts a second later.
 # With getty@tty1.service masked, the default limit of five starts in ten seconds would leave tty1 blank
 # until the next boot, so the unit is never rate limited out.
@@ -62,8 +75,11 @@ StartLimitIntervalSec=0
 [Service]
 Type=idle
 ExecStartPre=-/usr/bin/printf '\033[H\033[2J\033[3J'
-ExecStartPre=-+/usr/sbin/agetty --show-issue tty1
+ExecStartPre=-+/usr/sbin/agetty --issue-file /run/olivares-banner/issue --show-issue tty1
 ExecStart=/usr/libexec/olivares/olivares-repair-console
+# The host-operations group and no other: the power verb holds the operation store's lock in the
+# portal's 0750 operations leaf. The console's domain keeps no DAC override, so the group is its way in.
+SupplementaryGroups=olivares-operations
 ExecStopPost=-/usr/bin/printf '\033[H\033[2J\033[3J'
 StandardInput=tty
 StandardOutput=tty

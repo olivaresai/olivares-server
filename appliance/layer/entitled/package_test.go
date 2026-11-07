@@ -102,7 +102,7 @@ func TestPackageShipsTheCommandAndEveryUnitFromThisModule(t *testing.T) {
 	}{
 		binaryDst: {"bin/olivares-entitled-repo", 0o755},
 	}
-	for _, unit := range []string{"olivares-entitled-repo.service", "olivares-entitled-repo.timer", "olivares-entitled-repo.path", "olivares-edition.service", "olivares-appliance-update.service"} {
+	for _, unit := range []string{"olivares-entitled-repo.service", "olivares-entitled-repo.timer", "olivares-entitled-repo.path", "olivares-edition.service", "olivares-appliance-update.service", "olivares-appliance-rollback.service"} {
 		want[unitDir+unit] = struct {
 			src  string
 			mode uint32
@@ -268,8 +268,8 @@ func TestUpdateRenewsTheCredentialFirstAndUpgradesOnlyOlivaresPackagesThroughDnf
 	if !strings.Contains(one(t, d, "After"), "olivares-entitled-repo.service") {
 		t.Errorf("After=%s does not order the update after the credential refresh", one(t, d, "After"))
 	}
-	if got := one(t, d, "ExecStart"); got != "/usr/bin/dnf --assumeyes --setopt=install_weak_deps=False upgrade --refresh olivares*" {
-		t.Errorf("ExecStart=%s", got)
+	if got := one(t, d, "ExecStart"); got != binaryDst+" update" {
+		t.Errorf("ExecStart=%s, want the transaction owner that snapshots before DNF", got)
 	}
 	// ConditionPathExists would skip the unit and report success; an assert fails the start and says why.
 	if got := one(t, d, "AssertPathExists"); got != licenseFile {
@@ -277,6 +277,14 @@ func TestUpdateRenewsTheCredentialFirstAndUpgradesOnlyOlivaresPackagesThroughDnf
 	}
 	if _, ok := d["ConditionPathExists"]; ok {
 		t.Error("the update skips silently without a licence: use AssertPathExists")
+	}
+	// The update stops the product before dnf and starts it after: a stop must reach the command, which asks dnf to
+	// unwind and starts the product again, not dnf directly with a kill 90 seconds later.
+	if got := one(t, d, "KillMode"); got != "mixed" {
+		t.Errorf("KillMode=%s, want mixed", got)
+	}
+	if got := one(t, d, "TimeoutStopSec"); got != "15min" {
+		t.Errorf("TimeoutStopSec=%s, want 15min, above the ten minutes dnf is given to unwind", got)
 	}
 	if _, ok := d["WantedBy"]; ok {
 		t.Error("the update has an [Install] section: nothing starts it by itself")

@@ -23,8 +23,21 @@ import (
 const HelperName = helperschema.HelperApps
 
 func manifestDigest() string {
-	digest := sha256.Sum256(nginxProxyManager)
+	return digestFor(Slug)
+}
+func digestFor(app string) string {
+	digest := sha256.Sum256(manifestBytes(app))
 	return hex.EncodeToString(digest[:])
+}
+
+// AppForManifest resolves only embedded manifests; it never accepts a caller path or image.
+func AppForManifest(digest string) (string, bool) {
+	for _, app := range []string{Slug, Cloudflared} {
+		if digest == digestFor(app) {
+			return app, true
+		}
+	}
+	return "", false
 }
 
 // The app target stays the same across this pinned lifecycle, so an unknown
@@ -37,14 +50,20 @@ func appTarget() string { return "app:nginx-proxy-manager" }
 // No operator supplies an image, folder, port, Docker account or authority flag.
 func Descriptors() []hostops.Descriptor {
 	var out []hostops.Descriptor
-	for _, op := range lifecycleOps {
-		out = append(out, hostops.Descriptor{ID: "nginx-proxy-manager." + op, Module: "nginx-proxy-manager", Verb: op,
-			Title: strings.ToUpper(op[:1]) + op[1:] + " Nginx Proxy Manager", Category: "Apps",
-			InputSchema:   hostops.InputSchema{Type: "object", Properties: map[string]hostops.InputField{}, Required: []string{}},
-			Preconditions: []string{"Current authority for this optional app", "Fixed pinned image and private persistent data", "Available published ports before install or start"},
-			Consequence:   "Change this optional app's container lifecycle. Uninstall keeps data and certificates. Container state does not prove browser readiness, certificate issuance or a working proxy.",
-			Confirmation:  "confirm", Modes: []string{"product-up"}, ActVerb: "app", Audience: "appliance-helper:olivares-portal-apps",
-			EquivalentCommand: "olivares-appliance nginx-proxy-manager " + op + " --plan", OutputSchema: "hostop-v1.schema.json", Surfaces: []string{"web", "cli", "tui"}})
+	for _, app := range []struct{ slug, title string }{{Slug, "Nginx Proxy Manager"}, {Cloudflared, "Cloudflare Tunnel"}} {
+		for _, op := range lifecycleOps {
+			out = append(out, hostops.Descriptor{ID: app.slug + "." + op, Module: app.slug, Verb: op,
+				Title: strings.ToUpper(op[:1]) + op[1:] + " " + app.title, Category: "Apps",
+				InputSchema:   hostops.InputSchema{Type: "object", Properties: map[string]hostops.InputField{}, Required: []string{}},
+				Preconditions: []string{"Current authority for this optional app", "Fixed pinned image and private persistent data", "Available published ports before install or start"},
+				Consequence:   "Change this optional app's container lifecycle. Uninstall keeps data and certificates. Container state does not prove browser readiness, certificate issuance or a working proxy.",
+				Confirmation:  "confirm", Modes: []string{"product-up"}, ActVerb: "app", Audience: "appliance-helper:olivares-portal-apps",
+				EquivalentCommand: "olivares-appliance " + app.slug + " " + op + " --plan", OutputSchema: "hostop-v1.schema.json", Surfaces: []string{"web", "cli", "tui"}})
+			if app.slug == Cloudflared {
+				out[len(out)-1].Preconditions = []string{"Current authority and configured administrative step-up", "Protected tunnel-token file provisioned on the host"}
+				out[len(out)-1].Consequence = "Change the outbound named tunnel connector lifecycle; no inbound port is opened. Uninstall retains the token. A running connector does not prove origin readiness or external reachability."
+			}
+		}
 	}
 	return out
 }
@@ -88,7 +107,11 @@ func lifecycleReady(op string, s State) bool {
 	return false
 }
 func (r *LifecycleRequest) Validate() error {
-	if r == nil || r.Manifest != manifestDigest() || !validState(r.Expected) || (r.Op == "status" && (r.OperationID != "" || r.Expected != (State{}))) || (r.Op != "status" && (!validHex(r.OperationID, 32) || !lifecycleReady(r.Op, r.Expected))) {
+	if r == nil {
+		return &helperschema.InputError{Field: "$", Reason: "a fixed app operation and measured native state are required"}
+	}
+	_, known := AppForManifest(r.Manifest)
+	if !known || !validState(r.Expected) || (r.Op == "status" && (r.OperationID != "" || r.Expected != (State{}))) || (r.Op != "status" && (!validHex(r.OperationID, 32) || !lifecycleReady(r.Op, r.Expected))) {
 		return &helperschema.InputError{Field: "$", Reason: "a fixed app operation and measured native state are required"}
 	}
 	return nil
@@ -110,7 +133,7 @@ type lifecycleResult struct {
 // LifecycleAnswer is for the authorized attested helper consumer only. It uses
 // the same Compose executor; nothing here installs or exposes that consumer.
 func LifecycleAnswer(ctx context.Context, x Compose, r *LifecycleRequest) helperschema.Response {
-	if r.Validate() != nil {
+	if r.Validate() != nil || r.Manifest != digestFor(x.App) {
 		return helperschema.Response{Result: helperschema.ResultRefused, Code: helperschema.CodeInputRefused}
 	}
 	if r.Op == "status" {
@@ -118,7 +141,7 @@ func LifecycleAnswer(ctx context.Context, x Compose, r *LifecycleRequest) helper
 		if err != nil {
 			return helperschema.Response{Result: helperschema.ResultFailed, Code: helperschema.CodeEffectFailed, Detail: err.Error()}
 		}
-		data, _ := json.Marshal(lifecycleStatus{manifestDigest(), state})
+		data, _ := json.Marshal(lifecycleStatus{r.Manifest, state})
 		return helperschema.Response{Result: helperschema.ResultAnswered, Bundle: data}
 	}
 	observation, err := x.apply(ctx, r.Op, &r.Expected)
@@ -133,7 +156,7 @@ func LifecycleAnswer(ctx context.Context, x Compose, r *LifecycleRequest) helper
 	if observation.Postconditions == nil {
 		observation.Postconditions = []string{}
 	}
-	data, _ := json.Marshal(lifecycleResult{r.OperationID, r.Op, appTarget(), r.Manifest, r.Expected, observation})
+	data, _ := json.Marshal(lifecycleResult{r.OperationID, r.Op, "app:" + x.slug(), r.Manifest, r.Expected, observation})
 	result := helperschema.ResultPerformed
 	if observation.P1 == "failed" {
 		result = helperschema.ResultFailed
@@ -160,6 +183,7 @@ type HelperCaller interface {
 // confirmation, target locking, audit and durable ID retrieval. The portal uses
 // its attested helper client, never Docker or the native Compose executor.
 type LifecycleTask struct {
+	App    string
 	Op     string
 	Helper HelperCaller
 }
@@ -172,9 +196,9 @@ func (x LifecycleTask) state(ctx context.Context, input json.RawMessage) (State,
 	if x.Helper == nil || ctx.Err() != nil {
 		return State{}, errors.New("consumer_unavailable")
 	}
-	answer, err := x.Helper.Call(ctx, HelperName, &LifecycleRequest{Op: "status", Manifest: manifestDigest()})
+	answer, err := x.Helper.Call(ctx, HelperName, &LifecycleRequest{Op: "status", Manifest: digestFor(x.App)})
 	var result lifecycleStatus
-	if err != nil || answer.Result != helperschema.ResultAnswered || hostops.DecodeClosed(answer.Bundle, &result) != nil || result.Manifest != manifestDigest() || !validState(result.State) || !lifecycleReady(x.Op, result.State) {
+	if err != nil || answer.Result != helperschema.ResultAnswered || hostops.DecodeClosed(answer.Bundle, &result) != nil || result.Manifest != digestFor(x.App) || !validState(result.State) || !lifecycleReady(x.Op, result.State) {
 		return State{}, errors.New("optional_app_unavailable")
 	}
 	return result.State, nil
@@ -183,14 +207,14 @@ func (x LifecycleTask) Prepare(ctx context.Context, input json.RawMessage) (stri
 	if _, err := x.state(ctx, input); err != nil {
 		return "", err
 	}
-	return appTarget(), nil
+	return "app:" + x.slug(), nil
 }
 func (x LifecycleTask) Apply(ctx context.Context, cmd hostops.Command, input json.RawMessage) hostops.Observation {
-	if cmd.Module != "nginx-proxy-manager" || cmd.Verb != x.Op || cmd.TaskID != "nginx-proxy-manager."+x.Op || cmd.Target != appTarget() {
+	if cmd.Module != x.slug() || cmd.Verb != x.Op || cmd.TaskID != x.slug()+"."+x.Op || cmd.Target != "app:"+x.slug() {
 		return hostops.Observation{P1: "not-performed"}
 	}
 	state, err := x.state(ctx, input)
-	request := &LifecycleRequest{Op: x.Op, OperationID: cmd.OperationID, Manifest: manifestDigest(), Expected: state}
+	request := &LifecycleRequest{Op: x.Op, OperationID: cmd.OperationID, Manifest: digestFor(x.App), Expected: state}
 	if err != nil || request.Validate() != nil {
 		return hostops.Observation{P1: "not-performed"}
 	}
@@ -213,4 +237,11 @@ func (x LifecycleTask) Apply(ctx context.Context, cmd hostops.Command, input jso
 		return hostops.Observation{P1: "unknown"}
 	}
 	return result.Observation
+}
+
+func (x LifecycleTask) slug() string {
+	if x.App == "" {
+		return Slug
+	}
+	return x.App
 }
